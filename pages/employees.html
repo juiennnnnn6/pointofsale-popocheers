@@ -66,6 +66,7 @@
                 <input type="text" id="searchEmployee" placeholder="搜尋員工..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 <select id="filterRole" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">所有職位</option>
+                    <option value="管理員">管理員</option>
                     <option value="店長">店長</option>
                     <option value="收銀員">收銀員</option>
                     <option value="倉管">倉管</option>
@@ -120,7 +121,8 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">職位 *</label>
                     <select id="employeeRole" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="updatePermissionsByRole()">
                         <option value="">請選擇職位</option>
-                        <option value="店長">店長 (最高權限)</option>
+                        <option value="管理員">管理員 (系統最高權限)</option>
+                        <option value="店長">店長 (營運管理權限)</option>
                         <option value="收銀員">收銀員 (基本權限)</option>
                         <option value="倉管">倉管 (商品管理權限)</option>
                         <option value="銷售員">銷售員 (銷售權限)</option>
@@ -258,6 +260,7 @@
                     <td class="py-3 px-4 font-semibold">${emp.name}</td>
                     <td class="py-3 px-4">
                         <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                            emp.role === '管理員' ? 'bg-red-100 text-red-800' :
                             emp.role === '店長' ? 'bg-purple-100 text-purple-800' :
                             emp.role === '收銀員' ? 'bg-green-100 text-green-800' :
                             emp.role === '倉管' ? 'bg-blue-100 text-blue-800' :
@@ -299,7 +302,7 @@
             document.getElementById('totalEmployees').textContent = employees.length;
             document.getElementById('activeEmployees').textContent = employees.filter(emp => emp.status === 'active').length;
             document.getElementById('onlineEmployees').textContent = employees.filter(emp => emp.isOnline).length;
-            document.getElementById('managerCount').textContent = employees.filter(emp => emp.role === '店長').length;
+            document.getElementById('managerCount').textContent = employees.filter(emp => emp.role === '店長' || emp.role === '管理員').length;
         }
 
         // 顯示新增員工視窗
@@ -436,15 +439,26 @@
             
             // 根據職位設定預設權限
             switch(role) {
-                case '店長':
-                    // 店長擁有所有權限
+                case '管理員':
+                    // 管理員擁有所有權限
                     document.getElementById('permSales').checked = true;
                     document.getElementById('permProducts').checked = true;
                     document.getElementById('permPurchase').checked = true;
                     document.getElementById('permMembers').checked = true;
                     document.getElementById('permReports').checked = true;
                     document.getElementById('permEmployees').checked = true;
-                    roleDescription.textContent = '店長擁有系統所有功能權限，包括員工管理、報表查看等';
+                    roleDescription.textContent = '管理員擁有系統所有功能權限，包括員工管理、系統設定等最高權限';
+                    break;
+                    
+                case '店長':
+                    // 店長擁有營運相關權限，但不包括員工管理
+                    document.getElementById('permSales').checked = true;
+                    document.getElementById('permProducts').checked = true;
+                    document.getElementById('permPurchase').checked = true;
+                    document.getElementById('permMembers').checked = true;
+                    document.getElementById('permReports').checked = true;
+                    document.getElementById('permEmployees').checked = false;
+                    roleDescription.textContent = '店長負責日常營運管理，包括銷售、商品、進貨、會員和報表，但不包括員工管理';
                     break;
                     
                 case '收銀員':

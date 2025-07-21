@@ -93,62 +93,62 @@
             </div>
 
             <!-- 商品管理 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('products', ['店長', '倉管'])">
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('products', ['管理員', '店長', '倉管'])">
                 <div class="text-center">
                     <i class="fas fa-box text-4xl text-green-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">商品管理</h3>
                     <p class="text-sm text-gray-600">管理商品資料和庫存</p>
-                    <span class="text-xs text-red-500">需要管理員權限</span>
+                    <span class="text-xs text-red-500">需要管理員、店長或倉管權限</span>
                 </div>
             </div>
 
             <!-- 進貨作業 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('purchase', ['店長', '倉管'])">
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('purchase', ['管理員', '店長', '倉管'])">
                 <div class="text-center">
                     <i class="fas fa-truck text-4xl text-purple-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">進貨作業</h3>
                     <p class="text-sm text-gray-600">處理商品進貨和供應商管理</p>
-                    <span class="text-xs text-red-500">需要管理員權限</span>
+                    <span class="text-xs text-red-500">需要管理員、店長或倉管權限</span>
                 </div>
             </div>
 
             <!-- 會員管理 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('members', ['店長'])">
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('members', ['管理員', '店長'])">
                 <div class="text-center">
                     <i class="fas fa-users text-4xl text-emerald-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">會員管理</h3>
                     <p class="text-sm text-gray-600">管理會員資料和積分</p>
-                    <span class="text-xs text-red-500">需要店長權限</span>
+                    <span class="text-xs text-red-500">需要管理員或店長權限</span>
                 </div>
             </div>
 
             <!-- 員工管理 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('employees', ['店長'])">
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('employees', ['管理員'])">
                 <div class="text-center">
                     <i class="fas fa-user-tie text-4xl text-indigo-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">員工管理</h3>
                     <p class="text-sm text-gray-600">管理員工資料和權限</p>
-                    <span class="text-xs text-red-500">需要店長權限</span>
+                    <span class="text-xs text-red-500">需要管理員權限</span>
                 </div>
             </div>
 
             <!-- 報表中心 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('reports', ['店長'])">
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('reports', ['管理員', '店長'])">
                 <div class="text-center">
                     <i class="fas fa-chart-pie text-4xl text-purple-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">報表中心</h3>
                     <p class="text-sm text-gray-600">查看各類統計報表</p>
-                    <span class="text-xs text-red-500">需要店長權限</span>
+                    <span class="text-xs text-red-500">需要管理員或店長權限</span>
                 </div>
             </div>
 
             <!-- 商品匯出/入 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('import-export', ['店長'])">
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('import-export', ['管理員', '店長'])">
                 <div class="text-center">
                     <i class="fas fa-file-import text-4xl text-teal-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">商品匯出/入</h3>
                     <p class="text-sm text-gray-600">匯入匯出商品資料</p>
-                    <span class="text-xs text-red-500">需要店長權限</span>
+                    <span class="text-xs text-red-500">需要管理員或店長權限</span>
                 </div>
             </div>
 
@@ -205,7 +205,7 @@
                         break;
                     case '2':
                         event.preventDefault();
-                        checkPermissionAndNavigate('products', ['店長', '倉管']);
+                        checkPermissionAndNavigate('products', ['管理員', '店長', '倉管']);
                         break;
                     case '3':
                         event.preventDefault();
@@ -213,15 +213,15 @@
                         break;
                     case '4':
                         event.preventDefault();
-                        checkPermissionAndNavigate('members', ['店長']);
+                        checkPermissionAndNavigate('members', ['管理員', '店長']);
                         break;
                     case '5':
                         event.preventDefault();
-                        checkPermissionAndNavigate('employees', ['店長']);
+                        checkPermissionAndNavigate('employees', ['管理員']);
                         break;
                     case '6':
                         event.preventDefault();
-                        checkPermissionAndNavigate('reports', ['店長']);
+                        checkPermissionAndNavigate('reports', ['管理員', '店長']);
                         break;
                 }
             }
@@ -230,8 +230,9 @@
         // 員工登入功能
         let employees = {
             'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: ['sales', 'dashboard'] },
-            'E002': { name: '李美華', role: '店長', id: 'E002', permissions: ['all'] },
-            'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: ['products', 'purchase', 'dashboard'] }
+            'E002': { name: '李美華', role: '店長', id: 'E002', permissions: ['sales', 'products', 'purchase', 'members', 'reports'] },
+            'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: ['products', 'purchase', 'dashboard'] },
+            'E004': { name: '陳管理員', role: '管理員', id: 'E004', permissions: ['all'] }
         };
 
         // 載入員工資料
