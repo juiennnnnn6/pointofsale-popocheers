@@ -64,6 +64,9 @@
                 <button onclick="showSalesHistory()" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors">
                     <i class="fas fa-history mr-2"></i>銷售記錄
                 </button>
+                <button onclick="printSalesReceipt()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-print mr-2"></i>列印明細
+                </button>
             </div>
         </div>
     </div>
@@ -2012,6 +2015,180 @@
                 // 備用方案：在新分頁中開啟
                 window.open(`${page}.html`, '_blank');
             }
+        }
+
+        // 列印銷售明細
+        function printSalesReceipt() {
+            if (cart.length === 0) {
+                alert('購物車是空的，無法列印明細');
+                return;
+            }
+
+            const now = new Date();
+            const orderNumber = document.getElementById('orderNumber').textContent;
+            const cashier = document.getElementById('currentCashier').textContent;
+            const memberInfo = document.getElementById('currentMemberInfo').classList.contains('hidden') ? null : {
+                name: document.getElementById('memberName').textContent,
+                level: document.getElementById('memberLevel').textContent,
+                points: document.getElementById('memberPoints').textContent
+            };
+
+            // 計算總計
+            const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+            const discount = parseFloat(document.getElementById('discountAmount')?.textContent?.replace('NT$', '').replace(',', '') || 0);
+            const couponDiscount = parseFloat(document.getElementById('couponDiscount')?.textContent?.replace('NT$', '').replace(',', '') || 0);
+            const total = subtotal - discount - couponDiscount;
+
+            // 生成列印內容
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>銷售明細 - ${orderNumber}</title>
+                    <style>
+                        @media print {
+                            body { margin: 0; padding: 10px; font-family: 'Courier New', monospace; }
+                            .no-print { display: none; }
+                        }
+                        body { 
+                            font-family: 'Courier New', monospace; 
+                            margin: 0; 
+                            padding: 10px; 
+                            font-size: 12px; 
+                            line-height: 1.2;
+                        }
+                        .header { text-align: center; margin-bottom: 10px; }
+                        .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+                        .subtitle { font-size: 12px; margin-bottom: 10px; }
+                        .info { margin-bottom: 10px; }
+                        .info-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                        .divider { border-top: 1px dashed #000; margin: 5px 0; }
+                        .item { margin-bottom: 3px; }
+                        .item-name { font-weight: bold; }
+                        .item-details { font-size: 10px; color: #666; }
+                        .item-price { text-align: right; }
+                        .total-section { margin-top: 10px; }
+                        .total-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                        .final-total { font-weight: bold; font-size: 14px; }
+                        .footer { text-align: center; margin-top: 15px; font-size: 10px; }
+                        .member-info { background: #f0f0f0; padding: 5px; margin: 5px 0; }
+                        .print-button { 
+                            position: fixed; 
+                            top: 10px; 
+                            right: 10px; 
+                            background: #007bff; 
+                            color: white; 
+                            border: none; 
+                            padding: 8px 16px; 
+                            border-radius: 4px; 
+                            cursor: pointer;
+                        }
+                        .print-button:hover { background: #0056b3; }
+                    </style>
+                </head>
+                <body>
+                    <button class="print-button no-print" onclick="window.print()">列印</button>
+                    
+                    <div class="header">
+                        <div class="title">波波 聚 歐洲家居/波蘭陶食器</div>
+                        <div class="subtitle">銷售明細</div>
+                    </div>
+                    
+                    <div class="info">
+                        <div class="info-row">
+                            <span>訂單編號：</span>
+                            <span>${orderNumber}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>日期：</span>
+                            <span>${now.toLocaleDateString('zh-TW')}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>時間：</span>
+                            <span>${now.toLocaleTimeString('zh-TW')}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>收銀員：</span>
+                            <span>${cashier}</span>
+                        </div>
+                    </div>
+                    
+                    ${memberInfo ? `
+                    <div class="member-info">
+                        <div class="info-row">
+                            <span>會員：</span>
+                            <span>${memberInfo.name}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>等級：</span>
+                            <span>${memberInfo.level}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>積分：</span>
+                            <span>${memberInfo.points}</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="items">
+                        ${cart.map(item => `
+                            <div class="item">
+                                <div class="item-name">${item.name}</div>
+                                <div class="item-details">
+                                    規格：${item.variant} | 條碼：${item.barcode} | 數量：${item.quantity}
+                                </div>
+                                <div class="item-price">
+                                    單價：NT$${item.price.toLocaleString()} | 小計：NT$${item.total.toLocaleString()}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="total-section">
+                        <div class="total-row">
+                            <span>商品小計：</span>
+                            <span>NT$${subtotal.toLocaleString()}</span>
+                        </div>
+                        ${discount > 0 ? `
+                        <div class="total-row">
+                            <span>折扣：</span>
+                            <span>-NT$${discount.toLocaleString()}</span>
+                        </div>
+                        ` : ''}
+                        ${couponDiscount > 0 ? `
+                        <div class="total-row">
+                            <span>優惠券折扣：</span>
+                            <span>-NT$${couponDiscount.toLocaleString()}</span>
+                        </div>
+                        ` : ''}
+                        <div class="total-row final-total">
+                            <span>總計：</span>
+                            <span>NT$${total.toLocaleString()}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <div>謝謝光臨！</div>
+                        <div>歡迎再次蒞臨</div>
+                        <div>波波 聚 歐洲家居/波蘭陶食器</div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // 開啟新視窗並列印
+            const printWindow = window.open('', '_blank', 'width=600,height=800');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            
+            // 等待內容載入後自動列印
+            printWindow.onload = function() {
+                printWindow.print();
+            };
         }
 
         // 回到主頁面
