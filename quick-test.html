@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 快速測試</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .test-result { transition: all 0.3s ease; }
+        .test-success { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .test-error { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">
+            <i class="fas fa-database text-blue-500 mr-3"></i>
+            Supabase 連接測試
+        </h1>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">目前設定</h2>
+            <div class="space-y-2 text-sm">
+                <div><strong>URL:</strong> https://cgwhckykrlphnibmuvhz.supabase.co</div>
+                <div><strong>API Key:</strong> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</div>
+            </div>
+        </div>
+        
+        <div class="space-y-4">
+            <div id="test1" class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold mb-4">測試 1: 基本連接</h3>
+                <div id="result1" class="text-center py-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">正在測試...</p>
+                </div>
+            </div>
+            
+            <div id="test2" class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold mb-4">測試 2: API Key 驗證</h3>
+                <div id="result2" class="text-center py-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">正在驗證...</p>
+                </div>
+            </div>
+            
+            <div id="test3" class="bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold mb-4">測試 3: 資料表檢查</h3>
+                <div id="result3" class="text-center py-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">正在檢查...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-8">
+            <button id="runAllTests" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                重新執行所有測試
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Supabase 配置
+        const SUPABASE_URL = 'https://cgwhckykrlphnibmuvhz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY';
+
+        let supabase;
+
+        // 更新測試結果
+        function updateResult(elementId, success, message, details = '') {
+            const element = document.getElementById(elementId);
+            const testDiv = document.getElementById(elementId.replace('result', 'test'));
+            
+            if (success) {
+                testDiv.classList.add('test-success');
+                element.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="text-4xl mb-2">✅</div>
+                        <p class="text-lg font-semibold text-green-700">${message}</p>
+                        ${details ? `<p class="text-sm text-gray-600 mt-2">${details}</p>` : ''}
+                    </div>
+                `;
+            } else {
+                testDiv.classList.add('test-error');
+                element.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="text-4xl mb-2">❌</div>
+                        <p class="text-lg font-semibold text-red-700">${message}</p>
+                        ${details ? `<p class="text-sm text-gray-600 mt-2">${details}</p>` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        // 測試 1: 基本連接
+        async function testBasicConnection() {
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                // 嘗試獲取一個簡單的查詢
+                const { data, error } = await supabase.from('products').select('count').limit(1);
+                
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        updateResult('result1', true, '連接成功', 'API Key 有效，但資料表不存在');
+                    } else {
+                        updateResult('result1', false, '連接失敗', `錯誤: ${error.message}`);
+                    }
+                } else {
+                    updateResult('result1', true, '連接成功', '可以正常與 Supabase 通訊');
+                }
+            } catch (error) {
+                updateResult('result1', false, '連接失敗', `網路錯誤: ${error.message}`);
+            }
+        }
+
+        // 測試 2: API Key 驗證
+        async function testApiKey() {
+            try {
+                // 嘗試獲取認證資訊
+                const { data, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    updateResult('result2', false, 'API Key 無效', `錯誤: ${error.message}`);
+                } else {
+                    updateResult('result2', true, 'API Key 有效', '可以正常使用此 API Key');
+                }
+            } catch (error) {
+                updateResult('result2', false, 'API Key 驗證失敗', `錯誤: ${error.message}`);
+            }
+        }
+
+        // 測試 3: 資料表檢查
+        async function testTables() {
+            const tables = ['products', 'categories', 'members', 'employees', 'sales_history', 'coupons', 'suppliers'];
+            let existingTables = [];
+            let missingTables = [];
+
+            for (const table of tables) {
+                try {
+                    const { data, error } = await supabase.from(table).select('count').limit(1);
+                    if (!error) {
+                        existingTables.push(table);
+                    } else {
+                        missingTables.push(table);
+                    }
+                } catch (error) {
+                    missingTables.push(table);
+                }
+            }
+
+            if (existingTables.length === tables.length) {
+                updateResult('result3', true, '所有資料表都存在', `已找到: ${existingTables.join(', ')}`);
+            } else if (existingTables.length > 0) {
+                updateResult('result3', false, '部分資料表存在', `存在: ${existingTables.join(', ')}\n缺少: ${missingTables.join(', ')}`);
+            } else {
+                updateResult('result3', false, '沒有找到任何資料表', `缺少: ${missingTables.join(', ')}`);
+            }
+        }
+
+        // 執行所有測試
+        async function runAllTests() {
+            // 重置所有測試結果
+            document.querySelectorAll('[id^="test"]').forEach(el => {
+                el.classList.remove('test-success', 'test-error');
+            });
+            
+            document.querySelectorAll('[id^="result"]').forEach(el => {
+                el.innerHTML = `
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">正在測試...</p>
+                `;
+            });
+
+            await testBasicConnection();
+            await testApiKey();
+            await testTables();
+        }
+
+        // 頁面載入時執行測試
+        document.addEventListener('DOMContentLoaded', runAllTests);
+        
+        // 綁定重新測試按鈕
+        document.getElementById('runAllTests').addEventListener('click', runAllTests);
+    </script>
+</body>
+</html> 
