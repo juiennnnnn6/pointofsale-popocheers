@@ -8,11 +8,13 @@ function getAllowedIPs() {
         const ipList = JSON.parse(savedIPs);
         return ipList.filter(ip => ip.enabled).map(ip => ip.address);
     }
-    // 預設IP列表
+    // 固定IP列表 - 只允許這兩個IP訪問
     return [
-        '127.0.0.1',           // 本地測試
-        'localhost',            // 本地主機
-        '::1',                  // IPv6本地地址
+        '114.33.57.90',        // 固定IP 1
+        '220.133.251.74',      // 固定IP 2
+        '127.0.0.1',           // 本地測試（開發用）
+        'localhost',            // 本地主機（開發用）
+        '::1',                  // IPv6本地地址（開發用）
     ];
 }
 
@@ -23,10 +25,10 @@ function getAllowedIPRanges() {
         const ipList = JSON.parse(savedIPs);
         return ipList.filter(ip => ip.enabled && ip.type === 'range').map(ip => ip.address);
     }
-    // 預設IP範圍
+    // 固定IP範圍 - 只允許這兩個IP的/32範圍
     return [
-        '192.168.1.0/24',      // 辦公室內網範圍
-        '10.0.0.0/8',          // 公司內網範圍
+        '114.33.57.90/32',     // 固定IP 1 精確範圍
+        '220.133.251.74/32',   // 固定IP 2 精確範圍
     ];
 }
 
