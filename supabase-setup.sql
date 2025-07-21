@@ -63,10 +63,16 @@ CREATE TABLE IF NOT EXISTS sales_history (
     employee_id INTEGER,
     items JSONB NOT NULL,
     subtotal DECIMAL(10,2) NOT NULL,
-    discount DECIMAL(10,2) DEFAULT 0,
+    member_discount DECIMAL(10,2) DEFAULT 0,
+    coupon_discount DECIMAL(10,2) DEFAULT 0,
     tax DECIMAL(10,2) DEFAULT 0,
     total DECIMAL(10,2) NOT NULL,
     payment_method VARCHAR(50),
+    received_amount DECIMAL(10,2),
+    change_amount DECIMAL(10,2) DEFAULT 0,
+    cashier_name VARCHAR(100),
+    member_info JSONB,
+    coupon_info JSONB,
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );

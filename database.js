@@ -236,10 +236,39 @@ class BusinessAPI {
     }
     
     static async addSale(saleData) {
-        return await DatabaseAPI.insertData('sales_history', {
-            ...saleData,
+        // 確保銷售記錄包含所有必要的明細資訊
+        const saleRecord = {
+            receipt_number: saleData.receiptNumber,
+            customer_id: saleData.member?.id || null,
+            employee_id: saleData.employeeId || null,
+            items: saleData.items,
+            subtotal: saleData.subtotal,
+            member_discount: saleData.memberDiscount || 0,
+            coupon_discount: saleData.couponDiscount || 0,
+            tax: saleData.tax || 0,
+            total: saleData.total,
+            payment_method: saleData.paymentMethod,
+            received_amount: saleData.receivedAmount || saleData.total,
+            change_amount: saleData.change || 0,
+            cashier_name: saleData.cashier,
+            member_info: saleData.member,
+            coupon_info: saleData.coupon,
+            notes: saleData.notes || '',
             created_at: new Date().toISOString()
+        };
+        
+        return await DatabaseAPI.insertData('sales_history', saleRecord);
+    }
+    
+    static async updateSale(id, saleData) {
+        return await DatabaseAPI.updateData('sales_history', id, {
+            ...saleData,
+            updated_at: new Date().toISOString()
         });
+    }
+    
+    static async deleteSale(id) {
+        return await DatabaseAPI.deleteData('sales_history', id);
     }
     
     // 優惠券管理
