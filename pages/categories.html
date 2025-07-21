@@ -310,19 +310,33 @@
         function updateStatistics() {
             document.getElementById('totalCategories').textContent = categories.length;
             
-            // 計算商品總數
+            // 計算商品總數和更新分類商品數量
             const products = JSON.parse(localStorage.getItem('products') || '{}');
             const totalProducts = Object.keys(products).length;
             document.getElementById('totalProducts').textContent = totalProducts;
             
-            // 找出熱門分類
+            // 重置所有分類的商品數量
+            categories.forEach(cat => {
+                cat.productCount = 0;
+            });
+            
+            // 計算每個分類的商品數量
             const categoryCounts = {};
             Object.values(products).forEach(product => {
                 if (product.category) {
                     categoryCounts[product.category] = (categoryCounts[product.category] || 0) + 1;
+                    // 更新對應分類的商品數量
+                    const category = categories.find(cat => cat.name === product.category);
+                    if (category) {
+                        category.productCount++;
+                    }
                 }
             });
             
+            // 儲存更新後的分類數據
+            saveCategories();
+            
+            // 找出熱門分類
             let popularCategory = '-';
             let maxCount = 0;
             Object.entries(categoryCounts).forEach(([category, count]) => {
@@ -377,6 +391,13 @@
                 return;
             }
             
+            // 檢查是否有重複的分類名稱
+            const existingCategory = categories.find(cat => cat.name === name && cat.id !== editingCategoryId);
+            if (existingCategory) {
+                alert('分類名稱已存在，請使用不同的名稱');
+                return;
+            }
+            
             if (editingCategoryId) {
                 // 編輯現有分類
                 const index = categories.findIndex(cat => cat.id === editingCategoryId);
@@ -392,7 +413,7 @@
             } else {
                 // 新增分類
                 const newCategory = {
-                    id: 'cat_' + Date.now(),
+                    id: 'cat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                     name,
                     description,
                     color,
@@ -418,8 +439,17 @@
             const category = categories.find(cat => cat.id === categoryId);
             if (!category) return;
             
-            if (category.productCount > 0) {
-                alert(`無法刪除包含 ${category.productCount} 個商品的分類！\n請先將商品移至其他分類。`);
+            // 重新計算該分類的商品數量
+            const products = JSON.parse(localStorage.getItem('products') || '{}');
+            let productCount = 0;
+            Object.values(products).forEach(product => {
+                if (product.category === category.name) {
+                    productCount++;
+                }
+            });
+            
+            if (productCount > 0) {
+                alert(`無法刪除包含 ${productCount} 個商品的分類！\n請先將商品移至其他分類。`);
                 return;
             }
             
