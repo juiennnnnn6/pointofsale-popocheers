@@ -8,14 +8,8 @@ function getAllowedIPs() {
         const ipList = JSON.parse(savedIPs);
         return ipList.filter(ip => ip.enabled).map(ip => ip.address);
     }
-    // 固定IP列表 - 只允許這兩個IP訪問
-    return [
-        '114.33.57.90',        // 固定IP 1
-        '220.133.251.74',      // 固定IP 2
-        '127.0.0.1',           // 本地測試（開發用）
-        'localhost',            // 本地主機（開發用）
-        '::1',                  // IPv6本地地址（開發用）
-    ];
+    // IP限制已取消 - 允許所有IP訪問
+    return ['*']; // 通配符表示允許所有IP
 }
 
 // 獲取允許的IP範圍
@@ -25,11 +19,8 @@ function getAllowedIPRanges() {
         const ipList = JSON.parse(savedIPs);
         return ipList.filter(ip => ip.enabled && ip.type === 'range').map(ip => ip.address);
     }
-    // 固定IP範圍 - 只允許這兩個IP的/32範圍
-    return [
-        '114.33.57.90/32',     // 固定IP 1 精確範圍
-        '220.133.251.74/32',   // 固定IP 2 精確範圍
-    ];
+    // IP限制已取消 - 允許所有IP範圍
+    return ['0.0.0.0/0']; // 允許所有IP範圍
 }
 
 // 獲取允許的國家列表
@@ -49,6 +40,11 @@ function getAllowedCountries() {
 function isIPAllowed(ip) {
     const allowedIPs = getAllowedIPs();
     const allowedRanges = getAllowedIPRanges();
+    
+    // 如果允許所有IP（通配符），直接返回true
+    if (allowedIPs.includes('*') || allowedRanges.includes('0.0.0.0/0')) {
+        return true;
+    }
     
     // 檢查精確IP匹配
     if (allowedIPs.includes(ip)) {
@@ -127,12 +123,8 @@ async function getLocationInfo(ip) {
 
 // 檢查地理位置限制
 function isLocationAllowed(locationInfo) {
-    if (!locationInfo || !locationInfo.country) {
-        return true; // 如果無法獲取地理位置，允許訪問
-    }
-    
-    const allowedCountries = getAllowedCountries();
-    return allowedCountries.includes(locationInfo.country);
+    // IP限制已取消 - 允許所有地理位置
+    return true;
 }
 
 // 顯示IP限制錯誤頁面

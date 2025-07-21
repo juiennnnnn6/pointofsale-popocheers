@@ -251,12 +251,11 @@
             if (savedIPs) {
                 ipList = JSON.parse(savedIPs);
             } else {
-                // 預設IP列表 - 固定IP設定
+                // 預設IP列表 - IP限制已取消
                 ipList = [
-                    { type: 'single', address: '114.33.57.90', description: '固定IP 1', enabled: true },
-                    { type: 'single', address: '220.133.251.74', description: '固定IP 2', enabled: true },
-                    { type: 'single', address: '127.0.0.1', description: '本地測試（開發用）', enabled: true },
-                    { type: 'single', address: 'localhost', description: '本地主機（開發用）', enabled: true }
+                    { type: 'single', address: '*', description: '允許所有IP（IP限制已取消）', enabled: true },
+                    { type: 'single', address: '127.0.0.1', description: '本地測試', enabled: true },
+                    { type: 'single', address: 'localhost', description: '本地主機', enabled: true }
                 ];
                 saveIPList();
             }
