@@ -174,15 +174,7 @@
                 </div>
             </div>
 
-            <!-- IP安全管理 -->
-            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('ip-management', ['管理員'])">
-                <div class="text-center">
-                    <i class="fas fa-shield-alt text-4xl text-indigo-500 mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">IP安全管理</h3>
-                    <p class="text-sm text-gray-600">管理系統訪問IP白名單和地理位置限制</p>
-                    <span class="text-xs text-red-500">需要管理員權限</span>
-                </div>
-            </div>
+
 
         </div>
 
@@ -381,31 +373,7 @@
         }
 
         // 頁面載入時的初始化
-        document.addEventListener('DOMContentLoaded', async function() {
-            // 首先檢查IP限制
-            try {
-                // 載入IP限制腳本
-                if (typeof window.IPRestriction === 'undefined') {
-                    const script = document.createElement('script');
-                    script.src = 'pages/ip-restriction.js';
-                    document.head.appendChild(script);
-                    
-                    // 等待腳本載入
-                    await new Promise((resolve) => {
-                        script.onload = resolve;
-                    });
-                }
-                
-                // 執行IP限制檢查
-                const ipAllowed = await window.IPRestriction.initIPRestriction();
-                if (!ipAllowed) {
-                    console.log('IP限制檢查失敗，停止載入頁面');
-                    return;
-                }
-            } catch (error) {
-                console.warn('IP限制檢查失敗，繼續載入頁面:', error);
-            }
-            
+        document.addEventListener('DOMContentLoaded', function() {
             loadEmployees();
             checkEmployeeLogin();
         });
