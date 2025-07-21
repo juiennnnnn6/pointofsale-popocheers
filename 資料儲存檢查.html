@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資料儲存檢查</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto p-6">
+        <div class="max-w-4xl mx-auto">
+            <!-- 標題 -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-database text-blue-500 mr-3"></i>
+                    資料儲存檢查
+                </h1>
+                <p class="text-gray-600">檢查您的進銷存系統資料儲存狀況</p>
+            </div>
+
+            <!-- 資料概覽 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-chart-pie text-green-500 mr-2"></i>
+                    資料概覽
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="dataOverview">
+                    <!-- 資料概覽會在這裡動態生成 -->
+                </div>
+            </div>
+
+            <!-- 詳細資料檢查 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-list text-purple-500 mr-2"></i>
+                    詳細資料檢查
+                </h2>
+                
+                <div class="space-y-4" id="dataDetails">
+                    <!-- 詳細資料會在這裡動態生成 -->
+                </div>
+            </div>
+
+            <!-- 儲存位置資訊 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-map-marker-alt text-red-500 mr-2"></i>
+                    儲存位置資訊
+                </h2>
+                
+                <div class="space-y-4">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <h3 class="font-semibold text-blue-800 mb-2">📱 當前裝置</h3>
+                        <div class="text-sm text-blue-700 space-y-1">
+                            <div><strong>瀏覽器:</strong> <span id="browserInfo"></span></div>
+                            <div><strong>裝置類型:</strong> <span id="deviceType"></span></div>
+                            <div><strong>作業系統:</strong> <span id="osInfo"></span></div>
+                            <div><strong>localStorage 可用:</strong> <span id="storageAvailable"></span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-yellow-50 rounded-lg">
+                        <h3 class="font-semibold text-yellow-800 mb-2">⚠️ 重要提醒</h3>
+                        <div class="text-sm text-yellow-700 space-y-1">
+                            <div>• 資料儲存在瀏覽器的 localStorage 中</div>
+                            <div>• 清除瀏覽器快取會遺失所有資料</div>
+                            <div>• 不同裝置的資料不會自動同步</div>
+                            <div>• 建議定期匯出備份資料</div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <h3 class="font-semibold text-green-800 mb-2">💡 建議做法</h3>
+                        <div class="text-sm text-green-700 space-y-1">
+                            <div>• 每日匯出一次資料作為備份</div>
+                            <div>• 將備份檔案儲存在雲端硬碟</div>
+                            <div>• 在新裝置上匯入備份資料</div>
+                            <div>• 定期檢查資料完整性</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-tools text-indigo-500 mr-2"></i>
+                    資料操作
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="exportAllData()" 
+                            class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-download mr-2"></i>匯出所有資料
+                    </button>
+                    
+                    <button onclick="clearAllData()" 
+                            class="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash mr-2"></i>清除所有資料
+                    </button>
+                    
+                    <button onclick="checkDataIntegrity()" 
+                            class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-check-circle mr-2"></i>檢查資料完整性
+                    </button>
+                    
+                    <button onclick="showStorageInfo()" 
+                            class="bg-purple-500 text-white px-6 py-3 rounded-lg hover:bg-purple-600 transition-colors">
+                        <i class="fas fa-info-circle mr-2"></i>顯示儲存資訊
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDeviceInfo();
+            checkAllData();
+        });
+
+        // 更新裝置資訊
+        function updateDeviceInfo() {
+            const userAgent = navigator.userAgent;
+            
+            // 瀏覽器資訊
+            let browser = '未知瀏覽器';
+            if (userAgent.includes('Chrome')) browser = 'Chrome';
+            else if (userAgent.includes('Firefox')) browser = 'Firefox';
+            else if (userAgent.includes('Safari')) browser = 'Safari';
+            else if (userAgent.includes('Edge')) browser = 'Edge';
+            
+            // 裝置類型
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+            const deviceType = isMobile ? '手機/平板' : '電腦';
+            
+            // 作業系統
+            let os = '未知系統';
+            if (userAgent.includes('Windows')) os = 'Windows';
+            else if (userAgent.includes('Mac')) os = 'macOS';
+            else if (userAgent.includes('Linux')) os = 'Linux';
+            else if (userAgent.includes('Android')) os = 'Android';
+            else if (userAgent.includes('iOS')) os = 'iOS';
+            
+            // localStorage 可用性
+            const storageAvailable = typeof(Storage) !== "undefined" ? '是' : '否';
+            
+            document.getElementById('browserInfo').textContent = browser;
+            document.getElementById('deviceType').textContent = deviceType;
+            document.getElementById('osInfo').textContent = os;
+            document.getElementById('storageAvailable').textContent = storageAvailable;
+        }
+
+        // 檢查所有資料
+        function checkAllData() {
+            const dataTypes = [
+                { key: 'products', name: '商品資料', icon: 'fas fa-box' },
+                { key: 'categories', name: '分類資料', icon: 'fas fa-tags' },
+                { key: 'members', name: '會員資料', icon: 'fas fa-users' },
+                { key: 'employees', name: '員工資料', icon: 'fas fa-user-tie' },
+                { key: 'suppliers', name: '供應商資料', icon: 'fas fa-truck' },
+                { key: 'sales', name: '銷售記錄', icon: 'fas fa-cash-register' },
+                { key: 'purchases', name: '採購記錄', icon: 'fas fa-shopping-cart' },
+                { key: 'coupons', name: '優惠券資料', icon: 'fas fa-ticket-alt' }
+            ];
+
+            // 更新資料概覽
+            updateDataOverview(dataTypes);
+            
+            // 更新詳細資料
+            updateDataDetails(dataTypes);
+        }
+
+        // 更新資料概覽
+        function updateDataOverview(dataTypes) {
+            const overviewDiv = document.getElementById('dataOverview');
+            overviewDiv.innerHTML = '';
+
+            dataTypes.forEach(dataType => {
+                const data = localStorage.getItem(dataType.key);
+                const count = data ? JSON.parse(data).length : 0;
+                const hasData = count > 0;
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-lg border ${hasData ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="${dataType.icon} text-2xl ${hasData ? 'text-green-500' : 'text-gray-400'} mr-3"></i>
+                            <div>
+                                <div class="font-semibold text-gray-800">${dataType.name}</div>
+                                <div class="text-sm text-gray-600">${count} 筆資料</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium ${hasData ? 'text-green-600' : 'text-gray-500'}">
+                                ${hasData ? '有資料' : '無資料'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                overviewDiv.appendChild(card);
+            });
+        }
+
+        // 更新詳細資料
+        function updateDataDetails(dataTypes) {
+            const detailsDiv = document.getElementById('dataDetails');
+            detailsDiv.innerHTML = '';
+
+            dataTypes.forEach(dataType => {
+                const data = localStorage.getItem(dataType.key);
+                const items = data ? JSON.parse(data) : [];
+                
+                const detailCard = document.createElement('div');
+                detailCard.className = 'p-4 border rounded-lg';
+                detailCard.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-gray-800">
+                            <i class="${dataType.icon} mr-2"></i>${dataType.name}
+                        </h3>
+                        <span class="text-sm text-gray-600">${items.length} 筆</span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        <div><strong>儲存大小:</strong> ${(data ? data.length : 0)} 字元</div>
+                        <div><strong>最後更新:</strong> ${new Date().toLocaleString('zh-TW')}</div>
+                        ${items.length > 0 ? `<div><strong>範例資料:</strong> ${JSON.stringify(items[0]).substring(0, 100)}...</div>` : ''}
+                    </div>
+                `;
+                detailsDiv.appendChild(detailCard);
+            });
+        }
+
+        // 匯出所有資料
+        function exportAllData() {
+            const allData = {};
+            const dataKeys = ['products', 'categories', 'members', 'employees', 'suppliers', 'sales', 'purchases', 'coupons'];
+            
+            dataKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    allData[key] = JSON.parse(data);
+                }
+            });
+
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `進銷存系統備份_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            alert('資料匯出完成！');
+        }
+
+        // 清除所有資料
+        function clearAllData() {
+            if (confirm('確定要清除所有資料嗎？此操作無法復原！')) {
+                const dataKeys = ['products', 'categories', 'members', 'employees', 'suppliers', 'sales', 'purchases', 'coupons', 'currentEmployee'];
+                dataKeys.forEach(key => localStorage.removeItem(key));
+                alert('所有資料已清除！');
+                checkAllData();
+            }
+        }
+
+        // 檢查資料完整性
+        function checkDataIntegrity() {
+            const dataKeys = ['products', 'categories', 'members', 'employees', 'suppliers', 'sales', 'purchases', 'coupons'];
+            const results = [];
+
+            dataKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        results.push({
+                            key: key,
+                            valid: Array.isArray(parsed),
+                            count: parsed.length,
+                            size: data.length
+                        });
+                    } catch (e) {
+                        results.push({
+                            key: key,
+                            valid: false,
+                            error: e.message
+                        });
+                    }
+                } else {
+                    results.push({
+                        key: key,
+                        valid: true,
+                        count: 0,
+                        size: 0
+                    });
+                }
+            });
+
+            let message = '資料完整性檢查結果：\n\n';
+            results.forEach(result => {
+                message += `${result.key}: ${result.valid ? '正常' : '錯誤'}`;
+                if (result.count !== undefined) message += ` (${result.count} 筆)`;
+                if (result.error) message += ` - ${result.error}`;
+                message += '\n';
+            });
+
+            alert(message);
+        }
+
+        // 顯示儲存資訊
+        function showStorageInfo() {
+            const info = {
+                'localStorage 可用': typeof(Storage) !== "undefined",
+                '已使用空間': JSON.stringify(localStorage).length + ' 字元',
+                '總資料類型': 8,
+                '當前裝置': navigator.userAgent.substring(0, 50) + '...',
+                '儲存位置': '瀏覽器 localStorage',
+                '同步狀態': '僅限當前裝置'
+            };
+
+            let message = '儲存資訊：\n\n';
+            Object.entries(info).forEach(([key, value]) => {
+                message += `${key}: ${value}\n`;
+            });
+
+            alert(message);
+        }
+    </script>
+</body>
+</html> 
