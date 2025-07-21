@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 連接測試</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="database.js"></script>
+    <style>
+        .status-success { color: #10b981; }
+        .status-error { color: #ef4444; }
+        .status-warning { color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-database text-blue-500 mr-3"></i>
+                Supabase 連接測試
+            </h1>
+            
+            <div id="testResults" class="space-y-4">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="text-gray-600 mt-2">正在測試連接...</p>
+                </div>
+            </div>
+            
+            <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+                <h3 class="font-semibold text-blue-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    測試說明
+                </h3>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>• 檢查 Supabase URL 和 API Key 是否正確</li>
+                    <li>• 測試資料庫連接狀態</li>
+                    <li>• 檢查必要的資料表是否存在</li>
+                    <li>• 測試基本的 CRUD 操作</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function runTests() {
+            const resultsDiv = document.getElementById('testResults');
+            let results = [];
+            
+            // 測試1: 檢查配置
+            try {
+                console.log('測試1: 檢查 Supabase 配置');
+                if (typeof supabase === 'undefined') {
+                    throw new Error('Supabase 客戶端未初始化');
+                }
+                results.push({
+                    test: 'Supabase 配置檢查',
+                    status: 'success',
+                    message: '配置正確'
+                });
+            } catch (error) {
+                results.push({
+                    test: 'Supabase 配置檢查',
+                    status: 'error',
+                    message: error.message
+                });
+            }
+            
+            // 測試2: 連接測試
+            try {
+                console.log('測試2: 資料庫連接測試');
+                const { data, error } = await supabase.from('products').select('count').limit(1);
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        results.push({
+                            test: '資料庫連接',
+                            status: 'warning',
+                            message: '連接成功，但資料表不存在（需要創建資料表）'
+                        });
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    results.push({
+                        test: '資料庫連接',
+                        status: 'success',
+                        message: '連接成功'
+                    });
+                }
+            } catch (error) {
+                results.push({
+                    test: '資料庫連接',
+                    status: 'error',
+                    message: `連接失敗: ${error.message}`
+                });
+            }
+            
+            // 測試3: 檢查資料表
+            const tables = ['products', 'categories', 'members', 'employees', 'sales_history', 'coupons', 'suppliers'];
+            for (const table of tables) {
+                try {
+                    const { error } = await supabase.from(table).select('count').limit(1);
+                    if (error && error.code === 'PGRST116') {
+                        results.push({
+                            test: `資料表: ${table}`,
+                            status: 'error',
+                            message: '資料表不存在'
+                        });
+                    } else {
+                        results.push({
+                            test: `資料表: ${table}`,
+                            status: 'success',
+                            message: '資料表存在'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        test: `資料表: ${table}`,
+                        status: 'error',
+                        message: `檢查失敗: ${error.message}`
+                    });
+                }
+            }
+            
+            // 顯示結果
+            displayResults(results);
+        }
+        
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '';
+            
+            results.forEach(result => {
+                const statusClass = result.status === 'success' ? 'status-success' : 
+                                  result.status === 'warning' ? 'status-warning' : 'status-error';
+                const statusIcon = result.status === 'success' ? 'fa-check-circle' :
+                                 result.status === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'border rounded-lg p-4';
+                resultDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas ${statusIcon} ${statusClass} mr-3"></i>
+                            <span class="font-medium">${result.test}</span>
+                        </div>
+                        <span class="text-sm ${statusClass}">${result.message}</span>
+                    </div>
+                `;
+                resultsDiv.appendChild(resultDiv);
+            });
+            
+            // 添加總結
+            const successCount = results.filter(r => r.status === 'success').length;
+            const warningCount = results.filter(r => r.status === 'warning').length;
+            const errorCount = results.filter(r => r.status === 'error').length;
+            
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'mt-6 p-4 bg-gray-50 rounded-lg';
+            summaryDiv.innerHTML = `
+                <h3 class="font-semibold text-gray-800 mb-2">測試總結</h3>
+                <div class="grid grid-cols-3 gap-4 text-sm">
+                    <div class="text-center">
+                        <div class="text-green-600 font-bold">${successCount}</div>
+                        <div class="text-gray-600">成功</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-yellow-600 font-bold">${warningCount}</div>
+                        <div class="text-gray-600">警告</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-red-600 font-bold">${errorCount}</div>
+                        <div class="text-gray-600">錯誤</div>
+                    </div>
+                </div>
+            `;
+            resultsDiv.appendChild(summaryDiv);
+            
+            // 添加下一步建議
+            if (errorCount > 0) {
+                const nextStepsDiv = document.createElement('div');
+                nextStepsDiv.className = 'mt-4 p-4 bg-yellow-50 rounded-lg';
+                nextStepsDiv.innerHTML = `
+                    <h3 class="font-semibold text-yellow-800 mb-2">
+                        <i class="fas fa-lightbulb mr-2"></i>
+                        下一步建議
+                    </h3>
+                    <ul class="text-sm text-yellow-700 space-y-1">
+                        <li>• 請按照 SUPABASE_SETUP.md 的步驟5創建必要的資料表</li>
+                        <li>• 在 Supabase 控制台的 SQL Editor 中執行提供的 SQL 語句</li>
+                        <li>• 設定資料表權限（步驟6）</li>
+                        <li>• 完成後重新測試連接</li>
+                    </ul>
+                `;
+                resultsDiv.appendChild(nextStepsDiv);
+            }
+        }
+        
+        // 頁面載入時自動執行測試
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 等待資料庫初始化
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            await runTests();
+        });
+    </script>
+</body>
+</html> 
