@@ -166,7 +166,7 @@
                     </div>
                 </div>
             </div>
-            <div style="height: 120px; position: relative;">
+            <div style="height: 200px; position: relative;">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
@@ -177,7 +177,9 @@
                 <h3 class="text-lg font-semibold text-gray-800">商品分類銷售占比</h3>
                 <span class="text-sm text-gray-600">本月數據</span>
             </div>
-            <canvas id="categoryChart" width="400" height="200"></canvas>
+            <div style="height: 250px; position: relative;">
+                <canvas id="categoryChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -627,7 +629,7 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: false
