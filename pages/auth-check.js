@@ -62,7 +62,31 @@ function logout() {
 }
 
 // 頁面載入時自動檢查身份驗證
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // 首先檢查IP限制
+    try {
+        // 載入IP限制腳本
+        if (typeof window.IPRestriction === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'ip-restriction.js';
+            document.head.appendChild(script);
+            
+            // 等待腳本載入
+            await new Promise((resolve) => {
+                script.onload = resolve;
+            });
+        }
+        
+        // 執行IP限制檢查
+        const ipAllowed = await window.IPRestriction.initIPRestriction();
+        if (!ipAllowed) {
+            console.log('IP限制檢查失敗，停止載入頁面');
+            return;
+        }
+    } catch (error) {
+        console.warn('IP限制檢查失敗，繼續載入頁面:', error);
+    }
+    
     // 檢查是否已登入
     if (!checkAuthentication()) {
         return;
