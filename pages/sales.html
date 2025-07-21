@@ -776,7 +776,7 @@
                     barcode: barcode,
                     quantity: 1,
                     originalPrice: product.price,
-                    total: product.price
+                    total: product.price * 1
                 });
             }
             
@@ -872,7 +872,10 @@
             const total = subtotal - memberDiscount - couponDiscount;
 
             // 更新顯示
-            document.getElementById('totalAmount').textContent = `NT$${total.toLocaleString()}`;
+            const totalAmountElements = document.querySelectorAll('#totalAmount');
+            totalAmountElements.forEach(element => {
+                element.textContent = `NT$${total.toLocaleString()}`;
+            });
             
             // 更新各項金額顯示
             const subtotalEl = document.getElementById('subtotalAmount');
