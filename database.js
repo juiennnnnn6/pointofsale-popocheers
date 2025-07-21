@@ -2,8 +2,8 @@
 // 使用 Supabase 作為雲端資料庫
 
 // Supabase 配置
-const SUPABASE_URL = 'https://your-project.supabase.co'; // 需要替換為您的Supabase URL
-const SUPABASE_ANON_KEY = 'your-anon-key'; // 需要替換為您的Supabase Anon Key
+const SUPABASE_URL = 'https://cgwhckykrlphnibmuvhz.supabase.co'; // 需要替換為您的Supabase URL
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODgzLCJleHAiOjIwNjg2NzY1ODN9.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'; // 需要替換為您的Supabase Anon Key
 
 // 初始化 Supabase 客戶端
 let supabase;
