@@ -46,44 +46,50 @@
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">進貨作業</h1>
-                <p class="text-gray-600">掃描條碼或手動選擇商品進行進貨入庫</p>
+                <p class="text-gray-600">匯入進貨資料或手動新增進貨記錄</p>
             </div>
             <div class="flex space-x-3">
                 <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
                     <i class="fas fa-th-large mr-2"></i>回選單
                 </button>
-                <button onclick="navigateToPage('members')" class="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-600 transition-colors">
-                    <i class="fas fa-users mr-2"></i>會員管理
+                <button onclick="navigateToPage('suppliers')" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-truck mr-2"></i>供應商管理
                 </button>
-                <button class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
-                    <i class="fas fa-save mr-2"></i>儲存進貨單
+                <button onclick="showImportModal()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                    <i class="fas fa-file-import mr-2"></i>匯入進貨
                 </button>
-                <button class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors">
-                    <i class="fas fa-file-alt mr-2"></i>進貨記錄
+                <button onclick="showAddPurchaseModal()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>新增進貨
                 </button>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        <!-- 左側：條碼掃描區 -->
-        <div class="xl:col-span-1">
+        <!-- 左側：匯入進貨區 -->
+        <div class="lg:col-span-1">
             
-                            <!-- 條碼功能區 -->
+            <!-- 匯入進貨功能區 -->
             <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
-                                    <h3 class="text-lg font-semibold text-gray-800 mb-4">條碼功能</h3>
-                <div class="scan-display rounded-lg h-48 flex items-center justify-center text-white mb-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-file-import mr-2 text-green-500"></i>
+                    匯入進貨資料
+                </h3>
+                <div class="upload-area rounded-lg h-48 flex items-center justify-center text-gray-400 mb-4 border-2 border-dashed border-gray-300">
                     <div class="text-center">
-                        <i class="fas fa-barcode text-4xl mb-3"></i>
-                        <p class="text-lg font-medium">條碼掃描功能</p>
+                        <i class="fas fa-cloud-upload-alt text-4xl mb-3"></i>
+                        <p class="text-lg font-medium">拖放檔案至此處或點擊選擇</p>
+                        <p class="text-sm">支援 .csv, .xlsx 格式</p>
                     </div>
                 </div>
                 <div class="space-y-3">
-                    <input type="text" id="manualBarcodeInput" placeholder="手動輸入條碼號碼" 
-                           class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                    <button id="searchProductBtn" class="w-full bg-purple-500 text-white py-3 rounded-lg hover:bg-purple-600 transition-colors">
-                        <i class="fas fa-search mr-2"></i>查詢商品
+                    <input type="file" id="purchaseFileInput" accept=".csv,.xlsx,.xls" class="hidden">
+                    <button onclick="selectPurchaseFile()" class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-upload mr-2"></i>選擇檔案
+                    </button>
+                    <button onclick="downloadPurchaseTemplate()" class="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-download mr-2"></i>下載模板
                     </button>
                 </div>
             </div>
@@ -92,12 +98,12 @@
             <div class="apple-card rounded-xl p-6 shadow-lg">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">供應商資訊</h3>
                 <div class="space-y-4">
-                    <select class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                        <option>選擇供應商</option>
-                        <option>台灣電子科技股份有限公司</option>
-                        <option>運動用品批發商</option>
-                        <option>時尚服飾供應商</option>
-                        <option>3C產品代理商</option>
+                    <select id="supplierSelect" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="">選擇供應商</option>
+                        <option value="supplier1">歐洲瓷器供應商</option>
+                        <option value="supplier2">波蘭陶器供應商</option>
+                        <option value="supplier3">德國廚具供應商</option>
+                        <option value="supplier4">奧地利水晶供應商</option>
                     </select>
                     <div class="p-3 bg-blue-50 rounded-lg">
                         <p class="text-sm text-blue-800">
@@ -120,18 +126,9 @@
                 
                 <!-- 掃描到的商品 -->
                 <div class="border border-gray-200 rounded-lg p-4 mb-4">
-                    <div class="flex items-center space-x-4">
-                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&h=80&fit=crop&crop=center" 
-                             alt="Nike Air Max" class="w-20 h-20 rounded-lg object-cover">
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-gray-800">Nike Air Max 270</h4>
-                            <p class="text-sm text-gray-600">條碼：1234567890123</p>
-                            <p class="text-sm text-gray-600">目前庫存：48 件</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm text-gray-600">售價</p>
-                            <p class="font-bold text-blue-600">NT$3,200</p>
-                        </div>
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-barcode text-4xl mb-2"></i>
+                        <p>請掃描或輸入條碼查詢商品</p>
                     </div>
                 </div>
 
@@ -164,13 +161,12 @@
 
                 <div class="space-y-4">
                     
-                    <!-- 進貨項目 1 -->
-                    <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=60&h=60&fit=crop&crop=center" 
-                             alt="Nike Air Max" class="w-16 h-16 rounded-lg object-cover">
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-gray-800">Nike Air Max 270</h4>
-                            <p class="text-sm text-gray-600">條碼：1234567890123</p>
+                    <!-- 進貨清單為空時的提示 -->
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                        <p>進貨清單為空</p>
+                        <p class="text-sm">請先掃描商品或匯入進貨資料</p>
+                    </div>
                         </div>
                         <div class="text-center">
                             <p class="text-sm text-gray-600">數量</p>
@@ -271,7 +267,7 @@
     </div>
 
     <script>
-        // 歐洲家居/瓷器店商品數據庫（支援同條碼多商品小項）
+        // 波波 聚 歐洲家居/波蘭陶食器商品數據庫（支援同條碼多商品小項）
         const mockProducts = {
             '1234567890123': [  // 歐式骨瓷餐盤系列
                 {
@@ -580,6 +576,89 @@
         function updatePurchaseListDisplay() {
             // 這裡可以更新進貨清單的顯示
             console.log('更新進貨清單:', purchaseList);
+        }
+
+        // 選擇進貨檔案
+        function selectPurchaseFile() {
+            document.getElementById('purchaseFileInput').click();
+        }
+
+        // 處理進貨檔案上傳
+        document.getElementById('purchaseFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processPurchaseFile(file);
+            }
+        });
+
+        // 處理進貨檔案
+        function processPurchaseFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const lines = content.split('\n');
+                    const headers = lines[0].split(',');
+                    
+                    let importedPurchases = [];
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            const values = lines[i].split(',');
+                            const purchase = {
+                                barcode: values[0] || '',
+                                productName: values[1] || '',
+                                variant: values[2] || '',
+                                quantity: parseInt(values[3]) || 0,
+                                unitPrice: parseFloat(values[4]) || 0,
+                                supplier: values[5] || '',
+                                date: values[6] || new Date().toISOString().split('T')[0]
+                            };
+                            importedPurchases.push(purchase);
+                        }
+                    }
+                    
+                    if (importedPurchases.length > 0) {
+                        // 將匯入的進貨資料加入清單
+                        purchaseList = purchaseList.concat(importedPurchases);
+                        updatePurchaseListDisplay();
+                        alert(`成功匯入 ${importedPurchases.length} 筆進貨資料`);
+                    } else {
+                        alert('檔案中沒有有效的進貨資料');
+                    }
+                } catch (error) {
+                    alert('檔案格式錯誤，請檢查檔案內容');
+                    console.error('檔案處理錯誤:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 下載進貨模板
+        function downloadPurchaseTemplate() {
+            const template = `條碼,商品名稱,規格,數量,單價,供應商,日期
+1234567890123,波蘭陶瓷杯,經典款,10,150,波蘭陶瓷供應商,2024-01-15
+9876543210987,德國不鏽鋼廚具,基礎3件組,5,2200,德國廚具供應商,2024-01-15`;
+            
+            const blob = new Blob([template], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '進貨模板.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // 顯示匯入模態框
+        function showImportModal() {
+            // 這裡可以實現匯入模態框的顯示邏輯
+            alert('請使用上方的檔案上傳功能匯入進貨資料');
+        }
+
+        // 顯示新增進貨模態框
+        function showAddPurchaseModal() {
+            // 這裡可以實現新增進貨模態框的顯示邏輯
+            alert('請使用上方的掃描功能新增進貨商品');
         }
 
         // 統一導航函數

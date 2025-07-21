@@ -107,7 +107,7 @@
                 <div class="text-center">
                     <i class="fas fa-truck text-4xl text-purple-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">進貨作業</h3>
-                    <p class="text-sm text-gray-600">處理商品進貨和供應商管理</p>
+                    <p class="text-sm text-gray-600">處理商品進貨、匯入進貨資料和供應商管理</p>
                     <span class="text-xs text-red-500">需要管理員、店長或倉管權限</span>
                 </div>
             </div>
@@ -168,6 +168,16 @@
                     <i class="fas fa-tags text-4xl text-teal-500 mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">分類管理</h3>
                     <p class="text-sm text-gray-600">管理商品分類</p>
+                    <span class="text-xs text-red-500">需要管理員或店長權限</span>
+                </div>
+            </div>
+
+            <!-- 供應商管理 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('suppliers', ['管理員', '店長'])">
+                <div class="text-center">
+                    <i class="fas fa-truck text-4xl text-blue-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">供應商管理</h3>
+                    <p class="text-sm text-gray-600">管理供應商資料</p>
                     <span class="text-xs text-red-500">需要管理員或店長權限</span>
                 </div>
             </div>

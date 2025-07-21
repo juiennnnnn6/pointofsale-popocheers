@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>優惠券管理 - 歐洲家居瓷器精品店</title>
+    <title>優惠券管理 - 波波 聚 歐洲家居/波蘭陶食器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -820,6 +820,11 @@
                 renderCoupons();
             }
         };
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
 
         // 頁面載入時初始化
         document.addEventListener('DOMContentLoaded', function() {
