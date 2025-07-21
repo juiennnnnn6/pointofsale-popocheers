@@ -90,6 +90,9 @@
                 <button onclick="showStockTakingModal()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors">
                     <i class="fas fa-clipboard-check mr-2"></i>盤點作業
                 </button>
+                <button onclick="showCategoryManagement()" class="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-600 transition-colors">
+                    <i class="fas fa-tags mr-2"></i>分類管理
+                </button>
             </div>
         </div>
     </div>
@@ -1339,6 +1342,586 @@ ${product.description ? '描述：' + product.description : ''}
             
             URL.revokeObjectURL(url);
             alert('盤點報告匯出成功！');
+        }
+
+        // 顯示分類管理
+        function showCategoryManagement() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">分類管理</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 統計卡片 -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-600" id="modalTotalCategories">0</p>
+                                <p class="text-sm text-gray-600">總分類數</p>
+                            </div>
+                        </div>
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-green-600" id="modalTotalProducts">0</p>
+                                <p class="text-sm text-gray-600">商品總數</p>
+                            </div>
+                        </div>
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-yellow-600" id="modalPopularCategory">-</p>
+                                <p class="text-sm text-gray-600">熱門分類</p>
+                            </div>
+                        </div>
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-red-600" id="modalEmptyCategories">0</p>
+                                <p class="text-sm text-gray-600">空分類</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按鈕 -->
+                    <div class="flex space-x-3 mb-6">
+                        <button onclick="showAddCategoryModal()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>新增分類
+                        </button>
+                        <button onclick="showImportCategoryModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-upload mr-2"></i>匯入分類
+                        </button>
+                        <button onclick="exportCategories()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
+                            <i class="fas fa-download mr-2"></i>匯出分類
+                        </button>
+                    </div>
+                    
+                    <!-- 搜尋 -->
+                    <div class="mb-4">
+                        <input type="text" id="searchCategory" placeholder="搜尋分類..." 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    
+                    <!-- 分類列表 -->
+                    <div id="modalCategoriesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- 分類項目將動態添加 -->
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            loadCategoriesForModal();
+        }
+
+        // 載入分類數據用於模態框
+        function loadCategoriesForModal() {
+            const savedCategories = localStorage.getItem('categories');
+            let categories = [];
+            if (savedCategories) {
+                categories = JSON.parse(savedCategories);
+            } else {
+                // 預設分類
+                categories = [
+                    { id: 'tableware', name: '餐具', description: '各種餐具用品', color: 'blue', order: 1, productCount: 0 },
+                    { id: 'glassware', name: '酒具', description: '酒杯、酒瓶等', color: 'green', order: 2, productCount: 0 },
+                    { id: 'decorative', name: '擺飾', description: '裝飾用品', color: 'yellow', order: 3, productCount: 0 },
+                    { id: 'teaware', name: '茶具', description: '茶具用品', color: 'red', order: 4, productCount: 0 },
+                    { id: 'kitchenware', name: '廚具', description: '廚房用具', color: 'purple', order: 5, productCount: 0 },
+                    { id: 'others', name: '其他', description: '其他商品', color: 'gray', order: 6, productCount: 0 }
+                ];
+                localStorage.setItem('categories', JSON.stringify(categories));
+            }
+            
+            updateCategoriesForModal(categories);
+            updateModalStatistics(categories);
+        }
+
+        // 更新模態框中的分類列表
+        function updateCategoriesForModal(categories) {
+            const container = document.getElementById('modalCategoriesList');
+            if (!container) return;
+            
+            container.innerHTML = categories.map(category => `
+                <div class="category-item apple-card rounded-xl p-4 shadow-md">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full bg-${category.color}-500 mr-3"></div>
+                            <h4 class="text-lg font-semibold text-gray-800">${category.name}</h4>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="editCategory('${category.id}')" class="text-blue-500 hover:text-blue-700">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteCategory('${category.id}')" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3">${category.description}</p>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-500">商品數量：${category.productCount}</span>
+                        <span class="text-gray-500">排序：${category.order}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 更新模態框統計
+        function updateModalStatistics(categories) {
+            document.getElementById('modalTotalCategories').textContent = categories.length;
+            
+            const products = JSON.parse(localStorage.getItem('products') || '{}');
+            const totalProducts = Object.keys(products).length;
+            document.getElementById('modalTotalProducts').textContent = totalProducts;
+            
+            // 計算每個分類的商品數量
+            const categoryCounts = {};
+            Object.values(products).forEach(product => {
+                if (product.category) {
+                    categoryCounts[product.category] = (categoryCounts[product.category] || 0) + 1;
+                }
+            });
+            
+            // 找出熱門分類
+            let popularCategory = '-';
+            let maxCount = 0;
+            Object.entries(categoryCounts).forEach(([category, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    popularCategory = category;
+                }
+            });
+            document.getElementById('modalPopularCategory').textContent = popularCategory;
+            
+            // 計算空分類
+            const emptyCount = categories.filter(cat => cat.productCount === 0).length;
+            document.getElementById('modalEmptyCategories').textContent = emptyCount;
+        }
+
+        // 顯示新增分類模態框
+        function showAddCategoryModal() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">新增分類</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="categoryForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分類名稱</label>
+                            <input type="text" id="categoryName" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分類描述</label>
+                            <textarea id="categoryDescription" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分類顏色</label>
+                            <select id="categoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="blue">藍色</option>
+                                <option value="green">綠色</option>
+                                <option value="yellow">黃色</option>
+                                <option value="red">紅色</option>
+                                <option value="purple">紫色</option>
+                                <option value="pink">粉色</option>
+                                <option value="indigo">靛藍</option>
+                                <option value="gray">灰色</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">排序順序</label>
+                            <input type="number" id="categoryOrder" min="1" value="1" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" onclick="this.closest('.fixed').remove()" 
+                                    class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button type="submit" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                儲存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 表單提交事件
+            document.getElementById('categoryForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveCategory();
+            });
+        }
+
+        // 儲存分類
+        function saveCategory() {
+            const name = document.getElementById('categoryName').value.trim();
+            const description = document.getElementById('categoryDescription').value.trim();
+            const color = document.getElementById('categoryColor').value;
+            const order = parseInt(document.getElementById('categoryOrder').value);
+            
+            if (!name) {
+                alert('請輸入分類名稱');
+                return;
+            }
+            
+            // 載入現有分類
+            const savedCategories = localStorage.getItem('categories');
+            let categories = [];
+            if (savedCategories) {
+                categories = JSON.parse(savedCategories);
+            }
+            
+            // 檢查是否有重複的分類名稱
+            const existingCategory = categories.find(cat => cat.name === name);
+            if (existingCategory) {
+                alert('分類名稱已存在，請使用不同的名稱');
+                return;
+            }
+            
+            // 新增分類
+            const newCategory = {
+                id: 'cat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                name,
+                description,
+                color,
+                order,
+                productCount: 0
+            };
+            categories.push(newCategory);
+            
+            // 按排序順序排序
+            categories.sort((a, b) => a.order - b.order);
+            
+            // 儲存分類
+            localStorage.setItem('categories', JSON.stringify(categories));
+            
+            // 關閉模態框並重新載入
+            document.querySelector('.fixed').remove();
+            loadCategoriesForModal();
+            
+            alert('分類新增成功！');
+        }
+
+        // 編輯分類
+        function editCategory(categoryId) {
+            const savedCategories = localStorage.getItem('categories');
+            let categories = [];
+            if (savedCategories) {
+                categories = JSON.parse(savedCategories);
+            }
+            
+            const category = categories.find(cat => cat.id === categoryId);
+            if (!category) return;
+            
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">編輯分類</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="editCategoryForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分類名稱</label>
+                            <input type="text" id="editCategoryName" value="${category.name}" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分類描述</label>
+                            <textarea id="editCategoryDescription" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">${category.description}</textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分類顏色</label>
+                            <select id="editCategoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="blue" ${category.color === 'blue' ? 'selected' : ''}>藍色</option>
+                                <option value="green" ${category.color === 'green' ? 'selected' : ''}>綠色</option>
+                                <option value="yellow" ${category.color === 'yellow' ? 'selected' : ''}>黃色</option>
+                                <option value="red" ${category.color === 'red' ? 'selected' : ''}>紅色</option>
+                                <option value="purple" ${category.color === 'purple' ? 'selected' : ''}>紫色</option>
+                                <option value="pink" ${category.color === 'pink' ? 'selected' : ''}>粉色</option>
+                                <option value="indigo" ${category.color === 'indigo' ? 'selected' : ''}>靛藍</option>
+                                <option value="gray" ${category.color === 'gray' ? 'selected' : ''}>灰色</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">排序順序</label>
+                            <input type="number" id="editCategoryOrder" min="1" value="${category.order}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" onclick="this.closest('.fixed').remove()" 
+                                    class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button type="submit" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                儲存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 表單提交事件
+            document.getElementById('editCategoryForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                updateCategory(categoryId);
+            });
+        }
+
+        // 更新分類
+        function updateCategory(categoryId) {
+            const name = document.getElementById('editCategoryName').value.trim();
+            const description = document.getElementById('editCategoryDescription').value.trim();
+            const color = document.getElementById('editCategoryColor').value;
+            const order = parseInt(document.getElementById('editCategoryOrder').value);
+            
+            if (!name) {
+                alert('請輸入分類名稱');
+                return;
+            }
+            
+            // 載入現有分類
+            const savedCategories = localStorage.getItem('categories');
+            let categories = [];
+            if (savedCategories) {
+                categories = JSON.parse(savedCategories);
+            }
+            
+            // 檢查是否有重複的分類名稱
+            const existingCategory = categories.find(cat => cat.name === name && cat.id !== categoryId);
+            if (existingCategory) {
+                alert('分類名稱已存在，請使用不同的名稱');
+                return;
+            }
+            
+            // 更新分類
+            const index = categories.findIndex(cat => cat.id === categoryId);
+            if (index !== -1) {
+                categories[index] = {
+                    ...categories[index],
+                    name,
+                    description,
+                    color,
+                    order
+                };
+            }
+            
+            // 按排序順序排序
+            categories.sort((a, b) => a.order - b.order);
+            
+            // 儲存分類
+            localStorage.setItem('categories', JSON.stringify(categories));
+            
+            // 關閉模態框並重新載入
+            document.querySelector('.fixed').remove();
+            loadCategoriesForModal();
+            
+            alert('分類更新成功！');
+        }
+
+        // 刪除分類
+        function deleteCategory(categoryId) {
+            const savedCategories = localStorage.getItem('categories');
+            let categories = [];
+            if (savedCategories) {
+                categories = JSON.parse(savedCategories);
+            }
+            
+            const category = categories.find(cat => cat.id === categoryId);
+            if (!category) return;
+            
+            // 重新計算該分類的商品數量
+            const products = JSON.parse(localStorage.getItem('products') || '{}');
+            let productCount = 0;
+            Object.values(products).forEach(product => {
+                if (product.category === category.name) {
+                    productCount++;
+                }
+            });
+            
+            if (productCount > 0) {
+                alert(`無法刪除包含 ${productCount} 個商品的分類！\n請先將商品移至其他分類。`);
+                return;
+            }
+            
+            const confirmDelete = confirm(`確定要刪除分類「${category.name}」嗎？`);
+            if (confirmDelete) {
+                categories = categories.filter(cat => cat.id !== categoryId);
+                localStorage.setItem('categories', JSON.stringify(categories));
+                loadCategoriesForModal();
+                alert('分類刪除成功！');
+            }
+        }
+
+        // 匯出分類
+        function exportCategories() {
+            const savedCategories = localStorage.getItem('categories');
+            if (!savedCategories) {
+                alert('沒有分類數據可匯出');
+                return;
+            }
+            
+            const categories = JSON.parse(savedCategories);
+            const dataStr = JSON.stringify(categories, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `categories_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            alert('分類匯出成功！');
+        }
+
+        // 顯示匯入分類模態框
+        function showImportCategoryModal() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">匯入分類</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">選擇檔案</label>
+                            <input type="file" id="importCategoryFile" accept=".json,.csv" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-center">
+                                <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                                <span class="text-sm text-blue-800">支援 JSON 和 CSV 格式</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button onclick="this.closest('.fixed').remove()" 
+                                    class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button onclick="importCategories()" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                匯入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // 匯入分類
+        function importCategories() {
+            const fileInput = document.getElementById('importCategoryFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('請選擇檔案');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let importedCategories;
+                    
+                    if (file.name.endsWith('.json')) {
+                        importedCategories = JSON.parse(e.target.result);
+                    } else if (file.name.endsWith('.csv')) {
+                        importedCategories = parseCategoryCSV(e.target.result);
+                    } else {
+                        alert('不支援的檔案格式');
+                        return;
+                    }
+                    
+                    if (Array.isArray(importedCategories)) {
+                        // 載入現有分類
+                        const savedCategories = localStorage.getItem('categories');
+                        let categories = [];
+                        if (savedCategories) {
+                            categories = JSON.parse(savedCategories);
+                        }
+                        
+                        // 合併分類，避免重複
+                        importedCategories.forEach(importedCat => {
+                            const existingIndex = categories.findIndex(cat => cat.id === importedCat.id);
+                            if (existingIndex !== -1) {
+                                categories[existingIndex] = { ...categories[existingIndex], ...importedCat };
+                            } else {
+                                categories.push(importedCat);
+                            }
+                        });
+                        
+                        categories.sort((a, b) => a.order - b.order);
+                        localStorage.setItem('categories', JSON.stringify(categories));
+                        
+                        // 關閉模態框並重新載入
+                        document.querySelector('.fixed').remove();
+                        loadCategoriesForModal();
+                        
+                        alert(`成功匯入 ${importedCategories.length} 個分類！`);
+                    } else {
+                        alert('檔案格式錯誤');
+                    }
+                } catch (error) {
+                    alert('匯入失敗：' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 解析分類CSV
+        function parseCategoryCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const categories = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    const category = {};
+                    headers.forEach((header, index) => {
+                        category[header] = values[index] || '';
+                    });
+                    categories.push(category);
+                }
+            }
+            
+            return categories;
         }
 
         // 頁面載入時初始化
