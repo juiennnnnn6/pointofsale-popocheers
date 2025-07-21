@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .member-card {
+            transition: all 0.3s ease;
+        }
+        .member-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .modal {
+            backdrop-filter: blur(5px);
+        }
+        .member-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .member-status.active {
+            background: #10b981;
+        }
+        .member-status.inactive {
+            background: #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">會員管理</h1>
+                <p class="text-gray-600">新增、編輯和管理會員資料</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="showAddMemberModal()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                    <i class="fas fa-user-plus mr-2"></i>新增會員
+                </button>
+                <button onclick="exportMembers()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-file-export mr-2"></i>匯出會員
+                </button>
+                <button onclick="showImportModal()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
+                    <i class="fas fa-file-import mr-2"></i>匯入會員
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 會員統計卡片 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        
+        <!-- 總會員數 -->
+        <div class="apple-card rounded-xl p-6 member-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">總會員數</p>
+                    <p class="text-2xl font-bold text-emerald-600" id="totalMembers">2,847</p>
+                    <p class="text-xs text-emerald-500">
+                        <i class="fas fa-arrow-up mr-1"></i>+12 本月
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-users text-emerald-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活躍會員 -->
+        <div class="apple-card rounded-xl p-6 member-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">活躍會員</p>
+                    <p class="text-2xl font-bold text-blue-600" id="activeMembers">2,653</p>
+                    <p class="text-xs text-blue-500">
+                        <i class="fas fa-arrow-up mr-1"></i>93.2%
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-user-check text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新會員 -->
+        <div class="apple-card rounded-xl p-6 member-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月新會員</p>
+                    <p class="text-2xl font-bold text-violet-600" id="newMembers">42</p>
+                    <p class="text-xs text-violet-500">
+                        <i class="fas fa-arrow-up mr-1"></i>+8%
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-violet-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-user-plus text-violet-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIP會員 -->
+        <div class="apple-card rounded-xl p-6 member-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">VIP會員</p>
+                    <p class="text-2xl font-bold text-amber-600" id="vipMembers">286</p>
+                    <p class="text-xs text-amber-500">
+                        <i class="fas fa-crown mr-1"></i>10.0%
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-crown text-amber-600"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索和篩選區 -->
+    <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="搜索會員姓名、電話或郵箱..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <select id="levelFilter" class="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                    <option value="">所有等級</option>
+                    <option value="普通">普通會員</option>
+                    <option value="銀卡">銀卡會員</option>
+                    <option value="金卡">金卡會員</option>
+                    <option value="白金">白金會員</option>
+                    <option value="鑽石">鑽石會員</option>
+                </select>
+                <select id="statusFilter" class="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                    <option value="">所有狀態</option>
+                    <option value="active">啟用</option>
+                    <option value="inactive">停用</option>
+                </select>
+                <button onclick="clearFilters()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-undo mr-2"></i>清除篩選
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleViewMode('grid')" id="gridViewBtn" class="bg-emerald-500 text-white px-3 py-2 rounded-lg hover:bg-emerald-600 transition-colors">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button onclick="toggleViewMode('list')" id="listViewBtn" class="bg-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 會員列表 - 卡片視圖 -->
+    <div id="gridView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+        <!-- 會員卡片將由JavaScript動態生成 -->
+    </div>
+
+    <!-- 會員列表 - 表格視圖 -->
+    <div id="listView" class="apple-card rounded-xl shadow-lg overflow-hidden" style="display: none;">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">會員</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">聯絡資訊</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">等級</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">消費總額</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">積分</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">狀態</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="memberTableBody">
+                    <!-- 會員列表將由JavaScript動態生成 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 新增會員模態框 -->
+    <div id="addMemberModal" class="fixed inset-0 bg-black bg-opacity-50 modal hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">新增會員</h2>
+                        <button onclick="hideAddMemberModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="addMemberForm" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                                <input type="text" id="memberName" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">電話 *</label>
+                                <input type="tel" id="memberPhone" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">郵箱</label>
+                                <input type="email" id="memberEmail" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">生日</label>
+                                <input type="date" id="memberBirthday" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">性別</label>
+                                <select id="memberGender" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                    <option value="">請選擇</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">會員等級</label>
+                                <select id="memberLevel" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                    <option value="普通">普通會員</option>
+                                    <option value="銀卡">銀卡會員</option>
+                                    <option value="金卡">金卡會員</option>
+                                    <option value="白金">白金會員</option>
+                                    <option value="鑽石">鑽石會員</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
+                            <textarea id="memberAddress" rows="2" 
+                                      class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"></textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">初始積分</label>
+                                <input type="number" id="memberPoints" value="0" min="0" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>
+                                <select id="memberStatus" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                    <option value="active">啟用</option>
+                                    <option value="inactive">停用</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" onclick="hideAddMemberModal()" 
+                                    class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button type="submit" 
+                                    class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors">
+                                <i class="fas fa-save mr-2"></i>儲存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯會員模態框 -->
+    <div id="editMemberModal" class="fixed inset-0 bg-black bg-opacity-50 modal hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">編輯會員</h2>
+                        <button onclick="hideEditMemberModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="editMemberForm" class="space-y-4">
+                        <input type="hidden" id="editMemberId">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                                <input type="text" id="editMemberName" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">電話 *</label>
+                                <input type="tel" id="editMemberPhone" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">郵箱</label>
+                                <input type="email" id="editMemberEmail" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">生日</label>
+                                <input type="date" id="editMemberBirthday" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">性別</label>
+                                <select id="editMemberGender" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                    <option value="">請選擇</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">會員等級</label>
+                                <select id="editMemberLevel" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                    <option value="普通">普通會員</option>
+                                    <option value="銀卡">銀卡會員</option>
+                                    <option value="金卡">金卡會員</option>
+                                    <option value="白金">白金會員</option>
+                                    <option value="鑽石">鑽石會員</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
+                            <textarea id="editMemberAddress" rows="2" 
+                                      class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"></textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">積分</label>
+                                <input type="number" id="editMemberPoints" min="0" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">消費總額</label>
+                                <input type="number" id="editMemberSpent" step="0.01" min="0" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>
+                                <select id="editMemberStatus" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                    <option value="active">啟用</option>
+                                    <option value="inactive">停用</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" onclick="hideEditMemberModal()" 
+                                    class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button type="submit" 
+                                    class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors">
+                                <i class="fas fa-save mr-2"></i>更新
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 會員數據（模擬）
+        let membersData = [
+            {
+                id: 'M001',
+                name: '王小明',
+                phone: '0912-345-678',
+                email: 'wang@example.com',
+                birthday: '1990-05-15',
+                gender: '男',
+                address: '台北市信義區信義路五段7號',
+                level: '金卡',
+                points: 2850,
+                totalSpent: 45280,
+                status: 'active',
+                joinDate: '2023-03-15'
+            },
+            {
+                id: 'M002',
+                name: '李美華',
+                phone: '0987-654-321',
+                email: 'li@example.com',
+                birthday: '1985-11-22',
+                gender: '女',
+                address: '新北市板橋區中山路一段161號',
+                level: '白金',
+                points: 5420,
+                totalSpent: 78965,
+                status: 'active',
+                joinDate: '2022-08-10'
+            },
+            {
+                id: 'M003',
+                name: '張志偉',
+                phone: '0923-456-789',
+                email: 'zhang@example.com',
+                birthday: '1988-03-08',
+                gender: '男',
+                address: '台中市西屯區台灣大道四段1086號',
+                level: '銀卡',
+                points: 1250,
+                totalSpent: 23400,
+                status: 'active',
+                joinDate: '2023-01-20'
+            },
+            {
+                id: 'M004',
+                name: '陳雅琪',
+                phone: '0934-567-890',
+                email: 'chen@example.com',
+                birthday: '1992-07-03',
+                gender: '女',
+                address: '高雄市前金區中正四路211號',
+                level: '鑽石',
+                points: 8750,
+                totalSpent: 125000,
+                status: 'active',
+                joinDate: '2021-12-05'
+            },
+            {
+                id: 'M005',
+                name: '林建華',
+                phone: '0945-678-901',
+                email: 'lin@example.com',
+                birthday: '1995-09-18',
+                gender: '男',
+                address: '桃園市中壢區中正路88號',
+                level: '普通',
+                points: 380,
+                totalSpent: 5600,
+                status: 'inactive',
+                joinDate: '2023-11-12'
+            }
+        ];
+
+        let currentViewMode = 'grid';
+        let filteredMembers = [...membersData];
+
+        // 頁面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            renderMembers();
+            updateStatistics();
+            setupEventListeners();
+        });
+
+        // 設置事件監聽器
+        function setupEventListeners() {
+            // 搜索功能
+            document.getElementById('searchInput').addEventListener('input', filterMembers);
+            document.getElementById('levelFilter').addEventListener('change', filterMembers);
+            document.getElementById('statusFilter').addEventListener('change', filterMembers);
+            
+            // 表單提交
+            document.getElementById('addMemberForm').addEventListener('submit', handleAddMember);
+            document.getElementById('editMemberForm').addEventListener('submit', handleEditMember);
+        }
+
+        // 篩選會員
+        function filterMembers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const levelFilter = document.getElementById('levelFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            filteredMembers = membersData.filter(member => {
+                const matchesSearch = member.name.toLowerCase().includes(searchTerm) ||
+                                    member.phone.includes(searchTerm) ||
+                                    member.email.toLowerCase().includes(searchTerm);
+                const matchesLevel = !levelFilter || member.level === levelFilter;
+                const matchesStatus = !statusFilter || member.status === statusFilter;
+
+                return matchesSearch && matchesLevel && matchesStatus;
+            });
+
+            renderMembers();
+        }
+
+        // 清除篩選
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('levelFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            filteredMembers = [...membersData];
+            renderMembers();
+        }
+
+        // 切換視圖模式
+        function toggleViewMode(mode) {
+            currentViewMode = mode;
+            
+            const gridView = document.getElementById('gridView');
+            const listView = document.getElementById('listView');
+            const gridBtn = document.getElementById('gridViewBtn');
+            const listBtn = document.getElementById('listViewBtn');
+
+            if (mode === 'grid') {
+                gridView.style.display = 'grid';
+                listView.style.display = 'none';
+                gridBtn.classList.add('bg-emerald-500', 'text-white');
+                gridBtn.classList.remove('bg-gray-300', 'text-gray-700');
+                listBtn.classList.add('bg-gray-300', 'text-gray-700');
+                listBtn.classList.remove('bg-emerald-500', 'text-white');
+            } else {
+                gridView.style.display = 'none';
+                listView.style.display = 'block';
+                listBtn.classList.add('bg-emerald-500', 'text-white');
+                listBtn.classList.remove('bg-gray-300', 'text-gray-700');
+                gridBtn.classList.add('bg-gray-300', 'text-gray-700');
+                gridBtn.classList.remove('bg-emerald-500', 'text-white');
+            }
+            
+            renderMembers();
+        }
+
+        // 渲染會員列表
+        function renderMembers() {
+            if (currentViewMode === 'grid') {
+                renderGridView();
+            } else {
+                renderListView();
+            }
+        }
+
+        // 渲染卡片視圖
+        function renderGridView() {
+            const container = document.getElementById('gridView');
+            container.innerHTML = '';
+
+            filteredMembers.forEach(member => {
+                const memberCard = createMemberCard(member);
+                container.appendChild(memberCard);
+            });
+        }
+
+        // 創建會員卡片
+        function createMemberCard(member) {
+            const card = document.createElement('div');
+            card.className = 'apple-card rounded-xl p-6 member-card shadow-lg';
+            
+            const levelColors = {
+                '普通': 'bg-gray-100 text-gray-700',
+                '銀卡': 'bg-gray-200 text-gray-800',
+                '金卡': 'bg-yellow-100 text-yellow-800',
+                '白金': 'bg-purple-100 text-purple-800',
+                '鑽石': 'bg-blue-100 text-blue-800'
+            };
+
+            const statusColors = {
+                'active': 'bg-green-100 text-green-800',
+                'inactive': 'bg-red-100 text-red-800'
+            };
+
+            card.innerHTML = `
+                <div class="flex items-center mb-4">
+                    <div class="member-avatar w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
+                        ${member.name.charAt(0)}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-800">${member.name}</h3>
+                        <p class="text-sm text-gray-600">${member.id}</p>
+                    </div>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColors[member.status]}">
+                        ${member.status === 'active' ? '啟用' : '停用'}
+                    </span>
+                </div>
+                
+                <div class="space-y-2 mb-4">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-phone w-4 mr-2"></i>
+                        ${member.phone}
+                    </div>
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-envelope w-4 mr-2"></i>
+                        ${member.email || '未設定'}
+                    </div>
+                    <div class="flex items-center text-sm">
+                        <i class="fas fa-star w-4 mr-2 text-yellow-500"></i>
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${levelColors[member.level]}">
+                            ${member.level}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">積分</p>
+                        <p class="font-semibold text-emerald-600">${member.points.toLocaleString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">消費總額</p>
+                        <p class="font-semibold text-blue-600">NT$${member.totalSpent.toLocaleString()}</p>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button onclick="editMember('${member.id}')" 
+                            class="flex-1 bg-blue-500 text-white text-sm py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-edit mr-1"></i>編輯
+                    </button>
+                    <button onclick="deleteMember('${member.id}')" 
+                            class="flex-1 bg-red-500 text-white text-sm py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash mr-1"></i>刪除
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // 渲染表格視圖
+        function renderListView() {
+            const tbody = document.getElementById('memberTableBody');
+            tbody.innerHTML = '';
+
+            filteredMembers.forEach(member => {
+                const row = createMemberRow(member);
+                tbody.appendChild(row);
+            });
+        }
+
+        // 創建會員表格行
+        function createMemberRow(member) {
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-200 hover:bg-gray-50';
+            
+            const levelColors = {
+                '普通': 'bg-gray-100 text-gray-700',
+                '銀卡': 'bg-gray-200 text-gray-800',
+                '金卡': 'bg-yellow-100 text-yellow-800',
+                '白金': 'bg-purple-100 text-purple-800',
+                '鑽石': 'bg-blue-100 text-blue-800'
+            };
+
+            const statusColors = {
+                'active': 'bg-green-100 text-green-800',
+                'inactive': 'bg-red-100 text-red-800'
+            };
+
+            row.innerHTML = `
+                <td class="py-3 px-4">
+                    <div class="flex items-center">
+                        <div class="member-avatar w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                            ${member.name.charAt(0)}
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">${member.name}</div>
+                            <div class="text-sm text-gray-600">${member.id}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="text-sm">
+                        <div>${member.phone}</div>
+                        <div class="text-gray-600">${member.email || '未設定'}</div>
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${levelColors[member.level]}">
+                        ${member.level}
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="font-medium text-blue-600">NT$${member.totalSpent.toLocaleString()}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="font-medium text-emerald-600">${member.points.toLocaleString()}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColors[member.status]}">
+                        ${member.status === 'active' ? '啟用' : '停用'}
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex space-x-2">
+                        <button onclick="editMember('${member.id}')" 
+                                class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteMember('${member.id}')" 
+                                class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            return row;
+        }
+
+        // 更新統計數據
+        function updateStatistics() {
+            const totalMembers = membersData.length;
+            const activeMembers = membersData.filter(m => m.status === 'active').length;
+            const vipMembers = membersData.filter(m => ['金卡', '白金', '鑽石'].includes(m.level)).length;
+            
+            // 計算本月新會員（假設當前為12月）
+            const thisMonth = new Date().getMonth() + 1;
+            const newMembers = membersData.filter(m => {
+                const joinMonth = new Date(m.joinDate).getMonth() + 1;
+                return joinMonth === thisMonth;
+            }).length;
+
+            document.getElementById('totalMembers').textContent = totalMembers.toLocaleString();
+            document.getElementById('activeMembers').textContent = activeMembers.toLocaleString();
+            document.getElementById('newMembers').textContent = newMembers.toLocaleString();
+            document.getElementById('vipMembers').textContent = vipMembers.toLocaleString();
+        }
+
+        // 顯示新增會員模態框
+        function showAddMemberModal() {
+            document.getElementById('addMemberModal').classList.remove('hidden');
+            // 生成會員編號
+            const nextId = 'M' + String(membersData.length + 1).padStart(3, '0');
+            console.log('新會員編號:', nextId);
+        }
+
+        // 隱藏新增會員模態框
+        function hideAddMemberModal() {
+            document.getElementById('addMemberModal').classList.add('hidden');
+            document.getElementById('addMemberForm').reset();
+        }
+
+        // 處理新增會員
+        function handleAddMember(e) {
+            e.preventDefault();
+            
+            const newMember = {
+                id: 'M' + String(membersData.length + 1).padStart(3, '0'),
+                name: document.getElementById('memberName').value,
+                phone: document.getElementById('memberPhone').value,
+                email: document.getElementById('memberEmail').value,
+                birthday: document.getElementById('memberBirthday').value,
+                gender: document.getElementById('memberGender').value,
+                address: document.getElementById('memberAddress').value,
+                level: document.getElementById('memberLevel').value,
+                points: parseInt(document.getElementById('memberPoints').value) || 0,
+                totalSpent: 0,
+                status: document.getElementById('memberStatus').value,
+                joinDate: new Date().toISOString().split('T')[0]
+            };
+
+            membersData.push(newMember);
+            filteredMembers = [...membersData];
+            
+            renderMembers();
+            updateStatistics();
+            hideAddMemberModal();
+            
+            showNotification('會員新增成功！', 'success');
+        }
+
+        // 編輯會員
+        function editMember(memberId) {
+            const member = membersData.find(m => m.id === memberId);
+            if (!member) return;
+
+            // 填充編輯表單
+            document.getElementById('editMemberId').value = member.id;
+            document.getElementById('editMemberName').value = member.name;
+            document.getElementById('editMemberPhone').value = member.phone;
+            document.getElementById('editMemberEmail').value = member.email || '';
+            document.getElementById('editMemberBirthday').value = member.birthday || '';
+            document.getElementById('editMemberGender').value = member.gender || '';
+            document.getElementById('editMemberLevel').value = member.level;
+            document.getElementById('editMemberAddress').value = member.address || '';
+            document.getElementById('editMemberPoints').value = member.points;
+            document.getElementById('editMemberSpent').value = member.totalSpent;
+            document.getElementById('editMemberStatus').value = member.status;
+
+            // 顯示編輯模態框
+            document.getElementById('editMemberModal').classList.remove('hidden');
+        }
+
+        // 隱藏編輯會員模態框
+        function hideEditMemberModal() {
+            document.getElementById('editMemberModal').classList.add('hidden');
+            document.getElementById('editMemberForm').reset();
+        }
+
+        // 處理編輯會員
+        function handleEditMember(e) {
+            e.preventDefault();
+            
+            const memberId = document.getElementById('editMemberId').value;
+            const memberIndex = membersData.findIndex(m => m.id === memberId);
+            
+            if (memberIndex === -1) return;
+
+            // 更新會員資料
+            membersData[memberIndex] = {
+                ...membersData[memberIndex],
+                name: document.getElementById('editMemberName').value,
+                phone: document.getElementById('editMemberPhone').value,
+                email: document.getElementById('editMemberEmail').value,
+                birthday: document.getElementById('editMemberBirthday').value,
+                gender: document.getElementById('editMemberGender').value,
+                level: document.getElementById('editMemberLevel').value,
+                address: document.getElementById('editMemberAddress').value,
+                points: parseInt(document.getElementById('editMemberPoints').value) || 0,
+                totalSpent: parseFloat(document.getElementById('editMemberSpent').value) || 0,
+                status: document.getElementById('editMemberStatus').value
+            };
+
+            filteredMembers = [...membersData];
+            
+            renderMembers();
+            updateStatistics();
+            hideEditMemberModal();
+            
+            showNotification('會員資料更新成功！', 'success');
+        }
+
+        // 刪除會員
+        function deleteMember(memberId) {
+            const member = membersData.find(m => m.id === memberId);
+            if (!member) return;
+
+            if (confirm(`確定要刪除會員 "${member.name}" 嗎？此操作無法復原。`)) {
+                membersData = membersData.filter(m => m.id !== memberId);
+                filteredMembers = [...membersData];
+                
+                renderMembers();
+                updateStatistics();
+                
+                showNotification('會員刪除成功！', 'success');
+            }
+        }
+
+        // 匯出會員
+        function exportMembers() {
+            const csvContent = [
+                ['會員編號', '姓名', '電話', '郵箱', '生日', '性別', '地址', '等級', '積分', '消費總額', '狀態', '註冊日期'],
+                ...membersData.map(member => [
+                    member.id,
+                    member.name,
+                    member.phone,
+                    member.email || '',
+                    member.birthday || '',
+                    member.gender || '',
+                    member.address || '',
+                    member.level,
+                    member.points,
+                    member.totalSpent,
+                    member.status === 'active' ? '啟用' : '停用',
+                    member.joinDate
+                ])
+            ].map(row => row.join(',')).join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `會員資料_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('會員資料匯出成功！', 'success');
+        }
+
+        // 顯示匯入模態框
+        function showImportModal() {
+            showNotification('匯入功能開發中...', 'info');
+        }
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+
+        // 顯示通知
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            // 動畫顯示
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 100);
+
+            // 自動隱藏
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>零售業進銷存系統 - 原型展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 蘋果風格自定義樣式 */
+        .apple-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .apple-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        iframe {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transition: opacity 0.3s ease;
+        }
+        .iframe-container {
+            position: relative;
+        }
+        .iframe-hidden {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 頂部導航 -->
+    <nav class="gradient-bg text-white p-4 apple-shadow sticky top-0 z-50">
+        <div class="container mx-auto">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-store-alt text-2xl"></i>
+                    <h1 class="text-xl font-semibold">零售業進銷存系統</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm opacity-90">正式版本</span>
+                    <button onclick="showEmployeeLogin()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg text-sm transition-colors">
+                        <i class="fas fa-user mr-1"></i>員工登入
+                    </button>
+                    <div id="employeeInfo" class="hidden bg-white bg-opacity-20 px-3 py-1 rounded-lg text-sm">
+                        <i class="fas fa-user-check mr-1"></i><span id="employeeName">員工</span>
+                        <button onclick="logoutEmployee()" class="ml-2 text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded transition-colors">
+                            <i class="fas fa-sign-out-alt mr-1"></i>登出
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要內容區域 -->
+    <div class="container mx-auto p-6">
+        <!-- 登入提示 -->
+        <div id="loginRequired" class="apple-card rounded-xl p-8 text-center apple-shadow">
+            <i class="fas fa-lock text-6xl text-gray-400 mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">請先登入</h2>
+            <p class="text-gray-600 mb-6">您需要登入才能使用系統功能</p>
+            <button onclick="showEmployeeLogin()" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                <i class="fas fa-sign-in-alt mr-2"></i>員工登入
+            </button>
+        </div>
+
+        <!-- 主功能選單 -->
+        <div id="mainMenu" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 hidden">
+            
+            <!-- 系統儀表板 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('dashboard', ['all'])">
+                <div class="text-center">
+                    <i class="fas fa-tachometer-alt text-4xl text-blue-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">系統儀表板</h3>
+                    <p class="text-sm text-gray-600">查看銷售統計和系統概況</p>
+                </div>
+            </div>
+
+            <!-- 銷售作業 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('sales', ['all'])">
+                <div class="text-center">
+                    <i class="fas fa-cash-register text-4xl text-orange-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">銷售作業</h3>
+                    <p class="text-sm text-gray-600">進行商品銷售和結帳</p>
+                </div>
+            </div>
+
+            <!-- 商品管理 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('products', ['店長', '倉管'])">
+                <div class="text-center">
+                    <i class="fas fa-box text-4xl text-green-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">商品管理</h3>
+                    <p class="text-sm text-gray-600">管理商品資料和庫存</p>
+                    <span class="text-xs text-red-500">需要管理員權限</span>
+                </div>
+            </div>
+
+            <!-- 進貨作業 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('purchase', ['店長', '倉管'])">
+                <div class="text-center">
+                    <i class="fas fa-truck text-4xl text-purple-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">進貨作業</h3>
+                    <p class="text-sm text-gray-600">處理商品進貨和供應商管理</p>
+                    <span class="text-xs text-red-500">需要管理員權限</span>
+                </div>
+            </div>
+
+            <!-- 會員管理 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('members', ['店長'])">
+                <div class="text-center">
+                    <i class="fas fa-users text-4xl text-emerald-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">會員管理</h3>
+                    <p class="text-sm text-gray-600">管理會員資料和積分</p>
+                    <span class="text-xs text-red-500">需要店長權限</span>
+                </div>
+            </div>
+
+            <!-- 員工管理 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('employees', ['店長'])">
+                <div class="text-center">
+                    <i class="fas fa-user-tie text-4xl text-indigo-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">員工管理</h3>
+                    <p class="text-sm text-gray-600">管理員工資料和權限</p>
+                    <span class="text-xs text-red-500">需要店長權限</span>
+                </div>
+            </div>
+
+            <!-- 報表中心 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('reports', ['店長'])">
+                <div class="text-center">
+                    <i class="fas fa-chart-pie text-4xl text-purple-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">報表中心</h3>
+                    <p class="text-sm text-gray-600">查看各類統計報表</p>
+                    <span class="text-xs text-red-500">需要店長權限</span>
+                </div>
+            </div>
+
+            <!-- 商品匯出/入 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('import-export', ['店長'])">
+                <div class="text-center">
+                    <i class="fas fa-file-import text-4xl text-teal-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">商品匯出/入</h3>
+                    <p class="text-sm text-gray-600">匯入匯出商品資料</p>
+                    <span class="text-xs text-red-500">需要店長權限</span>
+                </div>
+            </div>
+
+        </div>
+
+
+    </div>
+
+    <!-- 員工登入彈出視窗 -->
+    <div id="employeeLoginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <div class="text-center mb-6">
+                <i class="fas fa-user-tie text-4xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-800">員工登入</h3>
+                <p class="text-gray-600 text-sm">請輸入員工編號</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">員工編號</label>
+                    <input type="text" id="employeeId" placeholder="例：E001" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+
+            </div>
+            
+            <div class="mt-6 flex space-x-3">
+                <button onclick="closeEmployeeLogin()" class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                    取消
+                </button>
+                <button onclick="loginEmployee()" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    登入
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <script>
+        // 頁面導航功能
+        function navigateToPage(page) {
+            // 直接跳轉到對應頁面
+            window.location.href = `pages/${page}.html`;
+        }
+        
+        // 全域快捷鍵
+        document.addEventListener('keydown', function(event) {
+            if (event.altKey) {
+                switch(event.key) {
+                    case '1':
+                        event.preventDefault();
+                        checkPermissionAndNavigate('dashboard', ['all']);
+                        break;
+                    case '2':
+                        event.preventDefault();
+                        checkPermissionAndNavigate('products', ['店長', '倉管']);
+                        break;
+                    case '3':
+                        event.preventDefault();
+                        checkPermissionAndNavigate('sales', ['all']);
+                        break;
+                    case '4':
+                        event.preventDefault();
+                        checkPermissionAndNavigate('members', ['店長']);
+                        break;
+                    case '5':
+                        event.preventDefault();
+                        checkPermissionAndNavigate('employees', ['店長']);
+                        break;
+                    case '6':
+                        event.preventDefault();
+                        checkPermissionAndNavigate('reports', ['店長']);
+                        break;
+                }
+            }
+        });
+        
+        // 員工登入功能
+        let employees = {
+            'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: ['sales', 'dashboard'] },
+            'E002': { name: '李美華', role: '店長', id: 'E002', permissions: ['all'] },
+            'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: ['products', 'purchase', 'dashboard'] }
+        };
+
+        // 載入員工資料
+        function loadEmployees() {
+            const savedEmployees = localStorage.getItem('employees');
+            if (savedEmployees) {
+                const employeeList = JSON.parse(savedEmployees);
+                // 轉換為以ID為key的物件
+                employees = {};
+                employeeList.forEach(emp => {
+                    employees[emp.id] = emp;
+                });
+            }
+        }
+
+        let currentEmployee = null;
+
+        function showEmployeeLogin() {
+            document.getElementById('employeeLoginModal').classList.remove('hidden');
+            document.getElementById('employeeId').focus();
+        }
+
+        function closeEmployeeLogin() {
+            document.getElementById('employeeLoginModal').classList.add('hidden');
+            document.getElementById('employeeId').value = '';
+        }
+
+        function loginEmployee() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            
+            if (!employeeId) {
+                alert('請輸入員工編號');
+                return;
+            }
+
+            const employee = employees[employeeId];
+            if (!employee) {
+                alert('員工編號不存在，請重新輸入');
+                return;
+            }
+
+            // 登入成功
+            currentEmployee = employee;
+            localStorage.setItem('currentEmployee', JSON.stringify(employee));
+            
+            // 更新UI
+            document.getElementById('employeeName').textContent = employee.name;
+            document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
+            document.getElementById('employeeInfo').classList.remove('hidden');
+            
+            // 顯示主選單
+            document.getElementById('loginRequired').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            
+            // 關閉登入視窗
+            closeEmployeeLogin();
+            
+            // 顯示歡迎訊息
+            alert(`歡迎 ${employee.name} (${employee.role})！\n\n您已成功登入系統。`);
+        }
+
+        // 檢查是否已登入
+        function checkEmployeeLogin() {
+            const savedEmployee = localStorage.getItem('currentEmployee');
+            if (savedEmployee) {
+                currentEmployee = JSON.parse(savedEmployee);
+                document.getElementById('employeeName').textContent = currentEmployee.name;
+                document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
+                document.getElementById('employeeInfo').classList.remove('hidden');
+                
+                // 顯示主選單
+                document.getElementById('loginRequired').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+            } else {
+                // 未登入時顯示登入提示
+                document.getElementById('loginRequired').classList.remove('hidden');
+                document.getElementById('mainMenu').classList.add('hidden');
+            }
+        }
+
+        // 權限檢查和導航
+        function checkPermissionAndNavigate(page, requiredRoles) {
+            if (!currentEmployee) {
+                alert('請先登入！');
+                return;
+            }
+
+            // 檢查權限
+            if (requiredRoles.includes('all') || requiredRoles.includes(currentEmployee.role)) {
+                navigateToPage(page);
+            } else {
+                alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${currentEmployee.role}`);
+            }
+        }
+
+        // 員工登出功能
+        function logoutEmployee() {
+            if (!confirm('確定要登出嗎？')) return;
+            
+            // 清除登入狀態
+            currentEmployee = null;
+            localStorage.removeItem('currentEmployee');
+            
+            // 更新UI
+            document.getElementById('employeeName').textContent = '員工';
+            document.querySelector('[onclick="showEmployeeLogin()"]').classList.remove('hidden');
+            document.getElementById('employeeInfo').classList.add('hidden');
+            
+            // 顯示登入提示
+            document.getElementById('loginRequired').classList.remove('hidden');
+            document.getElementById('mainMenu').classList.add('hidden');
+            
+            alert('已成功登出！');
+        }
+
+        // 頁面載入時的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEmployees();
+            checkEmployeeLogin();
+        });
+    </script>
+    
+</body>
+</html> 
+</html> 

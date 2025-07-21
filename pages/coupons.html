@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>優惠券管理 - 歐洲家居瓷器精品店</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .coupon-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .coupon-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .coupon-code {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .discount-badge {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+        }
+        .expired-badge {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+        }
+        .active-badge {
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    
+    <div class="container mx-auto px-4 py-8">
+        <!-- 頁面標題 -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-ticket-alt text-orange-500 mr-3"></i>
+                    優惠券管理
+                </h1>
+                <p class="text-gray-600">管理店內所有優惠券，提升顧客購物體驗</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="showAddCouponModal()" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center">
+                    <i class="fas fa-plus mr-2"></i>
+                    新增優惠券
+                </button>
+                <button onclick="goBackToMenu()" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition-colors flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    回選單
+                </button>
+            </div>
+        </div>
+
+        <!-- 統計卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="apple-card rounded-xl p-6 text-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-ticket-alt text-blue-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-1">總優惠券</h3>
+                <p class="text-2xl font-bold text-blue-600" id="totalCoupons">0</p>
+            </div>
+            
+            <div class="apple-card rounded-xl p-6 text-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-1">啟用中</h3>
+                <p class="text-2xl font-bold text-green-600" id="activeCoupons">0</p>
+            </div>
+            
+            <div class="apple-card rounded-xl p-6 text-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-1">即將到期</h3>
+                <p class="text-2xl font-bold text-yellow-600" id="expiringSoon">0</p>
+            </div>
+            
+            <div class="apple-card rounded-xl p-6 text-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-chart-line text-purple-600 text-xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-1">本月使用</h3>
+                <p class="text-2xl font-bold text-purple-600" id="monthlyUsage">0</p>
+            </div>
+        </div>
+
+        <!-- 搜尋和篩選 -->
+        <div class="apple-card rounded-xl p-6 mb-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div class="lg:col-span-2">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="搜尋優惠券代碼或名稱..." onkeyup="searchCoupons()"
+                               class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <select id="statusFilter" onchange="filterCoupons()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">所有狀態</option>
+                        <option value="active">啟用中</option>
+                        <option value="expired">已過期</option>
+                        <option value="disabled">已停用</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="typeFilter" onchange="filterCoupons()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">所有類型</option>
+                        <option value="percentage">百分比折扣</option>
+                        <option value="fixed">固定金額</option>
+                        <option value="buy_x_get_y">買X送Y</option>
+                        <option value="member_only">會員專屬</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 優惠券列表 -->
+        <div class="apple-card rounded-xl p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-gray-800">優惠券列表</h2>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm text-gray-600">共 <span id="couponCount">0</span> 張優惠券</span>
+                    <button onclick="generateBatchCoupons()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <i class="fas fa-magic mr-1"></i>批量生成
+                    </button>
+                </div>
+            </div>
+            
+            <div id="couponsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 優惠券卡片將動態生成 -->
+            </div>
+            
+            <!-- 空狀態 -->
+            <div id="emptyCoupons" class="text-center py-12 hidden">
+                <i class="fas fa-ticket-alt text-gray-300 text-6xl mb-4"></i>
+                <h3 class="text-xl font-medium text-gray-500 mb-2">還沒有優惠券</h3>
+                <p class="text-gray-400 mb-6">創建您的第一張優惠券來吸引顧客</p>
+                <button onclick="showAddCouponModal()" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>
+                    新增優惠券
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增/編輯優惠券彈出視窗 -->
+    <div id="couponModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800" id="modalTitle">新增優惠券</h3>
+                <button onclick="closeCouponModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="couponForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">優惠券名稱</label>
+                        <input type="text" id="couponName" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="例：週年慶特惠">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">優惠券代碼</label>
+                        <div class="flex">
+                            <input type="text" id="couponCode" required class="flex-1 px-4 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-blue-500" placeholder="WELCOME2024">
+                            <button type="button" onclick="generateCouponCode()" class="px-4 py-3 bg-gray-100 border border-l-0 border-gray-200 rounded-r-lg hover:bg-gray-200 transition-colors">
+                                <i class="fas fa-random"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">優惠類型</label>
+                        <select id="couponType" onchange="toggleDiscountFields()" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">請選擇</option>
+                            <option value="percentage">百分比折扣</option>
+                            <option value="fixed">固定金額折扣</option>
+                            <option value="buy_x_get_y">買X送Y</option>
+                            <option value="member_only">會員專屬</option>
+                        </select>
+                    </div>
+                    <div id="discountValueField">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">折扣值</label>
+                        <input type="number" id="discountValue" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="10">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">最低消費</label>
+                        <input type="number" id="minAmount" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">開始日期</label>
+                        <input type="datetime-local" id="startDate" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
+                        <input type="datetime-local" id="endDate" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">使用次數限制</label>
+                        <input type="number" id="usageLimit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="100">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">每人使用次數</label>
+                        <input type="number" id="userLimit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="1">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">適用商品分類</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="categories" value="all" class="mr-2"> 全部商品
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="categories" value="tableware" class="mr-2"> 餐具系列
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="categories" value="glassware" class="mr-2"> 酒具系列
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="categories" value="decorative" class="mr-2"> 擺飾系列
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="categories" value="teaware" class="mr-2"> 茶具系列
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="categories" value="kitchenware" class="mr-2"> 廚具系列
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">備註說明</label>
+                    <textarea id="couponDescription" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="優惠券使用說明..."></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeCouponModal()" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-save mr-2"></i>
+                        儲存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 優惠券數據庫
+        let couponsData = [
+            {
+                id: 'C001',
+                name: '新會員歡迎禮',
+                code: 'WELCOME2024',
+                type: 'percentage',
+                discountValue: 15,
+                minAmount: 500,
+                startDate: '2024-01-01T00:00',
+                endDate: '2024-12-31T23:59',
+                usageLimit: 1000,
+                userLimit: 1,
+                usedCount: 156,
+                categories: ['all'],
+                description: '新會員首次購物享15%折扣',
+                status: 'active',
+                createdDate: '2024-01-01'
+            },
+            {
+                id: 'C002',
+                name: '春節特惠',
+                code: 'CNY2024',
+                type: 'fixed',
+                discountValue: 200,
+                minAmount: 1000,
+                startDate: '2024-02-01T00:00',
+                endDate: '2024-02-29T23:59',
+                usageLimit: 500,
+                userLimit: 2,
+                usedCount: 89,
+                categories: ['tableware', 'teaware'],
+                description: '春節期間餐具茶具滿千折200',
+                status: 'active',
+                createdDate: '2024-01-15'
+            },
+            {
+                id: 'C003',
+                name: '週年慶大優惠',
+                code: 'ANNIVERSARY50',
+                type: 'percentage',
+                discountValue: 50,
+                minAmount: 2000,
+                startDate: '2024-03-01T00:00',
+                endDate: '2024-03-15T23:59',
+                usageLimit: 200,
+                userLimit: 1,
+                usedCount: 198,
+                categories: ['all'],
+                description: '週年慶限定，全館5折優惠',
+                status: 'expired',
+                createdDate: '2024-02-20'
+            },
+            {
+                id: 'C004',
+                name: 'VIP會員專享',
+                code: 'VIP2024',
+                type: 'member_only',
+                discountValue: 20,
+                minAmount: 800,
+                startDate: '2024-01-01T00:00',
+                endDate: '2024-12-31T23:59',
+                usageLimit: 9999,
+                userLimit: 5,
+                usedCount: 245,
+                categories: ['all'],
+                description: 'VIP會員專屬20%折扣',
+                status: 'active',
+                createdDate: '2024-01-01'
+            },
+            {
+                id: 'C005',
+                name: '買三送一活動',
+                code: 'BUY3GET1',
+                type: 'buy_x_get_y',
+                discountValue: 0,
+                minAmount: 0,
+                startDate: '2024-04-01T00:00',
+                endDate: '2024-04-30T23:59',
+                usageLimit: 300,
+                userLimit: 1,
+                usedCount: 45,
+                categories: ['decorative'],
+                description: '購買3件擺飾商品送1件',
+                status: 'active',
+                createdDate: '2024-03-25'
+            }
+        ];
+
+        let currentEditingCoupon = null;
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 頁面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            renderCoupons();
+            updateStatistics();
+            setDefaultDates();
+        });
+
+        // 設置預設日期
+        function setDefaultDates() {
+            const now = new Date();
+            const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+            
+            document.getElementById('startDate').value = now.toISOString().slice(0, 16);
+            document.getElementById('endDate').value = nextMonth.toISOString().slice(0, 16);
+        }
+
+        // 更新統計資料
+        function updateStatistics() {
+            const total = couponsData.length;
+            const active = couponsData.filter(c => c.status === 'active').length;
+            const expiringSoon = couponsData.filter(c => {
+                const endDate = new Date(c.endDate);
+                const now = new Date();
+                const daysDiff = (endDate - now) / (1000 * 60 * 60 * 24);
+                return daysDiff <= 7 && daysDiff > 0 && c.status === 'active';
+            }).length;
+            const monthlyUsage = couponsData.reduce((sum, c) => sum + c.usedCount, 0);
+
+            document.getElementById('totalCoupons').textContent = total;
+            document.getElementById('activeCoupons').textContent = active;
+            document.getElementById('expiringSoon').textContent = expiringSoon;
+            document.getElementById('monthlyUsage').textContent = monthlyUsage;
+        }
+
+        // 渲染優惠券列表
+        function renderCoupons() {
+            const container = document.getElementById('couponsList');
+            const emptyState = document.getElementById('emptyCoupons');
+            
+            if (couponsData.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            container.innerHTML = couponsData.map(coupon => {
+                const statusBadge = getStatusBadge(coupon);
+                const typeBadge = getTypeBadge(coupon);
+                const progress = Math.min((coupon.usedCount / coupon.usageLimit) * 100, 100);
+
+                return `
+                    <div class="coupon-card bg-white rounded-xl p-6 shadow-md">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-800 mb-1">${coupon.name}</h3>
+                                <p class="coupon-code font-mono text-lg font-bold mb-2">${coupon.code}</p>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    ${statusBadge}
+                                    ${typeBadge}
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="editCoupon('${coupon.id}')" class="text-blue-600 hover:text-blue-800 p-1">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="toggleCouponStatus('${coupon.id}')" class="text-gray-600 hover:text-gray-800 p-1">
+                                    <i class="fas fa-${coupon.status === 'active' ? 'pause' : 'play'}"></i>
+                                </button>
+                                <button onclick="deleteCoupon('${coupon.id}')" class="text-red-600 hover:text-red-800 p-1">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">折扣</span>
+                                <span class="font-medium">${getDiscountText(coupon)}</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">最低消費</span>
+                                <span class="font-medium">NT$${coupon.minAmount.toLocaleString()}</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">有效期限</span>
+                                <span class="font-medium">${formatDate(coupon.endDate)}</span>
+                            </div>
+                            
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-gray-600">使用進度</span>
+                                    <span class="font-medium">${coupon.usedCount}/${coupon.usageLimit}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                            <p class="text-xs text-gray-500">${coupon.description}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('couponCount').textContent = couponsData.length;
+        }
+
+        // 獲取狀態徽章
+        function getStatusBadge(coupon) {
+            const now = new Date();
+            const endDate = new Date(coupon.endDate);
+            
+            if (coupon.status === 'disabled') {
+                return '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">已停用</span>';
+            } else if (endDate < now) {
+                return '<span class="px-2 py-1 expired-badge text-white rounded-full text-xs">已過期</span>';
+            } else {
+                return '<span class="px-2 py-1 active-badge text-white rounded-full text-xs">啟用中</span>';
+            }
+        }
+
+        // 獲取類型徽章
+        function getTypeBadge(coupon) {
+            const types = {
+                'percentage': '百分比',
+                'fixed': '固定金額',
+                'buy_x_get_y': '買送',
+                'member_only': '會員專屬'
+            };
+            return `<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">${types[coupon.type]}</span>`;
+        }
+
+        // 獲取折扣文字
+        function getDiscountText(coupon) {
+            switch (coupon.type) {
+                case 'percentage':
+                    return `${coupon.discountValue}% 折扣`;
+                case 'fixed':
+                    return `NT$${coupon.discountValue} 折扣`;
+                case 'buy_x_get_y':
+                    return '買3送1';
+                case 'member_only':
+                    return `會員${coupon.discountValue}% 折扣`;
+                default:
+                    return '特殊優惠';
+            }
+        }
+
+        // 格式化日期
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('zh-TW');
+        }
+
+        // 顯示新增優惠券彈窗
+        function showAddCouponModal() {
+            currentEditingCoupon = null;
+            document.getElementById('modalTitle').textContent = '新增優惠券';
+            document.getElementById('couponForm').reset();
+            setDefaultDates();
+            document.getElementById('couponModal').classList.remove('hidden');
+        }
+
+        // 關閉優惠券彈窗
+        function closeCouponModal() {
+            document.getElementById('couponModal').classList.add('hidden');
+            currentEditingCoupon = null;
+        }
+
+        // 生成優惠券代碼
+        function generateCouponCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('couponCode').value = code;
+        }
+
+        // 切換折扣欄位
+        function toggleDiscountFields() {
+            const type = document.getElementById('couponType').value;
+            const field = document.getElementById('discountValueField');
+            const label = field.querySelector('label');
+            const input = field.querySelector('input');
+            
+            switch (type) {
+                case 'percentage':
+                    label.textContent = '折扣百分比 (%)';
+                    input.placeholder = '15';
+                    field.style.display = 'block';
+                    break;
+                case 'fixed':
+                    label.textContent = '折扣金額 (NT$)';
+                    input.placeholder = '200';
+                    field.style.display = 'block';
+                    break;
+                case 'buy_x_get_y':
+                    field.style.display = 'none';
+                    break;
+                case 'member_only':
+                    label.textContent = '會員折扣 (%)';
+                    input.placeholder = '20';
+                    field.style.display = 'block';
+                    break;
+                default:
+                    field.style.display = 'block';
+            }
+        }
+
+        // 優惠券表單提交
+        document.getElementById('couponForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const categories = Array.from(document.querySelectorAll('input[name="categories"]:checked')).map(cb => cb.value);
+            
+            const couponData = {
+                id: currentEditingCoupon || 'C' + String(Date.now()).slice(-6),
+                name: document.getElementById('couponName').value,
+                code: document.getElementById('couponCode').value.toUpperCase(),
+                type: document.getElementById('couponType').value,
+                discountValue: parseFloat(document.getElementById('discountValue').value) || 0,
+                minAmount: parseFloat(document.getElementById('minAmount').value) || 0,
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                usageLimit: parseInt(document.getElementById('usageLimit').value) || 999,
+                userLimit: parseInt(document.getElementById('userLimit').value) || 1,
+                usedCount: currentEditingCoupon ? couponsData.find(c => c.id === currentEditingCoupon).usedCount : 0,
+                categories: categories,
+                description: document.getElementById('couponDescription').value,
+                status: 'active',
+                createdDate: currentEditingCoupon ? couponsData.find(c => c.id === currentEditingCoupon).createdDate : new Date().toISOString().split('T')[0]
+            };
+
+            // 驗證
+            if (couponsData.some(c => c.code === couponData.code && c.id !== currentEditingCoupon)) {
+                alert('優惠券代碼已存在，請使用其他代碼');
+                return;
+            }
+
+            if (currentEditingCoupon) {
+                // 編輯
+                const index = couponsData.findIndex(c => c.id === currentEditingCoupon);
+                couponsData[index] = couponData;
+                alert('優惠券更新成功！');
+            } else {
+                // 新增
+                couponsData.push(couponData);
+                alert('優惠券新增成功！');
+            }
+
+            closeCouponModal();
+            renderCoupons();
+            updateStatistics();
+        });
+
+        // 編輯優惠券
+        function editCoupon(id) {
+            const coupon = couponsData.find(c => c.id === id);
+            if (!coupon) return;
+
+            currentEditingCoupon = id;
+            document.getElementById('modalTitle').textContent = '編輯優惠券';
+            
+            // 填入數據
+            document.getElementById('couponName').value = coupon.name;
+            document.getElementById('couponCode').value = coupon.code;
+            document.getElementById('couponType').value = coupon.type;
+            document.getElementById('discountValue').value = coupon.discountValue;
+            document.getElementById('minAmount').value = coupon.minAmount;
+            document.getElementById('startDate').value = coupon.startDate;
+            document.getElementById('endDate').value = coupon.endDate;
+            document.getElementById('usageLimit').value = coupon.usageLimit;
+            document.getElementById('userLimit').value = coupon.userLimit;
+            document.getElementById('couponDescription').value = coupon.description;
+            
+            // 設置分類複選框
+            document.querySelectorAll('input[name="categories"]').forEach(cb => {
+                cb.checked = coupon.categories.includes(cb.value);
+            });
+
+            toggleDiscountFields();
+            document.getElementById('couponModal').classList.remove('hidden');
+        }
+
+        // 切換優惠券狀態
+        function toggleCouponStatus(id) {
+            const coupon = couponsData.find(c => c.id === id);
+            if (!coupon) return;
+
+            coupon.status = coupon.status === 'active' ? 'disabled' : 'active';
+            renderCoupons();
+            updateStatistics();
+            
+            const statusText = coupon.status === 'active' ? '啟用' : '停用';
+            alert(`優惠券已${statusText}！`);
+        }
+
+        // 刪除優惠券
+        function deleteCoupon(id) {
+            if (!confirm('確定要刪除這張優惠券嗎？此操作無法復原。')) return;
+            
+            couponsData = couponsData.filter(c => c.id !== id);
+            renderCoupons();
+            updateStatistics();
+            alert('優惠券已刪除！');
+        }
+
+        // 搜尋優惠券
+        function searchCoupons() {
+            filterCoupons();
+        }
+
+        // 篩選優惠券
+        function filterCoupons() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+
+            let filteredCoupons = couponsData;
+
+            // 搜尋篩選
+            if (searchTerm) {
+                filteredCoupons = filteredCoupons.filter(coupon =>
+                    coupon.name.toLowerCase().includes(searchTerm) ||
+                    coupon.code.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            // 狀態篩選
+            if (statusFilter) {
+                if (statusFilter === 'expired') {
+                    filteredCoupons = filteredCoupons.filter(coupon => {
+                        const endDate = new Date(coupon.endDate);
+                        return endDate < new Date();
+                    });
+                } else {
+                    filteredCoupons = filteredCoupons.filter(coupon => coupon.status === statusFilter);
+                }
+            }
+
+            // 類型篩選
+            if (typeFilter) {
+                filteredCoupons = filteredCoupons.filter(coupon => coupon.type === typeFilter);
+            }
+
+            // 暫存原始數據
+            const originalData = couponsData;
+            couponsData = filteredCoupons;
+            renderCoupons();
+            couponsData = originalData;
+        }
+
+        // 批量生成優惠券
+        function generateBatchCoupons() {
+            const count = prompt('請輸入要生成的優惠券數量：', '10');
+            if (!count || isNaN(count) || count <= 0) return;
+
+            const baseName = prompt('請輸入優惠券名稱前綴：', '限時優惠券');
+            if (!baseName) return;
+
+            for (let i = 1; i <= parseInt(count); i++) {
+                const code = 'BATCH' + String(Date.now() + i).slice(-6);
+                const coupon = {
+                    id: 'C' + String(Date.now() + i).slice(-6),
+                    name: `${baseName} ${i}`,
+                    code: code,
+                    type: 'percentage',
+                    discountValue: 10,
+                    minAmount: 500,
+                    startDate: new Date().toISOString().slice(0, 16),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                    usageLimit: 100,
+                    userLimit: 1,
+                    usedCount: 0,
+                    categories: ['all'],
+                    description: `批量生成的優惠券 #${i}`,
+                    status: 'active',
+                    createdDate: new Date().toISOString().split('T')[0]
+                };
+                couponsData.push(coupon);
+            }
+
+            renderCoupons();
+            updateStatistics();
+            alert(`成功生成 ${count} 張優惠券！`);
+        }
+
+        // 導出優惠券給銷售頁面使用
+        window.getCouponsData = function() {
+            return couponsData;
+        };
+
+        // 驗證優惠券
+        window.validateCoupon = function(code, orderAmount, memberLevel, categories) {
+            const coupon = couponsData.find(c => c.code.toUpperCase() === code.toUpperCase());
+            
+            if (!coupon) {
+                return { valid: false, message: '優惠券不存在' };
+            }
+
+            if (coupon.status !== 'active') {
+                return { valid: false, message: '優惠券已停用' };
+            }
+
+            const now = new Date();
+            const startDate = new Date(coupon.startDate);
+            const endDate = new Date(coupon.endDate);
+
+            if (now < startDate) {
+                return { valid: false, message: '優惠券尚未生效' };
+            }
+
+            if (now > endDate) {
+                return { valid: false, message: '優惠券已過期' };
+            }
+
+            if (coupon.usedCount >= coupon.usageLimit) {
+                return { valid: false, message: '優惠券使用次數已達上限' };
+            }
+
+            if (orderAmount < coupon.minAmount) {
+                return { valid: false, message: `最低消費金額為 NT$${coupon.minAmount}` };
+            }
+
+            if (coupon.type === 'member_only' && !memberLevel) {
+                return { valid: false, message: '此優惠券僅限會員使用' };
+            }
+
+            // 檢查適用分類
+            if (!coupon.categories.includes('all')) {
+                const hasValidCategory = categories.some(cat => coupon.categories.includes(cat));
+                if (!hasValidCategory) {
+                    return { valid: false, message: '優惠券不適用於購物車中的商品' };
+                }
+            }
+
+            return { valid: true, coupon: coupon };
+        };
+
+        // 使用優惠券
+        window.useCoupon = function(code) {
+            const coupon = couponsData.find(c => c.code.toUpperCase() === code.toUpperCase());
+            if (coupon) {
+                coupon.usedCount++;
+                updateStatistics();
+                renderCoupons();
+            }
+        };
+    </script>
+</body>
+</html> 

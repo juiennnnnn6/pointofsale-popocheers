@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進貨作業</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../純手動條碼輸入器.js"></script>
+    <script>
+        // 檢查掃描功能是否載入
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof window.quickScan !== 'function') {
+                    console.log('掃描功能未載入，提供手動輸入替代方案');
+                    window.quickScan = function(onSuccess, onError) {
+                        const barcode = prompt('請輸入條碼號碼進行進貨登記\n\n測試條碼:\n1234567890123 - Nike Air Max 270\n2345678901234 - Apple Watch Series 9\n3456789012345 - Samsung Galaxy S24\n4567890123456 - JBL Tune 760NC\n5678901234567 - Adidas 運動外套\n6789012345678 - Ray-Ban 太陽眼鏡');
+                        if (barcode) {
+                            onSuccess(barcode);
+                        } else if (onError) {
+                            onError(new Error('用戶取消輸入'));
+                        }
+                    };
+                    console.log('手動輸入功能已就緒');
+                }
+            }, 1000);
+        });
+    </script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .scan-display {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            position: relative;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 to-pink-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">進貨作業</h1>
+                <p class="text-gray-600">掃描條碼或手動選擇商品進行進貨入庫</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="navigateToPage('members')" class="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-600 transition-colors">
+                    <i class="fas fa-users mr-2"></i>會員管理
+                </button>
+                <button class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                    <i class="fas fa-save mr-2"></i>儲存進貨單
+                </button>
+                <button class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-file-alt mr-2"></i>進貨記錄
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        <!-- 左側：條碼掃描區 -->
+        <div class="xl:col-span-1">
+            
+            <!-- 條碼展示區 -->
+            <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">條碼功能 (展示)</h3>
+                <div class="scan-display rounded-lg h-48 flex items-center justify-center text-white mb-4">
+                    <div class="text-center">
+                        <i class="fas fa-barcode text-4xl mb-3"></i>
+                        <p class="text-lg font-medium">條碼掃描功能</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <input type="text" id="manualBarcodeInput" placeholder="手動輸入條碼號碼" 
+                           class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <button id="searchProductBtn" class="w-full bg-purple-500 text-white py-3 rounded-lg hover:bg-purple-600 transition-colors">
+                        <i class="fas fa-search mr-2"></i>查詢商品
+                    </button>
+                </div>
+            </div>
+
+            <!-- 供應商選擇 -->
+            <div class="apple-card rounded-xl p-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">供應商資訊</h3>
+                <div class="space-y-4">
+                    <select class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option>選擇供應商</option>
+                        <option>台灣電子科技股份有限公司</option>
+                        <option>運動用品批發商</option>
+                        <option>時尚服飾供應商</option>
+                        <option>3C產品代理商</option>
+                    </select>
+                    <div class="p-3 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            供應商：運動用品批發商<br>
+                            聯絡人：王小明<br>
+                            電話：02-1234-5678
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：商品選擇和進貨清單 -->
+        <div class="xl:col-span-2">
+            
+            <!-- 掃描結果/商品選擇 -->
+            <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">商品資訊</h3>
+                
+                <!-- 掃描到的商品 -->
+                <div class="border border-gray-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center space-x-4">
+                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&h=80&fit=crop&crop=center" 
+                             alt="Nike Air Max" class="w-20 h-20 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">Nike Air Max 270</h4>
+                            <p class="text-sm text-gray-600">條碼：1234567890123</p>
+                            <p class="text-sm text-gray-600">目前庫存：48 件</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">售價</p>
+                            <p class="font-bold text-blue-600">NT$3,200</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 進貨資訊輸入 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">進貨數量</label>
+                        <input type="number" value="10" min="1" 
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">進貨單價</label>
+                        <input type="number" value="2400" min="0" 
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                    <div class="flex items-end">
+                        <button class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>加入清單
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 進貨清單 -->
+            <div class="apple-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">進貨清單</h3>
+                    <span class="text-sm text-gray-600">共 3 項商品</span>
+                </div>
+
+                <div class="space-y-4">
+                    
+                    <!-- 進貨項目 1 -->
+                    <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
+                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=60&h=60&fit=crop&crop=center" 
+                             alt="Nike Air Max" class="w-16 h-16 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">Nike Air Max 270</h4>
+                            <p class="text-sm text-gray-600">條碼：1234567890123</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">數量</p>
+                            <p class="font-semibold">10 件</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">單價</p>
+                            <p class="font-semibold">NT$2,400</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">小計</p>
+                            <p class="font-bold text-green-600">NT$24,000</p>
+                        </div>
+                        <button class="text-red-500 hover:text-red-700 p-2">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <!-- 進貨項目 2 -->
+                    <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
+                        <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=60&h=60&fit=crop&crop=center" 
+                             alt="Apple Watch" class="w-16 h-16 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">Apple Watch Series 9</h4>
+                            <p class="text-sm text-gray-600">條碼：2345678901234</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">數量</p>
+                            <p class="font-semibold">5 件</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">單價</p>
+                            <p class="font-semibold">NT$9,800</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">小計</p>
+                            <p class="font-bold text-green-600">NT$49,000</p>
+                        </div>
+                        <button class="text-red-500 hover:text-red-700 p-2">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <!-- 進貨項目 3 -->
+                    <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
+                        <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop&crop=center" 
+                             alt="Adidas 外套" class="w-16 h-16 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">Adidas 運動外套</h4>
+                            <p class="text-sm text-gray-600">條碼：5678901234567</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">數量</p>
+                            <p class="font-semibold">15 件</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">單價</p>
+                            <p class="font-semibold">NT$1,200</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">小計</p>
+                            <p class="font-bold text-green-600">NT$18,000</p>
+                        </div>
+                        <button class="text-red-500 hover:text-red-700 p-2">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 總計區域 -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                            <textarea placeholder="備註（選填）" rows="3" 
+                                      class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">商品總數：</span>
+                                <span class="font-semibold">30 件</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">進貨總額：</span>
+                                <span class="font-semibold">NT$91,000</span>
+                            </div>
+                            <div class="flex justify-between text-lg">
+                                <span class="font-bold text-gray-800">總計：</span>
+                                <span class="font-bold text-purple-600">NT$91,000</span>
+                            </div>
+                            <button class="w-full bg-purple-500 text-white py-3 rounded-lg hover:bg-purple-600 transition-colors mt-4">
+                                <i class="fas fa-check mr-2"></i>確認進貨
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 歐洲家居/瓷器店商品數據庫（支援同條碼多商品小項）
+        const mockProducts = {
+            '1234567890123': [  // 歐式骨瓷餐盤系列
+                {
+                    id: 'P001-01',
+                    name: '歐式骨瓷餐盤',
+                    variant: '20cm 白色經典款',
+                    price: 890,
+                    stock: 15,
+                    category: '餐具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '純白骨瓷，經典歐式設計'
+                },
+                {
+                    id: 'P001-02',
+                    name: '歐式骨瓷餐盤',
+                    variant: '20cm 藍花圖案款',
+                    price: 950,
+                    stock: 8,
+                    category: '餐具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '手繪藍花圖案，精緻工藝'
+                },
+                {
+                    id: 'P001-03',
+                    name: '歐式骨瓷餐盤',
+                    variant: '20cm 金邊奢華款',
+                    price: 1280,
+                    stock: 5,
+                    category: '餐具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'low',
+                    description: '24K金邊裝飾，奢華典雅'
+                }
+            ],
+            '2345678901234': [  // 水晶酒杯系列
+                {
+                    id: 'P002-01',
+                    name: '施華洛世奇水晶酒杯',
+                    variant: '紅酒杯 300ml',
+                    price: 2890,
+                    stock: 12,
+                    category: '酒具',
+                    image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '奧地利水晶，完美酒杯弧度'
+                },
+                {
+                    id: 'P002-02',
+                    name: '施華洛世奇水晶酒杯',
+                    variant: '香檳杯 200ml',
+                    price: 2590,
+                    stock: 18,
+                    category: '酒具',
+                    image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '細長杯身，保持氣泡完美'
+                }
+            ],
+            '3456789012345': [  // 家居擺飾系列
+                {
+                    id: 'P003-01',
+                    name: '北歐風陶瓷花瓶',
+                    variant: '小號 15cm 灰色',
+                    price: 680,
+                    stock: 25,
+                    category: '擺飾',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '簡約北歐設計，啞光質感'
+                },
+                {
+                    id: 'P003-02',
+                    name: '北歐風陶瓷花瓶',
+                    variant: '中號 25cm 白色',
+                    price: 980,
+                    stock: 15,
+                    category: '擺飾',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '純白陶瓷，中性百搭'
+                }
+            ],
+            '4567890123456': [  // 茶具系列
+                {
+                    id: 'P004-01',
+                    name: '英式骨瓷茶杯組',
+                    variant: '經典玫瑰圖案',
+                    price: 1590,
+                    stock: 0,
+                    category: '茶具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'out',
+                    description: '傳統英式下午茶茶杯'
+                }
+            ],
+            '5678901234567': [  // 餐具套裝
+                {
+                    id: 'P005-01',
+                    name: '法式餐具套裝',
+                    variant: '4人份基礎款',
+                    price: 3890,
+                    stock: 6,
+                    category: '餐具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '包含餐盤、湯碗、茶杯'
+                },
+                {
+                    id: 'P005-02',
+                    name: '法式餐具套裝',
+                    variant: '4人份豪華款',
+                    price: 5890,
+                    stock: 3,
+                    category: '餐具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'low',
+                    description: '包含餐盤、湯碗、茶杯、甜點盤'
+                }
+            ],
+            '6789012345678': [  // 廚房用品
+                {
+                    id: 'P006-01',
+                    name: '德國不鏽鋼廚具',
+                    variant: '基礎3件組',
+                    price: 2200,
+                    stock: 12,
+                    category: '廚具',
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&crop=center',
+                    status: 'normal',
+                    description: '湯勺、漏勺、鏟子'
+                }
+            ]
+        };
+
+        // 當前掃描到的商品
+        let currentScannedProduct = null;
+
+        // 進貨清單
+        let purchaseList = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const manualInput = document.getElementById('manualBarcodeInput');
+            const searchBtn = document.getElementById('searchProductBtn');
+
+            // 手動查詢按鈕
+            searchBtn.addEventListener('click', function() {
+                const barcode = manualInput.value.trim();
+                if (barcode) {
+                    searchProduct(barcode);
+                    manualInput.value = '';
+                }
+            });
+
+            // 手動輸入框回車事件
+            manualInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchBtn.click();
+                }
+            });
+        });
+
+
+
+        // 查詢商品（支援多商品小項）
+        function searchProduct(barcode) {
+            console.log('查詢商品條碼:', barcode);
+            
+            // 查找商品
+            const products = mockProducts[barcode];
+            
+            if (products && products.length > 0) {
+                if (products.length === 1) {
+                    // 只有一個商品，直接選擇
+                    currentScannedProduct = { ...products[0], barcode: barcode };
+                    displayScannedProduct();
+                    alert(`找到商品: ${products[0].name} - ${products[0].variant}`);
+                } else {
+                    // 多個商品，彈出選擇視窗
+                    showProductSelectionForPurchase(products, barcode);
+                }
+            } else {
+                currentScannedProduct = null;
+                alert(`條碼 ${barcode} 找不到對應商品`);
+                clearProductDisplay();
+            }
+        }
+
+        // 顯示商品選擇視窗（進貨專用）
+        function showProductSelectionForPurchase(products, barcode) {
+            const variants = products.map((product, index) => {
+                const stockStatus = product.stock > 0 ? `庫存 ${product.stock} 件` : '缺貨';
+                return `${index + 1}. ${product.name} - ${product.variant} (${stockStatus})`;
+            }).join('\n');
+            
+            const choice = prompt(
+                `條碼 ${barcode} 對應多個商品小項，請選擇要進貨的商品：\n\n${variants}\n\n請輸入序號 (1-${products.length})：`
+            );
+            
+            if (choice) {
+                const selectedIndex = parseInt(choice) - 1;
+                if (selectedIndex >= 0 && selectedIndex < products.length) {
+                    currentScannedProduct = { ...products[selectedIndex], barcode: barcode };
+                    displayScannedProduct();
+                    alert(`已選擇商品: ${products[selectedIndex].name} - ${products[selectedIndex].variant}`);
+                } else {
+                    alert('無效的選擇序號');
+                }
+            }
+        }
+
+        // 顯示掃描到的商品
+        function displayScannedProduct() {
+            if (!currentScannedProduct) return;
+
+            const productInfoHtml = `
+                <div class="flex items-center space-x-4">
+                    <img src="${currentScannedProduct.image}" 
+                         alt="${currentScannedProduct.name}" class="w-20 h-20 rounded-lg object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-800">${currentScannedProduct.name}</h4>
+                        <p class="text-sm text-blue-600 font-medium">規格：${currentScannedProduct.variant}</p>
+                        <p class="text-sm text-gray-600">編號：${currentScannedProduct.id}</p>
+                        <p class="text-sm text-gray-600">條碼：${currentScannedProduct.barcode}</p>
+                        <p class="text-sm text-gray-600">目前庫存：${currentScannedProduct.stock} 件</p>
+                        <p class="text-xs text-gray-500">${currentScannedProduct.description}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600">建議售價</p>
+                        <p class="font-bold text-blue-600">NT$${currentScannedProduct.price.toLocaleString()}</p>
+                    </div>
+                </div>
+            `;
+
+            // 更新商品資訊區域（如果有的話）
+            const productDisplay = document.querySelector('.border.border-gray-200.rounded-lg.p-4');
+            if (productDisplay) {
+                productDisplay.innerHTML = productInfoHtml;
+            }
+        }
+
+        // 清空商品顯示
+        function clearProductDisplay() {
+            const productDisplay = document.querySelector('.border.border-gray-200.rounded-lg.p-4');
+            if (productDisplay) {
+                productDisplay.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-barcode text-4xl mb-2"></i>
+                        <p>請掃描或輸入條碼查詢商品</p>
+                    </div>
+                `;
+            }
+        }
+
+
+
+        // 加入進貨清單
+        function addToPurchaseList() {
+            if (!currentScannedProduct) {
+                alert('請先掃描商品');
+                return;
+            }
+
+            const quantity = document.querySelector('input[type="number"][value="10"]').value;
+            const unitPrice = document.querySelector('input[type="number"][value="2400"]').value;
+
+            if (!quantity || !unitPrice || quantity <= 0 || unitPrice <= 0) {
+                alert('請輸入有效的數量和進價');
+                return;
+            }
+
+            const purchaseItem = {
+                ...currentScannedProduct,
+                quantity: parseInt(quantity),
+                unitPrice: parseInt(unitPrice),
+                total: parseInt(quantity) * parseInt(unitPrice)
+            };
+
+            // 檢查是否已存在相同商品
+            const existingIndex = purchaseList.findIndex(item => item.barcode === purchaseItem.barcode);
+            if (existingIndex >= 0) {
+                // 更新數量
+                purchaseList[existingIndex].quantity += purchaseItem.quantity;
+                purchaseList[existingIndex].total = purchaseList[existingIndex].quantity * purchaseList[existingIndex].unitPrice;
+            } else {
+                // 新增商品
+                purchaseList.push(purchaseItem);
+            }
+
+            // 更新界面顯示
+            updatePurchaseListDisplay();
+            
+            // 清空當前商品
+            currentScannedProduct = null;
+            clearProductDisplay();
+            
+            // 重置輸入框
+            document.querySelector('input[type="number"][value="10"]').value = '1';
+            document.querySelector('input[type="number"][value="2400"]').value = '';
+            
+            alert('商品已加入進貨清單');
+        }
+
+        // 更新進貨清單顯示
+        function updatePurchaseListDisplay() {
+            // 這裡可以更新進貨清單的顯示
+            console.log('更新進貨清單:', purchaseList);
+        }
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+    </script>
+</body>
+</html> 

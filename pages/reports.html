@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>報表中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../純手動條碼輸入器.js"></script>
+    <script>
+        // 檢查掃描功能是否載入
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof window.quickScan !== 'function') {
+                    console.log('掃描功能未載入，提供手動輸入替代方案');
+                    window.quickScan = function(onSuccess, onError) {
+                        const barcode = prompt('請輸入條碼號碼查看銷售報表\n\n測試條碼:\n1234567890123 - Nike Air Max 270 (銷售:32件)\n2345678901234 - Apple Watch Series 9 (銷售:18件)\n3456789012345 - Samsung Galaxy S24 (銷售:15件)\n4567890123456 - JBL Tune 760NC (銷售:0件)\n5678901234567 - Adidas 運動外套 (銷售:24件)\n6789012345678 - Ray-Ban 太陽眼鏡 (銷售:12件)');
+                        if (barcode) {
+                            onSuccess(barcode);
+                        } else if (onError) {
+                            onError(new Error('用戶取消輸入'));
+                        }
+                    };
+                    console.log('手動輸入功能已就緒');
+                }
+            }, 1000);
+        });
+    </script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .report-card {
+            transition: all 0.3s ease;
+        }
+        .report-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-purple-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">報表中心</h1>
+                <p class="text-gray-600">進銷存報表分析與數據統計</p>
+            </div>
+            <div class="flex space-x-3">
+                <div class="flex items-center space-x-2">
+                    <input type="date" value="2024-12-01" 
+                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <span class="text-sm text-gray-600">至</span>
+                    <input type="date" value="2024-12-24" 
+                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="navigateToPage('members')" class="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-600 transition-colors">
+                    <i class="fas fa-users mr-2"></i>會員管理
+                </button>
+                <button class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
+                    <i class="fas fa-search mr-2"></i>查詢
+                </button>
+                <button class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                    <i class="fas fa-download mr-2"></i>匯出PDF
+                </button>
+                <button id="quickProductReportBtn" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-barcode mr-2"></i>商品查詢
+                </button>
+                <button onclick="quickCouponReport()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-600 transition-colors">
+                    <i class="fas fa-ticket-alt mr-2"></i>優惠券統計
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 關鍵績效指標 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        
+        <!-- 總銷售額 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月總銷售額</p>
+                    <p class="text-2xl font-bold text-green-600">NT$485,360</p>
+                    <p class="text-xs text-green-500">
+                        <i class="fas fa-arrow-up mr-1"></i>+15.3% 比上月
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-chart-line text-green-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 總進貨額 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月總進貨額</p>
+                    <p class="text-2xl font-bold text-blue-600">NT$285,420</p>
+                    <p class="text-xs text-blue-500">
+                        <i class="fas fa-arrow-up mr-1"></i>+8.7% 比上月
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-truck text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 毛利率 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月毛利率</p>
+                    <p class="text-2xl font-bold text-purple-600">41.2%</p>
+                    <p class="text-xs text-purple-500">
+                        <i class="fas fa-arrow-up mr-1"></i>+2.1% 比上月
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-percentage text-purple-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 庫存週轉率 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">庫存週轉率</p>
+                    <p class="text-2xl font-bold text-orange-600">3.8</p>
+                    <p class="text-xs text-orange-500">
+                        <i class="fas fa-arrow-up mr-1"></i>+0.3 比上月
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-sync text-orange-600"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 圖表分析區域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- 進銷存趨勢圖 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">進銷存趨勢分析</h3>
+                <div class="flex items-center space-x-4 text-sm">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                        <span>銷售</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
+                        <span>進貨</span>
+                    </div>
+                </div>
+            </div>
+            <div style="height: 120px; position: relative;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 商品分類銷售占比 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">商品分類銷售占比</h3>
+                <span class="text-sm text-gray-600">本月數據</span>
+            </div>
+            <canvas id="categoryChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- 詳細報表 -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        
+        <!-- 進銷存明細報表 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">進銷存明細報表</h3>
+                <button class="text-indigo-500 text-sm hover:underline">
+                    <i class="fas fa-external-link-alt mr-1"></i>查看詳細
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 text-gray-600">商品名稱</th>
+                            <th class="text-center py-3 text-gray-600">期初庫存</th>
+                            <th class="text-center py-3 text-gray-600">進貨</th>
+                            <th class="text-center py-3 text-gray-600">銷售</th>
+                            <th class="text-center py-3 text-gray-600">期末庫存</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3">
+                                <div class="flex items-center space-x-2">
+                                    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=32&h=32&fit=crop&crop=center" 
+                                         class="w-8 h-8 rounded object-cover">
+                                    <span>Nike Air Max 270</span>
+                                </div>
+                            </td>
+                            <td class="text-center py-3">35</td>
+                            <td class="text-center py-3 text-blue-600">+25</td>
+                            <td class="text-center py-3 text-green-600">-12</td>
+                            <td class="text-center py-3 font-semibold">48</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3">
+                                <div class="flex items-center space-x-2">
+                                    <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=32&h=32&fit=crop&crop=center" 
+                                         class="w-8 h-8 rounded object-cover">
+                                    <span>Apple Watch Series 9</span>
+                                </div>
+                            </td>
+                            <td class="text-center py-3">8</td>
+                            <td class="text-center py-3 text-blue-600">+10</td>
+                            <td class="text-center py-3 text-green-600">-15</td>
+                            <td class="text-center py-3 font-semibold text-orange-600">3</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3">
+                                <div class="flex items-center space-x-2">
+                                    <img src="https://images.unsplash.com/photo-1434056886845-dac89ffe9b56?w=32&h=32&fit=crop&crop=center" 
+                                         class="w-8 h-8 rounded object-cover">
+                                    <span>Samsung Galaxy S24</span>
+                                </div>
+                            </td>
+                            <td class="text-center py-3">12</td>
+                            <td class="text-center py-3 text-blue-600">+8</td>
+                            <td class="text-center py-3 text-green-600">-5</td>
+                            <td class="text-center py-3 font-semibold">15</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3">
+                                <div class="flex items-center space-x-2">
+                                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=32&h=32&fit=crop&crop=center" 
+                                         class="w-8 h-8 rounded object-cover">
+                                    <span>JBL Tune 760NC</span>
+                                </div>
+                            </td>
+                            <td class="text-center py-3">5</td>
+                            <td class="text-center py-3 text-blue-600">+0</td>
+                            <td class="text-center py-3 text-green-600">-5</td>
+                            <td class="text-center py-3 font-semibold text-red-600">0</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3">
+                                <div class="flex items-center space-x-2">
+                                    <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=32&h=32&fit=crop&crop=center" 
+                                         class="w-8 h-8 rounded object-cover">
+                                    <span>Adidas 運動外套</span>
+                                </div>
+                            </td>
+                            <td class="text-center py-3">15</td>
+                            <td class="text-center py-3 text-blue-600">+12</td>
+                            <td class="text-center py-3 text-green-600">-5</td>
+                            <td class="text-center py-3 font-semibold">22</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 營業績效分析 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">營業績效分析</h3>
+            
+            <div class="space-y-6">
+                
+                <!-- 熱銷商品TOP5 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">熱銷商品 TOP 5</h4>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="w-6 h-6 bg-yellow-500 text-white text-xs rounded-full flex items-center justify-center">1</span>
+                                <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=32&h=32&fit=crop&crop=center" 
+                                     class="w-8 h-8 rounded object-cover">
+                                <span class="text-sm font-medium">Nike Air Max 270</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold text-green-600">32 件</p>
+                                <p class="text-xs text-gray-500">NT$102,400</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="w-6 h-6 bg-gray-400 text-white text-xs rounded-full flex items-center justify-center">2</span>
+                                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=32&h=32&fit=crop&crop=center" 
+                                     class="w-8 h-8 rounded object-cover">
+                                <span class="text-sm font-medium">Apple Watch</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold text-green-600">18 件</p>
+                                <p class="text-xs text-gray-500">NT$232,200</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="w-6 h-6 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                                <img src="https://images.unsplash.com/photo-1434056886845-dac89ffe9b56?w=32&h=32&fit=crop&crop=center" 
+                                     class="w-8 h-8 rounded object-cover">
+                                <span class="text-sm font-medium">Samsung Galaxy</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold text-green-600">15 件</p>
+                                <p class="text-xs text-gray-500">NT$433,500</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 月度比較 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">月度比較</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-blue-50 rounded-lg">
+                            <p class="text-sm text-blue-600 mb-1">本月銷售</p>
+                            <p class="text-lg font-bold text-blue-800">NT$485,360</p>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">上月銷售</p>
+                            <p class="text-lg font-bold text-gray-800">NT$421,250</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 庫存預警 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">庫存預警提醒</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between p-2 bg-orange-50 rounded">
+                            <span class="text-sm text-orange-800">Apple Watch Series 9</span>
+                            <span class="text-xs text-orange-600">低庫存 (3件)</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-red-50 rounded">
+                            <span class="text-sm text-red-800">JBL Tune 760NC</span>
+                            <span class="text-xs text-red-600">缺貨 (0件)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 歐洲家居/瓷器店商品銷售數據（模擬）
+        const productSalesData = {
+            'P001-01': {name: '歐式骨瓷餐盤 - 20cm 白色經典款', category: '餐具', price: 890, salesCount: 42, salesAmount: 37380, profit: 11214},
+            'P001-02': {name: '歐式骨瓷餐盤 - 20cm 藍花圖案款', category: '餐具', price: 950, salesCount: 28, salesAmount: 26600, profit: 7980},
+            'P001-03': {name: '歐式骨瓷餐盤 - 20cm 金邊奢華款', category: '餐具', price: 1280, salesCount: 15, salesAmount: 19200, profit: 5760},
+            'P002-01': {name: '施華洛世奇水晶酒杯 - 紅酒杯 300ml', category: '酒具', price: 2890, salesCount: 18, salesAmount: 52020, profit: 15606},
+            'P002-02': {name: '施華洛世奇水晶酒杯 - 香檳杯 200ml', category: '酒具', price: 2590, salesCount: 22, salesAmount: 56980, profit: 17094},
+            'P003-01': {name: '北歐風陶瓷花瓶 - 小號 15cm 灰色', category: '擺飾', price: 680, salesCount: 35, salesAmount: 23800, profit: 7140},
+            'P003-02': {name: '北歐風陶瓷花瓶 - 中號 25cm 白色', category: '擺飾', price: 980, salesCount: 20, salesAmount: 19600, profit: 5880},
+            'P003-03': {name: '北歐風陶瓷花瓶 - 大號 35cm 黑色', category: '擺飾', price: 1380, salesCount: 8, salesAmount: 11040, profit: 3312},
+            'P004-01': {name: '英式骨瓷茶杯組 - 經典玫瑰圖案', category: '茶具', price: 1590, salesCount: 0, salesAmount: 0, profit: 0},
+            'P005-01': {name: '法式餐具套裝 - 4人份基礎款', category: '餐具', price: 3890, salesCount: 12, salesAmount: 46680, profit: 14004},
+            'P005-02': {name: '法式餐具套裝 - 4人份豪華款', category: '餐具', price: 5890, salesCount: 6, salesAmount: 35340, profit: 10602},
+            'P006-01': {name: '德國不鏽鋼廚具 - 基礎3件組', category: '廚具', price: 2200, salesCount: 14, salesAmount: 30800, profit: 9240}
+        };
+
+        // 初始化事件監聽
+        document.addEventListener('DOMContentLoaded', function() {
+            const quickReportBtn = document.getElementById('quickProductReportBtn');
+            
+            // 商品查詢按鈕
+            quickReportBtn.addEventListener('click', function() {
+                quickProductReport();
+            });
+        });
+
+        // 快速商品報表查詢
+        function quickProductReport() {
+            if (typeof window.quickScan === 'function') {
+                window.quickScan(
+                    // 掃描成功回調
+                    function(barcode) {
+                        showProductReport(barcode);
+                    },
+                    // 掃描錯誤回調
+                    function(error) {
+                        alert('掃描失敗: ' + error.message);
+                    }
+                );
+            } else {
+                alert('掃描功能尚未載入，請重新整理頁面');
+            }
+        }
+
+        // 顯示商品報表
+        function showProductReport(barcode) {
+            console.log('查詢商品報表:', barcode);
+            
+            const salesData = productSalesData[barcode];
+            
+            if (salesData) {
+                const profitRate = salesData.salesAmount > 0 ? ((salesData.profit / salesData.salesAmount) * 100).toFixed(1) : 0;
+                const avgSelling = salesData.salesCount > 0 ? Math.floor(salesData.salesAmount / salesData.salesCount) : 0;
+                
+                const reportMessage = 
+                    `📊 商品銷售報表\n\n` +
+                    `商品名稱：${salesData.name}\n` +
+                    `商品分類：${salesData.category}\n` +
+                    `條碼：${barcode}\n` +
+                    `單價：NT$${salesData.price.toLocaleString()}\n\n` +
+                    `📈 本期銷售數據：\n` +
+                    `銷售數量：${salesData.salesCount} 件\n` +
+                    `銷售金額：NT$${salesData.salesAmount.toLocaleString()}\n` +
+                    `銷售毛利：NT$${salesData.profit.toLocaleString()}\n` +
+                    `毛利率：${profitRate}%\n` +
+                    `平均售價：NT$${avgSelling.toLocaleString()}\n\n` +
+                    `${salesData.salesCount > 0 ? '✅ 有銷售記錄' : '❌ 本期無銷售'}`;
+                
+                alert(reportMessage);
+                
+                // 可以選擇顯示更詳細的圖表
+                if (salesData.salesCount > 0 && confirm('是否要查看該商品的詳細銷售趨勢？')) {
+                    showDetailedChart(salesData);
+                }
+            } else {
+                alert(`條碼 ${barcode} 找不到銷售數據`);
+            }
+        }
+
+        // 顯示詳細圖表（簡化版）
+        function showDetailedChart(salesData) {
+            alert(
+                `📊 ${salesData.name} 詳細分析\n\n` +
+                `近期表現：\n` +
+                `• 銷售趨勢：${salesData.salesCount > 20 ? '📈 熱銷' : salesData.salesCount > 10 ? '📊 正常' : '📉 滯銷'}\n` +
+                `• 庫存週轉：${salesData.salesCount > 15 ? '🔄 良好' : '⚠️ 需關注'}\n` +
+                `• 利潤貢獻：${salesData.profit > 50000 ? '💰 高' : salesData.profit > 20000 ? '💵 中' : '💴 低'}\n\n` +
+                `建議：\n` +
+                `${getSalesAdvice(salesData)}`
+            );
+        }
+
+        // 獲取銷售建議
+        function getSalesAdvice(salesData) {
+            if (salesData.salesCount === 0) {
+                return '• 考慮促銷活動或調整定價策略';
+            } else if (salesData.salesCount > 20) {
+                return '• 維持現有策略，考慮增加庫存';
+            } else if (salesData.salesCount > 10) {
+                return '• 表現正常，可考慮適度推廣';
+            } else {
+                return '• 分析銷售阻礙，優化推廣策略';
+            }
+        }
+
+        // 優惠券統計查詢
+        function quickCouponReport() {
+            // 模擬優惠券使用數據（與歐洲家居瓷器店相關）
+            const couponUsageData = {
+                'WELCOME2024': { 
+                    name: '新會員歡迎禮', 
+                    usedCount: 156, 
+                    totalDiscount: 23400, 
+                    type: 'percentage', 
+                    value: 15,
+                    category: '新客獲取',
+                    validPeriod: '2024/01/01 - 2024/12/31'
+                },
+                'CNY2024': { 
+                    name: '春節特惠', 
+                    usedCount: 89, 
+                    totalDiscount: 17800, 
+                    type: 'fixed', 
+                    value: 200,
+                    category: '節慶活動',
+                    validPeriod: '2024/02/01 - 2024/02/29'
+                },
+                'ANNIVERSARY50': { 
+                    name: '週年慶大優惠', 
+                    usedCount: 198, 
+                    totalDiscount: 198000, 
+                    type: 'percentage', 
+                    value: 50,
+                    category: '店慶活動',
+                    validPeriod: '2024/03/01 - 2024/03/15'
+                },
+                'VIP2024': { 
+                    name: 'VIP會員專享', 
+                    usedCount: 245, 
+                    totalDiscount: 49000, 
+                    type: 'member_only', 
+                    value: 20,
+                    category: '會員專屬',
+                    validPeriod: '2024/01/01 - 2024/12/31'
+                },
+                'BUY3GET1': { 
+                    name: '買三送一活動', 
+                    usedCount: 45, 
+                    totalDiscount: 30600, 
+                    type: 'buy_x_get_y', 
+                    value: 0,
+                    category: '促銷活動',
+                    validPeriod: '2024/04/01 - 2024/04/30'
+                }
+            };
+
+            const couponCode = prompt('🎫 優惠券統計查詢\n\n請輸入優惠券代碼：\n\n📋 可查詢的優惠券：\n• WELCOME2024 - 新會員歡迎禮\n• CNY2024 - 春節特惠\n• ANNIVERSARY50 - 週年慶大優惠\n• VIP2024 - VIP會員專享\n• BUY3GET1 - 買三送一活動\n\n或輸入 "ALL" 查看整體統計');
+            
+            if (!couponCode) return;
+            
+            if (couponCode.toUpperCase() === 'ALL') {
+                // 顯示整體優惠券統計
+                const totalUsed = Object.values(couponUsageData).reduce((sum, coupon) => sum + coupon.usedCount, 0);
+                const totalDiscount = Object.values(couponUsageData).reduce((sum, coupon) => sum + coupon.totalDiscount, 0);
+                const averageDiscount = totalUsed > 0 ? Math.round(totalDiscount / totalUsed) : 0;
+                
+                let report = `🎫 優惠券整體統計報表\n\n`;
+                report += `📊 總體數據：\n`;
+                report += `• 總使用次數：${totalUsed.toLocaleString()} 次\n`;
+                report += `• 總折扣金額：NT$${totalDiscount.toLocaleString()}\n`;
+                report += `• 平均折扣：NT$${averageDiscount.toLocaleString()}/次\n\n`;
+                
+                report += `📈 各優惠券表現：\n`;
+                Object.entries(couponUsageData).forEach(([code, coupon]) => {
+                    const usage = ((coupon.usedCount / totalUsed) * 100).toFixed(1);
+                    report += `• ${coupon.name}：${coupon.usedCount}次 (${usage}%)\n`;
+                });
+                
+                alert(report);
+                return;
+            }
+            
+            if (couponUsageData[couponCode.toUpperCase()]) {
+                const coupon = couponUsageData[couponCode.toUpperCase()];
+                const averageDiscount = coupon.usedCount > 0 ? Math.round(coupon.totalDiscount / coupon.usedCount) : 0;
+                const conversionRate = Math.min((coupon.usedCount / 1000) * 100, 100); // 假設發行1000張
+                
+                let typeText;
+                switch (coupon.type) {
+                    case 'percentage':
+                        typeText = `${coupon.value}% 百分比折扣`;
+                        break;
+                    case 'fixed':
+                        typeText = `NT$${coupon.value} 固定金額折扣`;
+                        break;
+                    case 'member_only':
+                        typeText = `會員專屬 ${coupon.value}% 折扣`;
+                        break;
+                    case 'buy_x_get_y':
+                        typeText = '買3送1特殊優惠';
+                        break;
+                    default:
+                        typeText = '特殊優惠';
+                }
+                
+                const effectiveness = coupon.usedCount > 150 ? '🔥 非常有效' : 
+                                   coupon.usedCount > 100 ? '✅ 效果良好' : 
+                                   coupon.usedCount > 50 ? '📊 效果一般' : '⚠️ 需要改進';
+                
+                alert(`🎫 優惠券詳細統計報表\n\n` +
+                    `📋 基本資訊：\n` +
+                    `• 優惠券名稱：${coupon.name}\n` +
+                    `• 代碼：${couponCode.toUpperCase()}\n` +
+                    `• 類型：${typeText}\n` +
+                    `• 分類：${coupon.category}\n` +
+                    `• 有效期：${coupon.validPeriod}\n\n` +
+                    `📈 使用數據：\n` +
+                    `• 使用次數：${coupon.usedCount.toLocaleString()} 次\n` +
+                    `• 總折扣金額：NT$${coupon.totalDiscount.toLocaleString()}\n` +
+                    `• 平均折扣：NT$${averageDiscount.toLocaleString()}/次\n` +
+                    `• 轉換率：${conversionRate.toFixed(1)}%\n\n` +
+                    `🎯 效果評估：${effectiveness}\n\n` +
+                    `💡 優化建議：\n${getCouponAdvice(coupon)}`);
+            } else {
+                alert('❌ 找不到該優惠券的使用資料\n\n請檢查代碼是否正確，或輸入 "ALL" 查看所有優惠券統計');
+            }
+        }
+
+        // 獲取優惠券優化建議
+        function getCouponAdvice(coupon) {
+            if (coupon.usedCount > 200) {
+                return '• 此優惠券表現優異，可考慮延長使用期限\n• 建議製作類似的優惠券擴大影響';
+            } else if (coupon.usedCount > 100) {
+                return '• 表現良好，可考慮在類似時期重新推出\n• 適度調整折扣力度以提升吸引力';
+            } else if (coupon.usedCount > 50) {
+                return '• 效果一般，建議檢視推廣管道\n• 考慮增加使用誘因或簡化使用流程';
+            } else {
+                return '• 需要改進推廣策略\n• 檢視目標客群是否精準\n• 考慮調整折扣門檻或力度';
+            }
+        }
+
+        // 進銷存趨勢圖
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['12/1', '12/5', '12/10', '12/15', '12/20', '12/24'],
+                datasets: [{
+                    label: '銷售額',
+                    data: [15000, 28000, 35000, 42000, 38000, 48000],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: '進貨額',
+                    data: [12000, 18000, 25000, 30000, 22000, 28000],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // 商品分類圓餅圖
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['電子產品', '運動用品', '服飾鞋帽', '時尚配件', '其他'],
+                datasets: [{
+                    data: [45, 25, 15, 10, 5],
+                    backgroundColor: [
+                        '#3b82f6',
+                        '#10b981',
+                        '#f59e0b',
+                        '#8b5cf6',
+                        '#6b7280'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../純手動條碼輸入器.js"></script>
+    <script>
+        // 檢查掃描功能是否載入
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof window.quickScan !== 'function') {
+                    console.log('掃描功能未載入，提供手動輸入替代方案');
+                    window.quickScan = function(onSuccess, onError) {
+                        const barcode = prompt('請輸入條碼號碼進行商品查詢\n\n🏺 歐洲家居/瓷器店 測試條碼:\n\n1234567890123 - 歐式骨瓷餐盤系列 (3款規格)\n2345678901234 - 施華洛世奇水晶酒杯 (2款規格)\n3456789012345 - 北歐風陶瓷花瓶 (3款規格)\n4567890123456 - 英式骨瓷茶杯組 (缺貨)\n5678901234567 - 法式餐具套裝 (2款規格)\n6789012345678 - 德國不鏽鋼廚具\n\n💡 同條碼多商品時會自動彈出選擇視窗');
+                        if (barcode) {
+                            onSuccess(barcode);
+                        } else if (onError) {
+                            onError(new Error('用戶取消輸入'));
+                        }
+                    };
+                    console.log('手動輸入功能已就緒');
+                }
+            }, 1000);
+        });
+    </script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .category-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .category-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+        }
+        .product-card {
+            transition: all 0.2s ease;
+        }
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        .category-view {
+            display: block;
+        }
+        .products-view {
+            display: none;
+        }
+        .active-category {
+            border: 2px solid #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">商品與庫存管理</h1>
+                <p class="text-gray-600" id="pageSubtitle">選擇商品分類查看商品和庫存狀態</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="navigateToPage('members')" class="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-600 transition-colors">
+                    <i class="fas fa-users mr-2"></i>會員管理
+                </button>
+                <button id="backToCategories" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors" style="display: none;">
+                    <i class="fas fa-arrow-left mr-2"></i>返回分類
+                </button>
+                <button id="addProductBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors" onclick="showAddProductModal()">
+                    <i class="fas fa-plus mr-2"></i>新增商品
+                </button>
+                <button id="scanAddProductBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-barcode mr-2"></i>掃碼新增
+                </button>
+                <button onclick="goToImportExport()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
+                    <i class="fas fa-file-import mr-2"></i>匯出/入
+                </button>
+                <button onclick="showStockTakingModal()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-clipboard-check mr-2"></i>盤點作業
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 統計卡片 -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="apple-card rounded-xl p-4 shadow-lg">
+            <div class="text-center">
+                <p class="text-2xl font-bold text-blue-600" id="totalProducts">156</p>
+                <p class="text-sm text-gray-600">總商品數</p>
+            </div>
+        </div>
+        <div class="apple-card rounded-xl p-4 shadow-lg">
+            <div class="text-center">
+                <p class="text-2xl font-bold text-green-600" id="inStockProducts">142</p>
+                <p class="text-sm text-gray-600">有庫存</p>
+            </div>
+        </div>
+        <div class="apple-card rounded-xl p-4 shadow-lg">
+            <div class="text-center">
+                <p class="text-2xl font-bold text-orange-600" id="lowStockProducts">8</p>
+                <p class="text-sm text-gray-600">低庫存</p>
+            </div>
+        </div>
+        <div class="apple-card rounded-xl p-4 shadow-lg">
+            <div class="text-center">
+                <p class="text-2xl font-bold text-purple-600" id="totalValue">NT$485,230</p>
+                <p class="text-sm text-gray-600">庫存總值</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分類檢視 -->
+    <div id="categoryView" class="category-view">
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">商品分類</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                
+                <!-- 餐具系列 -->
+                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="tableware">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-utensils text-2xl text-blue-600"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">餐具系列</h4>
+                    <p class="text-sm text-gray-600 mb-3">歐式骨瓷、法式餐具套裝</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">商品數量</span>
+                        <span class="font-semibold text-blue-600">5 件</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">庫存價值</span>
+                        <span class="font-semibold text-green-600">NT$38,890</span>
+                    </div>
+                </div>
+
+                <!-- 酒具系列 -->
+                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="glassware">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-wine-glass text-2xl text-purple-600"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">酒具系列</h4>
+                    <p class="text-sm text-gray-600 mb-3">施華洛世奇水晶酒杯</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">商品數量</span>
+                        <span class="font-semibold text-blue-600">2 件</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">庫存價值</span>
+                        <span class="font-semibold text-green-600">NT$81,300</span>
+                    </div>
+                </div>
+
+                <!-- 擺飾系列 -->
+                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="decorative">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-seedling text-2xl text-green-600"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">擺飾系列</h4>
+                    <p class="text-sm text-gray-600 mb-3">北歐風陶瓷花瓶</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">商品數量</span>
+                        <span class="font-semibold text-blue-600">3 件</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">庫存價值</span>
+                        <span class="font-semibold text-green-600">NT$42,740</span>
+                    </div>
+                </div>
+
+                <!-- 茶具系列 -->
+                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="teaware">
+                    <div class="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-coffee text-2xl text-pink-600"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">茶具系列</h4>
+                    <p class="text-sm text-gray-600 mb-3">英式骨瓷茶杯組</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">商品數量</span>
+                        <span class="font-semibold text-blue-600">1 件</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">庫存價值</span>
+                        <span class="font-semibold text-red-600">NT$0</span>
+                    </div>
+                </div>
+
+                <!-- 廚具系列 -->
+                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="kitchenware">
+                    <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-blender text-2xl text-yellow-600"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">廚具系列</h4>
+                    <p class="text-sm text-gray-600 mb-3">德國不鏽鋼廚具</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">商品數量</span>
+                        <span class="font-semibold text-blue-600">1 件</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">庫存價值</span>
+                        <span class="font-semibold text-green-600">NT$26,400</span>
+                    </div>
+                </div>
+
+                <!-- 其他分類 -->
+                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="others">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-ellipsis-h text-2xl text-gray-600"></i>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-2">其他商品</h4>
+                    <p class="text-sm text-gray-600 mb-3">未分類商品</p>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">商品數量</span>
+                        <span class="font-semibold text-blue-600">0 件</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">庫存價值</span>
+                        <span class="font-semibold text-green-600">NT$0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 商品檢視 -->
+    <div id="productsView" class="products-view">
+        <!-- 搜尋和篩選區 -->
+        <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div class="lg:col-span-2">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="搜尋商品名稱、條碼..." onkeyup="searchProducts()"
+                               class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <select id="stockFilter" onchange="filterProducts()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="">所有庫存狀態</option>
+                        <option value="normal">有庫存</option>
+                        <option value="low">低庫存</option>
+                        <option value="out">缺貨</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="sortSelect" onchange="sortProducts()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="">預設排序</option>
+                        <option value="price-desc">價格（高到低）</option>
+                        <option value="price-asc">價格（低到高）</option>
+                        <option value="stock-desc">庫存量（高到低）</option>
+                        <option value="stock-asc">庫存量（低到高）</option>
+                        <option value="name-asc">商品名稱（A-Z）</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品列表 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-800" id="categoryTitle">商品列表</h3>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600" id="productCount">共 24 項商品</span>
+                    <div class="flex items-center space-x-2">
+                        <button class="p-2 text-gray-500 hover:text-gray-700" onclick="toggleView('grid')">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button class="p-2 text-blue-500 hover:text-blue-700" onclick="toggleView('list')">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 網格檢視 -->
+            <div id="gridView" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4" style="display: grid;">
+                <!-- 商品卡片 (小方形樣式) -->
+            </div>
+
+            <!-- 列表檢視 -->
+            <div id="listView" class="space-y-3" style="display: none;">
+                <!-- 列表項目 -->
+            </div>
+
+            <!-- 分頁 -->
+            <div class="flex justify-between items-center mt-6 pt-6 border-t border-gray-200">
+                                  <p class="text-sm text-gray-600">顯示 1-24 項，共 <span id="totalProducts">48</span> 項商品</p>
+                    <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
+                        上一頁
+                    </button>
+                    <button class="px-3 py-1 text-sm bg-green-500 text-white rounded">1</button>
+                    <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">2</button>
+                    <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+                        下一頁
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增商品模態框 -->
+    <div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">新增商品</h3>
+                    <button onclick="hideAddProductModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="addProductForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">商品名稱</label>
+                            <input type="text" id="productName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入商品名稱">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">商品條碼</label>
+                            <div class="flex">
+                                <input type="text" id="productBarcode" required class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入條碼">
+                                <button type="button" onclick="generateBarcode()" class="px-3 py-2 bg-gray-500 text-white rounded-r-lg hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-random"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">售價</label>
+                            <input type="number" id="productPrice" required min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入售價">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">成本價</label>
+                            <input type="number" id="productCost" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入成本價">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">商品分類</label>
+                            <select id="productCategory" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <option value="">請選擇分類</option>
+                                <option value="electronics">電子產品</option>
+                                <option value="sports">運動用品</option>
+                                <option value="fashion">時尚配件</option>
+                                <option value="clothing">服飾鞋帽</option>
+                                <option value="home">家居用品</option>
+                                <option value="others">其他商品</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">初始庫存</label>
+                            <input type="number" id="productStock" required min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入初始庫存">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">安全庫存</label>
+                            <input type="number" id="productMinStock" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="低於此數量時警告" value="10">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">供應商</label>
+                            <input type="text" id="productSupplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入供應商名稱">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">商品描述</label>
+                        <textarea id="productDescription" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入商品描述（選填）"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">商品圖片</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="url" id="productImage" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入圖片網址，或選擇預設圖片">
+                            <select id="defaultImages" onchange="selectDefaultImage()" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <option value="">選擇預設圖片</option>
+                                <option value="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center">3C產品</option>
+                                <option value="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop&crop=center">運動鞋</option>
+                                <option value="https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200&h=200&fit=crop&crop=center">太陽眼鏡</option>
+                                <option value="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=200&fit=crop&crop=center">服飾</option>
+                                <option value="https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=200&h=200&fit=crop&crop=center">家居用品</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="hideAddProductModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                            取消
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>新增商品
+                        </button>
+                    </div>
+                </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯商品模態框 -->
+    <div id="editProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">編輯商品</h3>
+                    <button onclick="hideEditProductModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="editProductForm" class="space-y-4">
+                    <input type="hidden" id="editProductIndex">
+                    <input type="hidden" id="editProductCategory">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">商品名稱</label>
+                            <input type="text" id="editProductName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">商品條碼</label>
+                            <input type="text" id="editProductBarcode" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">售價</label>
+                            <input type="number" id="editProductPrice" required min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">庫存數量</label>
+                            <input type="number" id="editProductStock" required min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="hideEditProductModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                            取消
+                        </button>
+                        <button type="button" onclick="deleteProduct()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                            <i class="fas fa-trash mr-2"></i>刪除
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-save mr-2"></i>保存
+                        </button>
+                    </div>
+                </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 商品數據
+        const productData = {
+            tableware: [  // 餐具類
+                {name: '歐式骨瓷餐盤 - 20cm 白色經典款', price: 890, stock: 15, barcode: 'P001-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '20cm 白色經典款', description: '純白骨瓷，經典歐式設計'},
+                {name: '歐式骨瓷餐盤 - 20cm 藍花圖案款', price: 950, stock: 8, barcode: 'P001-02', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '20cm 藍花圖案款', description: '手繪藍花圖案，精緻工藝'},
+                {name: '歐式骨瓷餐盤 - 20cm 金邊奢華款', price: 1280, stock: 5, barcode: 'P001-03', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'low', variant: '20cm 金邊奢華款', description: '24K金邊裝飾，奢華典雅'},
+                {name: '法式餐具套裝 - 4人份基礎款', price: 3890, stock: 6, barcode: 'P005-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '4人份基礎款', description: '包含餐盤、湯碗、茶杯'},
+                {name: '法式餐具套裝 - 4人份豪華款', price: 5890, stock: 3, barcode: 'P005-02', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'low', variant: '4人份豪華款', description: '包含餐盤、湯碗、茶杯、甜點盤'}
+            ],
+            glassware: [  // 酒具類
+                {name: '施華洛世奇水晶酒杯 - 紅酒杯 300ml', price: 2890, stock: 12, barcode: 'P002-01', image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '紅酒杯 300ml', description: '奧地利水晶，完美酒杯弧度'},
+                {name: '施華洛世奇水晶酒杯 - 香檳杯 200ml', price: 2590, stock: 18, barcode: 'P002-02', image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '香檳杯 200ml', description: '細長杯身，保持氣泡完美'}
+            ],
+            decorative: [  // 擺飾類
+                {name: '北歐風陶瓷花瓶 - 小號 15cm 灰色', price: 680, stock: 25, barcode: 'P003-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '小號 15cm 灰色', description: '簡約北歐設計，啞光質感'},
+                {name: '北歐風陶瓷花瓶 - 中號 25cm 白色', price: 980, stock: 15, barcode: 'P003-02', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '中號 25cm 白色', description: '純白陶瓷，中性百搭'},
+                {name: '北歐風陶瓷花瓶 - 大號 35cm 黑色', price: 1380, stock: 8, barcode: 'P003-03', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '大號 35cm 黑色', description: '黑色啞光，現代藝術感'}
+            ],
+            teaware: [  // 茶具類
+                {name: '英式骨瓷茶杯組 - 經典玫瑰圖案', price: 1590, stock: 0, barcode: 'P004-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'out', variant: '經典玫瑰圖案', description: '傳統英式下午茶茶杯'}
+            ],
+            kitchenware: [  // 廚具類
+                {name: '德國不鏽鋼廚具 - 基礎3件組', price: 2200, stock: 12, barcode: 'P006-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '基礎3件組', description: '湯勺、漏勺、鏟子'}
+            ],
+            others: []
+        };
+
+        // 當前選中的分類
+        let currentCategory = '';
+
+        // 切換分類檢視
+        function showCategory(category) {
+            currentCategory = category;
+            const categoryNames = {
+                'tableware': '餐具系列',
+                'glassware': '酒具系列',
+                'decorative': '擺飾系列',
+                'teaware': '茶具系列',
+                'kitchenware': '廚具系列',
+                'others': '其他商品'
+            };
+
+            document.getElementById('categoryView').style.display = 'none';
+            document.getElementById('productsView').style.display = 'block';
+            document.getElementById('backToCategories').style.display = 'inline-block';
+            document.getElementById('pageSubtitle').textContent = `管理 ${categoryNames[category]} 商品`;
+            document.getElementById('categoryTitle').textContent = categoryNames[category];
+            
+            renderProducts(category);
+        }
+
+        // 返回分類檢視
+        function backToCategories() {
+            document.getElementById('categoryView').style.display = 'block';
+            document.getElementById('productsView').style.display = 'none';
+            document.getElementById('backToCategories').style.display = 'none';
+            document.getElementById('pageSubtitle').textContent = '選擇商品分類查看商品';
+        }
+
+        // 渲染商品
+        function renderProducts(category) {
+            const products = productData[category] || [];
+            const gridView = document.getElementById('gridView');
+            const listView = document.getElementById('listView');
+            
+            document.getElementById('productCount').textContent = `共 ${products.length} 項商品`;
+            document.getElementById('totalProducts').textContent = products.length;
+
+            // 網格檢視
+            gridView.innerHTML = products.map(product => `
+                <div class="product-card bg-white rounded-lg p-3 shadow-md">
+                    <div class="relative mb-3">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-20 object-cover rounded">
+                        <div class="absolute top-1 right-1">
+                            <span class="bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-1 py-0.5 rounded-full">
+                                ${getStatusText(product.status)}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-800 text-sm mb-1 truncate">${product.name}</h4>
+                        <p class="text-xs text-gray-600 mb-2">條碼: ${product.barcode}</p>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs text-gray-600">售價</span>
+                            <span class="font-bold text-blue-600 text-sm">NT$${product.price.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-600">庫存</span>
+                            <span class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'} text-sm">${product.stock} 件</span>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="flex-1 bg-blue-500 text-white py-1.5 rounded text-xs hover:bg-blue-600 transition-colors">
+                                <i class="fas fa-edit mr-1"></i>編輯
+                            </button>
+                            <button onclick="viewProduct('${currentCategory}', ${products.indexOf(product)})" class="px-2 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50 transition-colors">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 列表檢視
+            listView.innerHTML = products.map(product => `
+                <div class="flex items-center space-x-4 p-3 bg-white rounded-lg shadow-sm">
+                    <img src="${product.image}" alt="${product.name}" class="w-12 h-12 rounded object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-800">${product.name}</h4>
+                        <p class="text-sm text-gray-600">條碼: ${product.barcode}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">售價</p>
+                        <p class="font-bold text-blue-600">NT$${product.price.toLocaleString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">庫存</p>
+                        <p class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'}">${product.stock} 件</p>
+                    </div>
+                    <div class="text-center">
+                        <span class="inline-block bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-2 py-1 rounded-full">
+                            ${getStatusText(product.status)}
+                        </span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-edit mr-1"></i>編輯
+                        </button>
+                        <button onclick="viewProduct('${currentCategory}', ${products.indexOf(product)})" class="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 切換檢視模式
+        function toggleView(viewType) {
+            const gridView = document.getElementById('gridView');
+            const listView = document.getElementById('listView');
+            
+            if (viewType === 'grid') {
+                gridView.style.display = 'grid';
+                listView.style.display = 'none';
+            } else {
+                gridView.style.display = 'none';
+                listView.style.display = 'block';
+            }
+        }
+
+        // 獲取狀態顏色
+        function getStatusColor(status) {
+            switch(status) {
+                case 'normal': return 'green';
+                case 'low': return 'orange';
+                case 'out': return 'red';
+                default: return 'gray';
+            }
+        }
+
+        // 獲取狀態文字
+        function getStatusText(status) {
+            switch(status) {
+                case 'normal': return '正常';
+                case 'low': return '低庫存';
+                case 'out': return '缺貨';
+                default: return '未知';
+            }
+        }
+
+        // 事件監聽
+        document.addEventListener('DOMContentLoaded', function() {
+            // 分類卡片點擊事件
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    showCategory(category);
+                });
+            });
+
+            // 返回按鈕點擊事件
+            document.getElementById('backToCategories').addEventListener('click', backToCategories);
+
+            // 掃碼新增商品按鈕
+            document.getElementById('scanAddProductBtn').addEventListener('click', function() {
+                scanToAddProduct();
+            });
+        });
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 前往匯出/入頁面
+        function goToImportExport() {
+            navigateToPage('import-export');
+        }
+
+        // 掃碼新增商品功能
+        function scanToAddProduct() {
+            if (typeof window.quickScan === 'function') {
+                window.quickScan(
+                    // 掃描成功回調
+                    function(barcode) {
+                        handleProductScan(barcode);
+                    },
+                    // 掃描錯誤回調
+                    function(error) {
+                        alert('掃描失敗: ' + error.message);
+                    }
+                );
+            } else {
+                alert('掃描功能尚未載入，請重新整理頁面');
+            }
+        }
+
+        // 處理商品掃描結果
+        function handleProductScan(barcode) {
+            console.log('掃描到商品條碼:', barcode);
+            
+            // 檢查是否已存在該條碼的商品
+            let productExists = false;
+            
+            // 遍歷所有分類檢查商品是否存在
+            for (const category in productData) {
+                const products = productData[category];
+                const existingProduct = products.find(p => p.barcode === barcode);
+                if (existingProduct) {
+                    productExists = true;
+                    alert(`商品已存在：${existingProduct.name}\n條碼：${barcode}\n價格：NT$${existingProduct.price.toLocaleString()}\n庫存：${existingProduct.stock}件`);
+                    
+                    // 可以選擇跳轉到該商品所在的分類
+                    if (confirm('是否要查看該商品詳情？')) {
+                        showCategory(category);
+                    }
+                    return;
+                }
+            }
+            
+            // 如果商品不存在，提示新增
+            if (!productExists) {
+                const productName = prompt(`條碼 ${barcode} 的商品不存在。\n請輸入商品名稱：`);
+                if (productName) {
+                    const price = prompt('請輸入商品價格：');
+                    const stock = prompt('請輸入初始庫存數量：');
+                    const categoryChoice = prompt('請選擇商品分類：\n1. 餐具系列\n2. 酒具系列\n3. 擺飾系列\n4. 茶具系列\n5. 廚具系列\n6. 其他商品\n\n請輸入數字(1-6)：');
+                    
+                    if (productName && price && stock && categoryChoice) {
+                        const categories = ['tableware', 'glassware', 'decorative', 'teaware', 'kitchenware', 'others'];
+                        const categoryIndex = parseInt(categoryChoice) - 1;
+                        
+                        if (categoryIndex >= 0 && categoryIndex < categories.length) {
+                            const selectedCategory = categories[categoryIndex];
+                            
+                            // 創建新商品
+                            const newProduct = {
+                                name: productName,
+                                price: parseInt(price),
+                                stock: parseInt(stock),
+                                barcode: barcode,
+                                image: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop&crop=center', // 預設圖片
+                                status: parseInt(stock) > 10 ? 'normal' : parseInt(stock) > 0 ? 'low' : 'out'
+                            };
+                            
+                            // 添加到對應分類
+                            productData[selectedCategory].push(newProduct);
+                            
+                            alert(`商品新增成功！\n名稱：${productName}\n條碼：${barcode}\n價格：NT$${price}\n庫存：${stock}件`);
+                            
+                            // 如果當前正在查看該分類，重新渲染
+                            if (currentCategory === selectedCategory) {
+                                renderProducts(selectedCategory);
+                            }
+                        } else {
+                            alert('無效的分類選擇');
+                        }
+                    }
+                }
+            }
+        }
+
+        // 商品管理功能
+
+        // 顯示新增商品模態框
+        function showAddProductModal() {
+            document.getElementById('addProductModal').classList.remove('hidden');
+            document.getElementById('productName').focus();
+        }
+
+        // 隱藏新增商品模態框
+        function hideAddProductModal() {
+            document.getElementById('addProductModal').classList.add('hidden');
+            document.getElementById('addProductForm').reset();
+        }
+
+        // 生成隨機條碼
+        function generateBarcode() {
+            const barcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
+            document.getElementById('productBarcode').value = barcode.toString();
+        }
+
+        // 選擇預設圖片
+        function selectDefaultImage() {
+            const select = document.getElementById('defaultImages');
+            const imageInput = document.getElementById('productImage');
+            if (select.value) {
+                imageInput.value = select.value;
+            }
+        }
+
+        // 新增商品表單提交
+        document.getElementById('addProductForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('productName').value.trim();
+            const barcode = document.getElementById('productBarcode').value.trim();
+            const price = parseInt(document.getElementById('productPrice').value);
+            const cost = parseInt(document.getElementById('productCost').value) || 0;
+            const category = document.getElementById('productCategory').value;
+            const stock = parseInt(document.getElementById('productStock').value);
+            const minStock = parseInt(document.getElementById('productMinStock').value) || 10;
+            const supplier = document.getElementById('productSupplier').value.trim();
+            const description = document.getElementById('productDescription').value.trim();
+            const image = document.getElementById('productImage').value.trim() || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center';
+
+            // 檢查條碼是否已存在
+            let barcodeExists = false;
+            for (const cat in productData) {
+                if (productData[cat].some(product => product.barcode === barcode)) {
+                    barcodeExists = true;
+                    break;
+                }
+            }
+
+            if (barcodeExists) {
+                alert('此條碼已存在，請使用其他條碼');
+                return;
+            }
+
+            // 計算庫存狀態
+            let status = 'normal';
+            if (stock === 0) status = 'out';
+            else if (stock <= minStock) status = 'low';
+
+            // 創建新商品
+            const newProduct = {
+                name: name,
+                barcode: barcode,
+                price: price,
+                cost: cost,
+                stock: stock,
+                minStock: minStock,
+                supplier: supplier,
+                description: description,
+                image: image,
+                status: status
+            };
+
+            // 添加到對應分類
+            productData[category].push(newProduct);
+
+            // 更新統計
+            updateStatistics();
+
+            // 如果當前正在查看該分類，重新渲染
+            if (currentCategory === category) {
+                renderProducts(category);
+            }
+
+            alert('商品新增成功！');
+            hideAddProductModal();
+        });
+
+        // 編輯商品
+        function editProduct(category, index) {
+            const product = productData[category][index];
+            
+            document.getElementById('editProductIndex').value = index;
+            document.getElementById('editProductCategory').value = category;
+            document.getElementById('editProductName').value = product.name;
+            document.getElementById('editProductBarcode').value = product.barcode;
+            document.getElementById('editProductPrice').value = product.price;
+            document.getElementById('editProductStock').value = product.stock;
+            
+            document.getElementById('editProductModal').classList.remove('hidden');
+        }
+
+        // 隱藏編輯商品模態框
+        function hideEditProductModal() {
+            document.getElementById('editProductModal').classList.add('hidden');
+        }
+
+        // 編輯商品表單提交
+        document.getElementById('editProductForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const index = parseInt(document.getElementById('editProductIndex').value);
+            const category = document.getElementById('editProductCategory').value;
+            const name = document.getElementById('editProductName').value.trim();
+            const barcode = document.getElementById('editProductBarcode').value.trim();
+            const price = parseInt(document.getElementById('editProductPrice').value);
+            const stock = parseInt(document.getElementById('editProductStock').value);
+
+            // 更新商品
+            const product = productData[category][index];
+            product.name = name;
+            product.barcode = barcode;
+            product.price = price;
+            product.stock = stock;
+            
+            // 更新庫存狀態
+            const minStock = product.minStock || 10;
+            if (stock === 0) product.status = 'out';
+            else if (stock <= minStock) product.status = 'low';
+            else product.status = 'normal';
+
+            // 重新渲染
+            renderProducts(category);
+            updateStatistics();
+
+            alert('商品更新成功！');
+            hideEditProductModal();
+        });
+
+        // 刪除商品
+        function deleteProduct() {
+            if (confirm('確定要刪除此商品嗎？此操作無法復原。')) {
+                const index = parseInt(document.getElementById('editProductIndex').value);
+                const category = document.getElementById('editProductCategory').value;
+                
+                productData[category].splice(index, 1);
+                
+                renderProducts(category);
+                updateStatistics();
+                
+                alert('商品已刪除');
+                hideEditProductModal();
+            }
+        }
+
+        // 查看商品詳情
+        function viewProduct(category, index) {
+            const product = productData[category][index];
+            
+            const details = `
+商品詳情：
+
+名稱：${product.name}
+條碼：${product.barcode}
+售價：NT$${product.price.toLocaleString()}
+庫存：${product.stock} 件
+狀態：${getStatusText(product.status)}
+${product.cost ? '成本：NT$' + product.cost.toLocaleString() : ''}
+${product.supplier ? '供應商：' + product.supplier : ''}
+${product.description ? '描述：' + product.description : ''}
+            `.trim();
+            
+            alert(details);
+        }
+
+        // 搜尋商品
+        function searchProducts() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!currentCategory) return;
+            
+            let products = [...productData[currentCategory]];
+            
+            if (query) {
+                products = products.filter(product => 
+                    product.name.toLowerCase().includes(query) ||
+                    product.barcode.includes(query)
+                );
+            }
+            
+            renderFilteredProducts(products);
+        }
+
+        // 篩選商品
+        function filterProducts() {
+            const stockFilter = document.getElementById('stockFilter').value;
+            
+            if (!currentCategory) return;
+            
+            let products = [...productData[currentCategory]];
+            
+            // 應用搜尋篩選
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if (query) {
+                products = products.filter(product => 
+                    product.name.toLowerCase().includes(query) ||
+                    product.barcode.includes(query)
+                );
+            }
+            
+            // 應用庫存篩選
+            if (stockFilter) {
+                products = products.filter(product => product.status === stockFilter);
+            }
+            
+            renderFilteredProducts(products);
+        }
+
+        // 排序商品
+        function sortProducts() {
+            const sortBy = document.getElementById('sortSelect').value;
+            
+            if (!currentCategory) return;
+            
+            let products = [...productData[currentCategory]];
+            
+            // 應用搜尋和篩選
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const stockFilter = document.getElementById('stockFilter').value;
+            
+            if (query) {
+                products = products.filter(product => 
+                    product.name.toLowerCase().includes(query) ||
+                    product.barcode.includes(query)
+                );
+            }
+            
+            if (stockFilter) {
+                products = products.filter(product => product.status === stockFilter);
+            }
+            
+            // 排序
+            switch(sortBy) {
+                case 'price-desc':
+                    products.sort((a, b) => b.price - a.price);
+                    break;
+                case 'price-asc':
+                    products.sort((a, b) => a.price - b.price);
+                    break;
+                case 'stock-desc':
+                    products.sort((a, b) => b.stock - a.stock);
+                    break;
+                case 'stock-asc':
+                    products.sort((a, b) => a.stock - b.stock);
+                    break;
+                case 'name-asc':
+                    products.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+            }
+            
+            renderFilteredProducts(products);
+        }
+
+        // 渲染篩選後的商品
+        function renderFilteredProducts(products) {
+            const gridView = document.getElementById('gridView');
+            const listView = document.getElementById('listView');
+            
+            document.getElementById('productCount').textContent = `共 ${products.length} 項商品`;
+            
+            // 網格檢視
+            gridView.innerHTML = products.map((product, index) => `
+                <div class="product-card bg-white rounded-lg p-3 shadow-md">
+                    <div class="relative mb-3">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-20 object-cover rounded">
+                        <div class="absolute top-1 right-1">
+                            <span class="bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-1 py-0.5 rounded-full">
+                                ${getStatusText(product.status)}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-800 text-sm mb-1 truncate">${product.name}</h4>
+                        <p class="text-xs text-gray-600 mb-2">條碼: ${product.barcode}</p>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs text-gray-600">售價</span>
+                            <span class="font-bold text-blue-600 text-sm">NT$${product.price.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-gray-600">庫存</span>
+                            <span class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'} text-sm">${product.stock} 件</span>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="editProductFromFiltered('${currentCategory}', '${product.barcode}')" class="flex-1 bg-blue-500 text-white py-1.5 rounded text-xs hover:bg-blue-600 transition-colors">
+                                <i class="fas fa-edit mr-1"></i>編輯
+                            </button>
+                            <button onclick="viewProductFromFiltered('${currentCategory}', '${product.barcode}')" class="px-2 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50 transition-colors">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 列表檢視
+            listView.innerHTML = products.map((product, index) => `
+                <div class="flex items-center space-x-4 p-3 bg-white rounded-lg shadow-sm">
+                    <img src="${product.image}" alt="${product.name}" class="w-12 h-12 rounded object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-800">${product.name}</h4>
+                        <p class="text-sm text-gray-600">條碼: ${product.barcode}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">售價</p>
+                        <p class="font-bold text-blue-600">NT$${product.price.toLocaleString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">庫存</p>
+                        <p class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'}">${product.stock} 件</p>
+                    </div>
+                    <div class="text-center">
+                        <span class="inline-block bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-2 py-1 rounded-full">
+                            ${getStatusText(product.status)}
+                        </span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editProductFromFiltered('${currentCategory}', '${product.barcode}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-edit mr-1"></i>編輯
+                        </button>
+                        <button onclick="viewProductFromFiltered('${currentCategory}', '${product.barcode}')" class="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 從篩選結果編輯商品
+        function editProductFromFiltered(category, barcode) {
+            const index = productData[category].findIndex(product => product.barcode === barcode);
+            if (index !== -1) {
+                editProduct(category, index);
+            }
+        }
+
+        // 從篩選結果查看商品
+        function viewProductFromFiltered(category, barcode) {
+            const index = productData[category].findIndex(product => product.barcode === barcode);
+            if (index !== -1) {
+                viewProduct(category, index);
+            }
+        }
+
+        // 更新統計數據
+        function updateStatistics() {
+            let totalProducts = 0;
+            let inStock = 0;
+            let lowStock = 0;
+            let outOfStock = 0;
+
+            for (const category in productData) {
+                productData[category].forEach(product => {
+                    totalProducts++;
+                    if (product.status === 'normal') inStock++;
+                    else if (product.status === 'low') lowStock++;
+                    else if (product.status === 'out') outOfStock++;
+                });
+            }
+
+            // 更新統計卡片
+            const statsCards = document.querySelectorAll('.apple-card p.text-2xl');
+            if (statsCards.length >= 4) {
+                statsCards[0].textContent = totalProducts;
+                statsCards[1].textContent = inStock;
+                statsCards[2].textContent = lowStock;
+                statsCards[3].textContent = outOfStock;
+            }
+        }
+
+        // 初始化統計
+        updateStatistics();
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+
+        // 顯示盤點作業彈出視窗
+        function showStockTakingModal() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">盤點作業</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- 盤點清單 -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-3">盤點清單</h4>
+                            <div class="space-y-2 max-h-96 overflow-y-auto" id="stockTakingList">
+                                <!-- 盤點項目將動態添加 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 盤點統計 -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-3">盤點統計</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between p-3 bg-blue-50 rounded-lg">
+                                    <span class="text-gray-700">總商品數</span>
+                                    <span class="font-semibold text-blue-600" id="stockTakingTotal">0</span>
+                                </div>
+                                <div class="flex justify-between p-3 bg-green-50 rounded-lg">
+                                    <span class="text-gray-700">已盤點</span>
+                                    <span class="font-semibold text-green-600" id="stockTakingCounted">0</span>
+                                </div>
+                                <div class="flex justify-between p-3 bg-yellow-50 rounded-lg">
+                                    <span class="text-gray-700">差異項目</span>
+                                    <span class="font-semibold text-yellow-600" id="stockTakingDiff">0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 space-y-3">
+                                <button onclick="startStockTaking()" class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors">
+                                    <i class="fas fa-play mr-2"></i>開始盤點
+                                </button>
+                                <button onclick="exportStockTakingReport()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                    <i class="fas fa-download mr-2"></i>匯出盤點報告
+                                </button>
+                                <button onclick="this.closest('.fixed').remove()" class="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            loadStockTakingList();
+        }
+
+        // 載入盤點清單
+        function loadStockTakingList() {
+            const container = document.getElementById('stockTakingList');
+            if (!container) return;
+            
+            let allProducts = [];
+            for (const category in productData) {
+                allProducts = allProducts.concat(productData[category]);
+            }
+            
+            container.innerHTML = allProducts.map(product => `
+                <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                    <div class="flex-1">
+                        <h5 class="font-medium text-gray-800">${product.name}</h5>
+                        <p class="text-sm text-gray-600">條碼: ${product.barcode}</p>
+                    </div>
+                    <div class="text-center mx-4">
+                        <p class="text-xs text-gray-600">系統庫存</p>
+                        <p class="font-semibold text-blue-600">${product.stock}</p>
+                    </div>
+                    <div class="text-center mx-4">
+                        <p class="text-xs text-gray-600">實際庫存</p>
+                        <input type="number" min="0" value="${product.stock}" 
+                               class="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                               onchange="updateStockTakingCount()">
+                    </div>
+                    <div class="text-center mx-4">
+                        <p class="text-xs text-gray-600">差異</p>
+                        <p class="font-semibold text-gray-600" id="diff-${product.barcode}">0</p>
+                    </div>
+                </div>
+            `).join('');
+            
+            updateStockTakingCount();
+        }
+
+        // 更新盤點統計
+        function updateStockTakingCount() {
+            const inputs = document.querySelectorAll('#stockTakingList input[type="number"]');
+            let total = inputs.length;
+            let counted = 0;
+            let diffCount = 0;
+            
+            inputs.forEach(input => {
+                const barcode = input.closest('div').querySelector('p').textContent.split(': ')[1];
+                const systemStock = parseInt(input.defaultValue);
+                const actualStock = parseInt(input.value) || 0;
+                const diff = actualStock - systemStock;
+                
+                const diffElement = document.getElementById(`diff-${barcode}`);
+                if (diffElement) {
+                    diffElement.textContent = diff;
+                    diffElement.className = `font-semibold ${diff === 0 ? 'text-gray-600' : diff > 0 ? 'text-green-600' : 'text-red-600'}`;
+                }
+                
+                if (actualStock !== systemStock) {
+                    diffCount++;
+                }
+                counted++;
+            });
+            
+            document.getElementById('stockTakingTotal').textContent = total;
+            document.getElementById('stockTakingCounted').textContent = counted;
+            document.getElementById('stockTakingDiff').textContent = diffCount;
+        }
+
+        // 開始盤點
+        function startStockTaking() {
+            const inputs = document.querySelectorAll('#stockTakingList input[type="number"]');
+            const stockTakingData = [];
+            
+            inputs.forEach(input => {
+                const productDiv = input.closest('div');
+                const name = productDiv.querySelector('h5').textContent;
+                const barcode = productDiv.querySelector('p').textContent.split(': ')[1];
+                const systemStock = parseInt(input.defaultValue);
+                const actualStock = parseInt(input.value) || 0;
+                
+                stockTakingData.push({
+                    name,
+                    barcode,
+                    systemStock,
+                    actualStock,
+                    difference: actualStock - systemStock
+                });
+            });
+            
+            // 儲存盤點數據
+            localStorage.setItem('stockTakingData', JSON.stringify(stockTakingData));
+            alert('盤點數據已儲存！');
+        }
+
+        // 匯出盤點報告
+        function exportStockTakingReport() {
+            const stockTakingData = JSON.parse(localStorage.getItem('stockTakingData') || '[]');
+            if (stockTakingData.length === 0) {
+                alert('沒有盤點數據可匯出');
+                return;
+            }
+            
+            const report = {
+                date: new Date().toISOString(),
+                total: stockTakingData.length,
+                counted: stockTakingData.length,
+                differences: stockTakingData.filter(item => item.difference !== 0).length,
+                items: stockTakingData
+            };
+            
+            const dataStr = JSON.stringify(report, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `stock_taking_report_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            alert('盤點報告匯出成功！');
+        }
+    </script>
+</body>
+</html> 
