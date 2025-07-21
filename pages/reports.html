@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="../純手動條碼輸入器.js"></script>
+
     <script>
         // 檢查掃描功能是否載入
         window.addEventListener('load', function() {
@@ -15,7 +15,7 @@
                 if (typeof window.quickScan !== 'function') {
                     console.log('掃描功能未載入，提供手動輸入替代方案');
                     window.quickScan = function(onSuccess, onError) {
-                        const barcode = prompt('請輸入條碼號碼查看銷售報表\n\n測試條碼:\n1234567890123 - Nike Air Max 270 (銷售:32件)\n2345678901234 - Apple Watch Series 9 (銷售:18件)\n3456789012345 - Samsung Galaxy S24 (銷售:15件)\n4567890123456 - JBL Tune 760NC (銷售:0件)\n5678901234567 - Adidas 運動外套 (銷售:24件)\n6789012345678 - Ray-Ban 太陽眼鏡 (銷售:12件)');
+                        const barcode = prompt('請輸入條碼號碼查看銷售報表');
                         if (barcode) {
                             onSuccess(barcode);
                         } else if (onError) {

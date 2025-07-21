@@ -270,93 +270,76 @@
 
     <script>
         // 優惠券數據庫
-        let couponsData = [
-            {
-                id: 'C001',
-                name: '新會員歡迎禮',
-                code: 'WELCOME2024',
-                type: 'percentage',
-                discountValue: 15,
-                minAmount: 500,
-                startDate: '2024-01-01T00:00',
-                endDate: '2024-12-31T23:59',
-                usageLimit: 1000,
-                userLimit: 1,
-                usedCount: 156,
-                categories: ['all'],
-                description: '新會員首次購物享15%折扣',
-                status: 'active',
-                createdDate: '2024-01-01'
-            },
-            {
-                id: 'C002',
-                name: '春節特惠',
-                code: 'CNY2024',
-                type: 'fixed',
-                discountValue: 200,
-                minAmount: 1000,
-                startDate: '2024-02-01T00:00',
-                endDate: '2024-02-29T23:59',
-                usageLimit: 500,
-                userLimit: 2,
-                usedCount: 89,
-                categories: ['tableware', 'teaware'],
-                description: '春節期間餐具茶具滿千折200',
-                status: 'active',
-                createdDate: '2024-01-15'
-            },
-            {
-                id: 'C003',
-                name: '週年慶大優惠',
-                code: 'ANNIVERSARY50',
-                type: 'percentage',
-                discountValue: 50,
-                minAmount: 2000,
-                startDate: '2024-03-01T00:00',
-                endDate: '2024-03-15T23:59',
-                usageLimit: 200,
-                userLimit: 1,
-                usedCount: 198,
-                categories: ['all'],
-                description: '週年慶限定，全館5折優惠',
-                status: 'expired',
-                createdDate: '2024-02-20'
-            },
-            {
-                id: 'C004',
-                name: 'VIP會員專享',
-                code: 'VIP2024',
-                type: 'member_only',
-                discountValue: 20,
-                minAmount: 800,
-                startDate: '2024-01-01T00:00',
-                endDate: '2024-12-31T23:59',
-                usageLimit: 9999,
-                userLimit: 5,
-                usedCount: 245,
-                categories: ['all'],
-                description: 'VIP會員專屬20%折扣',
-                status: 'active',
-                createdDate: '2024-01-01'
-            },
-            {
-                id: 'C005',
-                name: '買三送一活動',
-                code: 'BUY3GET1',
-                type: 'buy_x_get_y',
-                discountValue: 0,
-                minAmount: 0,
-                startDate: '2024-04-01T00:00',
-                endDate: '2024-04-30T23:59',
-                usageLimit: 300,
-                userLimit: 1,
-                usedCount: 45,
-                categories: ['decorative'],
-                description: '購買3件擺飾商品送1件',
-                status: 'active',
-                createdDate: '2024-03-25'
+        let couponsData = [];
+
+        // 載入優惠券資料
+        function loadCouponsData() {
+            const savedCoupons = localStorage.getItem('couponsData');
+            if (savedCoupons) {
+                couponsData = JSON.parse(savedCoupons);
+            } else {
+                // 預設優惠券資料
+                couponsData = [
+                    {
+                        id: 'C001',
+                        name: '新會員歡迎禮',
+                        code: 'WELCOME2024',
+                        type: 'percentage',
+                        discountValue: 15,
+                        minAmount: 500,
+                        startDate: '2024-01-01T00:00',
+                        endDate: '2024-12-31T23:59',
+                        usageLimit: 1000,
+                        userLimit: 1,
+                        usedCount: 156,
+                        categories: ['all'],
+                        description: '新會員首次購物享15%折扣',
+                        status: 'active',
+                        createdDate: '2024-01-01'
+                    },
+                    {
+                        id: 'C002',
+                        name: '春節特惠',
+                        code: 'CNY2024',
+                        type: 'fixed',
+                        discountValue: 200,
+                        minAmount: 1000,
+                        startDate: '2024-02-01T00:00',
+                        endDate: '2024-12-31T23:59',
+                        usageLimit: 500,
+                        userLimit: 2,
+                        usedCount: 89,
+                        categories: ['餐具', '茶具'],
+                        description: '春節期間餐具茶具滿千折200',
+                        status: 'active',
+                        createdDate: '2024-01-15'
+                    },
+                    {
+                        id: 'C004',
+                        name: 'VIP會員專享',
+                        code: 'VIP2024',
+                        type: 'member_only',
+                        discountValue: 20,
+                        minAmount: 800,
+                        startDate: '2024-01-01T00:00',
+                        endDate: '2024-12-31T23:59',
+                        usageLimit: 9999,
+                        userLimit: 5,
+                        usedCount: 245,
+                        categories: ['all'],
+                        description: 'VIP會員專屬20%折扣',
+                        status: 'active',
+                        createdDate: '2024-01-01'
+                    }
+                ];
+                localStorage.setItem('couponsData', JSON.stringify(couponsData));
             }
-        ];
+        }
+
+        // 保存優惠券資料
+        function saveCouponsData() {
+            localStorage.setItem('couponsData', JSON.stringify(couponsData));
+        }
 
         let currentEditingCoupon = null;
 
@@ -634,6 +617,7 @@
                 alert('優惠券新增成功！');
             }
 
+            saveCouponsData();
             closeCouponModal();
             renderCoupons();
             updateStatistics();
@@ -674,6 +658,7 @@
             if (!coupon) return;
 
             coupon.status = coupon.status === 'active' ? 'disabled' : 'active';
+            saveCouponsData();
             renderCoupons();
             updateStatistics();
             
@@ -686,6 +671,7 @@
             if (!confirm('確定要刪除這張優惠券嗎？此操作無法復原。')) return;
             
             couponsData = couponsData.filter(c => c.id !== id);
+            saveCouponsData();
             renderCoupons();
             updateStatistics();
             alert('優惠券已刪除！');
@@ -766,6 +752,7 @@
                 couponsData.push(coupon);
             }
 
+            saveCouponsData();
             renderCoupons();
             updateStatistics();
             alert(`成功生成 ${count} 張優惠券！`);
@@ -828,10 +815,18 @@
             const coupon = couponsData.find(c => c.code.toUpperCase() === code.toUpperCase());
             if (coupon) {
                 coupon.usedCount++;
+                saveCouponsData();
                 updateStatistics();
                 renderCoupons();
             }
         };
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCouponsData();
+            renderCoupons();
+            updateStatistics();
+        });
     </script>
 </body>
 </html> 

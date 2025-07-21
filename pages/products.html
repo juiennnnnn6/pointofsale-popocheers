@@ -6,7 +6,7 @@
     <title>商品管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="../純手動條碼輸入器.js"></script>
+
     <script>
         // 檢查掃描功能是否載入
         window.addEventListener('load', function() {
@@ -14,7 +14,7 @@
                 if (typeof window.quickScan !== 'function') {
                     console.log('掃描功能未載入，提供手動輸入替代方案');
                     window.quickScan = function(onSuccess, onError) {
-                        const barcode = prompt('請輸入條碼號碼進行商品查詢\n\n🏺 歐洲家居/瓷器店 測試條碼:\n\n1234567890123 - 歐式骨瓷餐盤系列 (3款規格)\n2345678901234 - 施華洛世奇水晶酒杯 (2款規格)\n3456789012345 - 北歐風陶瓷花瓶 (3款規格)\n4567890123456 - 英式骨瓷茶杯組 (缺貨)\n5678901234567 - 法式餐具套裝 (2款規格)\n6789012345678 - 德國不鏽鋼廚具\n\n💡 同條碼多商品時會自動彈出選擇視窗');
+                        const barcode = prompt('請輸入條碼號碼進行商品查詢');
                         if (barcode) {
                             onSuccess(barcode);
                         } else if (onError) {
@@ -471,31 +471,31 @@
 
     <script>
         // 商品數據
-        const productData = {
-            tableware: [  // 餐具類
-                {name: '歐式骨瓷餐盤 - 20cm 白色經典款', price: 890, stock: 15, barcode: 'P001-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '20cm 白色經典款', description: '純白骨瓷，經典歐式設計'},
-                {name: '歐式骨瓷餐盤 - 20cm 藍花圖案款', price: 950, stock: 8, barcode: 'P001-02', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '20cm 藍花圖案款', description: '手繪藍花圖案，精緻工藝'},
-                {name: '歐式骨瓷餐盤 - 20cm 金邊奢華款', price: 1280, stock: 5, barcode: 'P001-03', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'low', variant: '20cm 金邊奢華款', description: '24K金邊裝飾，奢華典雅'},
-                {name: '法式餐具套裝 - 4人份基礎款', price: 3890, stock: 6, barcode: 'P005-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '4人份基礎款', description: '包含餐盤、湯碗、茶杯'},
-                {name: '法式餐具套裝 - 4人份豪華款', price: 5890, stock: 3, barcode: 'P005-02', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'low', variant: '4人份豪華款', description: '包含餐盤、湯碗、茶杯、甜點盤'}
-            ],
-            glassware: [  // 酒具類
-                {name: '施華洛世奇水晶酒杯 - 紅酒杯 300ml', price: 2890, stock: 12, barcode: 'P002-01', image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '紅酒杯 300ml', description: '奧地利水晶，完美酒杯弧度'},
-                {name: '施華洛世奇水晶酒杯 - 香檳杯 200ml', price: 2590, stock: 18, barcode: 'P002-02', image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '香檳杯 200ml', description: '細長杯身，保持氣泡完美'}
-            ],
-            decorative: [  // 擺飾類
-                {name: '北歐風陶瓷花瓶 - 小號 15cm 灰色', price: 680, stock: 25, barcode: 'P003-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '小號 15cm 灰色', description: '簡約北歐設計，啞光質感'},
-                {name: '北歐風陶瓷花瓶 - 中號 25cm 白色', price: 980, stock: 15, barcode: 'P003-02', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '中號 25cm 白色', description: '純白陶瓷，中性百搭'},
-                {name: '北歐風陶瓷花瓶 - 大號 35cm 黑色', price: 1380, stock: 8, barcode: 'P003-03', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '大號 35cm 黑色', description: '黑色啞光，現代藝術感'}
-            ],
-            teaware: [  // 茶具類
-                {name: '英式骨瓷茶杯組 - 經典玫瑰圖案', price: 1590, stock: 0, barcode: 'P004-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'out', variant: '經典玫瑰圖案', description: '傳統英式下午茶茶杯'}
-            ],
-            kitchenware: [  // 廚具類
-                {name: '德國不鏽鋼廚具 - 基礎3件組', price: 2200, stock: 12, barcode: 'P006-01', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop&crop=center', status: 'normal', variant: '基礎3件組', description: '湯勺、漏勺、鏟子'}
-            ],
-            others: []
-        };
+        let productData = {};
+
+        // 載入商品資料
+        function loadProductData() {
+            const savedProducts = localStorage.getItem('productData');
+            if (savedProducts) {
+                productData = JSON.parse(savedProducts);
+            } else {
+                // 初始化空的商品資料結構
+                productData = {
+                    tableware: [],
+                    glassware: [],
+                    decorative: [],
+                    teaware: [],
+                    kitchenware: [],
+                    others: []
+                };
+                localStorage.setItem('productData', JSON.stringify(productData));
+            }
+        }
+
+        // 保存商品資料
+        function saveProductData() {
+            localStorage.setItem('productData', JSON.stringify(productData));
+        }
 
         // 當前選中的分類
         let currentCategory = '';
@@ -750,6 +750,7 @@
                             
                             // 添加到對應分類
                             productData[selectedCategory].push(newProduct);
+                            saveProductData();
                             
                             alert(`商品新增成功！\n名稱：${productName}\n條碼：${barcode}\n價格：NT$${price}\n庫存：${stock}件`);
                             
@@ -844,6 +845,7 @@
 
             // 添加到對應分類
             productData[category].push(newProduct);
+            saveProductData();
 
             // 更新統計
             updateStatistics();
@@ -900,6 +902,8 @@
             else if (stock <= minStock) product.status = 'low';
             else product.status = 'normal';
 
+            saveProductData();
+
             // 重新渲染
             renderProducts(category);
             updateStatistics();
@@ -915,6 +919,7 @@
                 const category = document.getElementById('editProductCategory').value;
                 
                 productData[category].splice(index, 1);
+                saveProductData();
                 
                 renderProducts(category);
                 updateStatistics();
@@ -1335,6 +1340,12 @@ ${product.description ? '描述：' + product.description : ''}
             URL.revokeObjectURL(url);
             alert('盤點報告匯出成功！');
         }
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProductData();
+            updateStatistics();
+        });
     </script>
 </body>
 </html> 

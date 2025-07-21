@@ -142,12 +142,32 @@
                 </div>
             </div>
 
-            <!-- 商品匯出/入 -->
+            <!-- 資料匯出/入 -->
             <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('import-export', ['管理員', '店長'])">
                 <div class="text-center">
                     <i class="fas fa-file-import text-4xl text-teal-500 mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">商品匯出/入</h3>
-                    <p class="text-sm text-gray-600">匯入匯出商品資料</p>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">資料匯出/入</h3>
+                    <p class="text-sm text-gray-600">匯入匯出商品和會員資料</p>
+                    <span class="text-xs text-red-500">需要管理員或店長權限</span>
+                </div>
+            </div>
+
+            <!-- 優惠券管理 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('coupons', ['管理員', '店長'])">
+                <div class="text-center">
+                    <i class="fas fa-ticket-alt text-4xl text-orange-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">優惠券管理</h3>
+                    <p class="text-sm text-gray-600">管理優惠券和促銷活動</p>
+                    <span class="text-xs text-red-500">需要管理員或店長權限</span>
+                </div>
+            </div>
+
+            <!-- 分類管理 -->
+            <div class="apple-card rounded-xl p-6 apple-shadow hover:shadow-lg transition-shadow cursor-pointer" onclick="checkPermissionAndNavigate('categories', ['管理員', '店長'])">
+                <div class="text-center">
+                    <i class="fas fa-tags text-4xl text-teal-500 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">分類管理</h3>
+                    <p class="text-sm text-gray-600">管理商品分類</p>
                     <span class="text-xs text-red-500">需要管理員或店長權限</span>
                 </div>
             </div>

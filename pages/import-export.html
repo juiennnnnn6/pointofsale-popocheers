@@ -6,7 +6,7 @@
     <title>商品匯出/入 - 進銷存系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="../純手動條碼輸入器.js"></script>
+
     <style>
         .apple-card {
             background: rgba(255, 255, 255, 0.95);
@@ -32,8 +32,8 @@
     <div class="mb-6">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">商品匯出/入</h1>
-                <p class="text-gray-600">批量管理商品資料，支援Excel和CSV格式</p>
+                <h1 class="text-2xl font-bold text-gray-800">資料匯出/入</h1>
+                <p class="text-gray-600">批量管理商品和會員資料，支援Excel和CSV格式</p>
             </div>
             <div class="flex space-x-3">
                 <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
@@ -49,7 +49,7 @@
     <!-- 功能區域 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         
-        <!-- 匯出功能 -->
+        <!-- 商品匯出功能 -->
         <div class="apple-card rounded-xl p-6 shadow-lg">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">
                 <i class="fas fa-file-export mr-2 text-green-500"></i>
@@ -114,7 +114,7 @@
             </div>
         </div>
 
-        <!-- 匯入功能 -->
+        <!-- 商品匯入功能 -->
         <div class="apple-card rounded-xl p-6 shadow-lg">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">
                 <i class="fas fa-file-import mr-2 text-blue-500"></i>
@@ -173,6 +173,123 @@
             <button id="importBtn" onclick="importProducts()" disabled class="w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed">
                 <i class="fas fa-upload mr-2"></i>
                 開始匯入
+            </button>
+        </div>
+    </div>
+
+    <!-- 會員匯入匯出功能 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- 會員匯出功能 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-export mr-2 text-purple-500"></i>
+                匯出會員資料
+            </h2>
+            
+            <!-- 匯出選項 -->
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">匯出格式</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="memberExportFormat" value="csv" checked class="mr-2">
+                            <i class="fas fa-file-csv mr-2 text-green-600"></i>
+                            <span>CSV格式</span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="memberExportFormat" value="excel" class="mr-2">
+                            <i class="fas fa-file-excel mr-2 text-green-600"></i>
+                            <span>Excel格式</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">匯出範圍</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="memberExportRange" value="all" checked class="mr-2">
+                            <span>所有會員</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="memberExportRange" value="active" class="mr-2">
+                            <span>啟用會員</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="memberExportRange" value="vip" class="mr-2">
+                            <span>VIP會員</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 匯出按鈕 -->
+            <button onclick="exportMembers()" class="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition-colors font-medium">
+                <i class="fas fa-download mr-2"></i>
+                開始匯出會員
+            </button>
+        </div>
+
+        <!-- 會員匯入功能 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-import mr-2 text-purple-500"></i>
+                匯入會員資料
+            </h2>
+            
+            <!-- 檔案上傳區域 -->
+            <div id="memberUploadArea" class="upload-area rounded-lg p-8 text-center mb-4">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 mb-2">拖放檔案至此處或點擊選擇</p>
+                <p class="text-sm text-gray-500">支援 .csv, .xlsx, .xls 格式</p>
+                <input type="file" id="memberFileInput" accept=".csv,.xlsx,.xls" class="hidden">
+                <button onclick="selectMemberFile()" class="mt-3 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                    選擇檔案
+                </button>
+            </div>
+            
+            <!-- 檔案資訊 -->
+            <div id="memberFileInfo" class="hidden mb-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-file mr-2 text-purple-500"></i>
+                            <span id="memberFileName" class="font-medium"></span>
+                        </div>
+                        <button onclick="clearMemberFile()" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                        大小: <span id="memberFileSize"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 匯入選項 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">匯入模式</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="memberImportMode" value="update" checked class="mr-2">
+                        <span>更新現有會員（根據會員編號）</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="memberImportMode" value="add" class="mr-2">
+                        <span>只新增新會員</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="memberImportMode" value="replace" class="mr-2">
+                        <span>替換所有會員</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 匯入按鈕 -->
+            <button id="memberImportBtn" onclick="importMembers()" disabled class="w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed">
+                <i class="fas fa-upload mr-2"></i>
+                開始匯入會員
             </button>
         </div>
     </div>
@@ -402,23 +519,41 @@
 
         // 下載模板
         function downloadTemplate() {
-            const headers = ['條碼', '商品名稱', '價格', '庫存', '分類', '供應商'];
-            const sampleData = [
-                ['1234567890123', '範例商品1', '1000', '50', '電子產品', '供應商A'],
-                ['2345678901234', '範例商品2', '2000', '30', '服飾', '供應商B']
+            // 商品模板
+            const productHeaders = ['條碼', '商品名稱', '價格', '成本', '庫存', '最低庫存', '分類', '供應商', '商品描述', '圖片URL'];
+            const productSampleData = [
+                ['1234567890123', '歐式骨瓷餐盤', '890', '600', '15', '10', '餐具', '歐洲瓷器供應商', '純白骨瓷，經典歐式設計', 'https://example.com/image1.jpg'],
+                ['2345678901234', '施華洛世奇水晶酒杯', '2890', '2000', '12', '5', '酒具', '奧地利水晶供應商', '奧地利水晶，完美酒杯弧度', 'https://example.com/image2.jpg']
             ];
             
-            const csvContent = [headers, ...sampleData]
+            const productCsvContent = [productHeaders, ...productSampleData]
                 .map(row => row.map(field => `"${field}"`).join(','))
                 .join('\n');
             
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = '商品匯入模板.csv';
-            link.click();
+            const productBlob = new Blob(['\uFEFF' + productCsvContent], { type: 'text/csv;charset=utf-8;' });
+            const productLink = document.createElement('a');
+            productLink.href = URL.createObjectURL(productBlob);
+            productLink.download = '商品匯入模板.csv';
+            productLink.click();
             
-            showMessage('模板已下載，請依照格式填入商品資料', 'success');
+            // 會員模板
+            const memberHeaders = ['會員編號', '姓名', '電話', '電子郵件', '生日', '會員等級', '積分', '狀態', '地址', '備註'];
+            const memberSampleData = [
+                ['M001', '王小明', '0912345678', 'wang@example.com', '1990-01-15', '一般', '100', 'active', '台北市信義區', '新會員'],
+                ['M002', '李美華', '0923456789', 'lee@example.com', '1985-05-20', '金卡', '500', 'active', '台北市大安區', 'VIP客戶']
+            ];
+            
+            const memberCsvContent = [memberHeaders, ...memberSampleData]
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            
+            const memberBlob = new Blob(['\uFEFF' + memberCsvContent], { type: 'text/csv;charset=utf-8;' });
+            const memberLink = document.createElement('a');
+            memberLink.href = URL.createObjectURL(memberBlob);
+            memberLink.download = '會員匯入模板.csv';
+            memberLink.click();
+            
+            showMessage('商品和會員模板已下載，請依照格式填入資料', 'success');
         }
 
         // 匯出商品
@@ -865,9 +1000,174 @@
             }, 5000);
         }
 
+        // 會員匯入匯出功能
+
+        // 選擇會員檔案
+        function selectMemberFile() {
+            document.getElementById('memberFileInput').click();
+        }
+
+        // 清除會員檔案
+        function clearMemberFile() {
+            document.getElementById('memberFileInput').value = '';
+            document.getElementById('memberFileInfo').classList.add('hidden');
+            document.getElementById('memberImportBtn').disabled = true;
+            document.getElementById('memberImportBtn').className = 'w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed';
+        }
+
+        // 會員檔案處理
+        document.getElementById('memberFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('memberFileName').textContent = file.name;
+                document.getElementById('memberFileSize').textContent = formatFileSize(file.size);
+                document.getElementById('memberFileInfo').classList.remove('hidden');
+                document.getElementById('memberImportBtn').disabled = false;
+                document.getElementById('memberImportBtn').className = 'w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition-colors font-medium';
+            }
+        });
+
+        // 匯出會員資料
+        function exportMembers() {
+            const format = document.querySelector('input[name="memberExportFormat"]:checked').value;
+            const range = document.querySelector('input[name="memberExportRange"]:checked').value;
+            
+            // 從localStorage獲取會員資料
+            const savedMembers = localStorage.getItem('membersData');
+            let membersData = savedMembers ? JSON.parse(savedMembers) : [];
+            
+            // 根據範圍過濾會員
+            let filteredMembers = membersData;
+            switch(range) {
+                case 'active':
+                    filteredMembers = membersData.filter(m => m.status === 'active');
+                    break;
+                case 'vip':
+                    filteredMembers = membersData.filter(m => ['金卡', '白金', '鑽石'].includes(m.level));
+                    break;
+            }
+            
+            const headers = ['會員編號', '姓名', '電話', '電子郵件', '生日', '會員等級', '積分', '狀態', '地址', '備註'];
+            const data = [headers];
+            
+            filteredMembers.forEach(member => {
+                data.push([
+                    member.id || '',
+                    member.name || '',
+                    member.phone || '',
+                    member.email || '',
+                    member.birthday || '',
+                    member.level || '',
+                    member.points || '0',
+                    member.status || 'active',
+                    member.address || '',
+                    member.notes || ''
+                ]);
+            });
+            
+            if (format === 'csv') {
+                exportMembersAsCSV(data);
+            } else {
+                exportMembersAsExcel(data);
+            }
+            
+            showMessage(`已匯出 ${data.length - 1} 筆會員資料`, 'success');
+        }
+
+        // 匯出會員為CSV
+        function exportMembersAsCSV(data) {
+            const csvContent = data
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `會員資料_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // 匯出會員為Excel (簡化版)
+        function exportMembersAsExcel(data) {
+            const csvContent = data
+                .map(row => row.join('\t'))
+                .join('\n');
+            
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `會員資料_${new Date().toISOString().split('T')[0]}.xls`;
+            link.click();
+        }
+
+        // 匯入會員資料
+        function importMembers() {
+            const file = document.getElementById('memberFileInput').files[0];
+            if (!file) {
+                showMessage('請選擇要匯入的檔案', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const lines = content.split('\n');
+                const data = lines.map(line => line.split(',').map(field => field.replace(/"/g, '')));
+                
+                // 顯示預覽
+                showMemberPreview(data);
+            };
+            reader.readAsText(file);
+        }
+
+        // 顯示會員預覽
+        function showMemberPreview(data) {
+            const previewArea = document.getElementById('previewArea');
+            const previewHeader = document.getElementById('previewHeader');
+            const previewBody = document.getElementById('previewBody');
+            
+            previewHeader.innerHTML = '';
+            previewBody.innerHTML = '';
+            
+            // 添加表頭
+            const headerRow = document.createElement('tr');
+            data[0].forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'border border-gray-300 px-4 py-2 bg-gray-50 font-medium text-left';
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            previewHeader.appendChild(headerRow);
+            
+            // 添加資料行（最多5行）
+            const previewCount = Math.min(5, data.length - 1);
+            for (let i = 1; i <= previewCount; i++) {
+                const row = document.createElement('tr');
+                data[i].forEach(cell => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 px-4 py-2';
+                    td.textContent = cell;
+                    row.appendChild(td);
+                });
+                previewBody.appendChild(row);
+            }
+            
+            document.getElementById('previewCount').textContent = previewCount;
+            previewArea.classList.remove('hidden');
+        }
+
+        // 格式化檔案大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
         // 頁面初始化
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('商品匯出/入功能已載入');
+            console.log('資料匯出/入功能已載入');
         });
     </script>
 </body>
