@@ -913,23 +913,116 @@
         
         // 載入優惠券管理功能
         function loadCouponFunctions() {
-            // 動態載入優惠券管理頁面的腳本
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = 'coupons.html';
-            iframe.onload = function() {
-                try {
-                    // 從優惠券管理頁面獲取函數
-                    if (iframe.contentWindow.validateCoupon) {
-                        window.validateCoupon = iframe.contentWindow.validateCoupon;
-                        window.useCoupon = iframe.contentWindow.useCoupon;
-                        window.getCouponsData = iframe.contentWindow.getCouponsData;
+            // 直接定義優惠券驗證函數，不依賴iframe
+            window.validateCoupon = function(code, orderAmount, memberLevel, categories) {
+                // 預設優惠券資料
+                const couponsData = [
+                    {
+                        id: 'C001',
+                        name: '新會員歡迎禮',
+                        code: 'WELCOME2024',
+                        type: 'percentage',
+                        discountValue: 15,
+                        minAmount: 500,
+                        startDate: '2024-01-01T00:00',
+                        endDate: '2024-12-31T23:59',
+                        usageLimit: 1000,
+                        userLimit: 1,
+                        usedCount: 156,
+                        categories: ['all'],
+                        description: '新會員首次購物享15%折扣',
+                        status: 'active',
+                        createdDate: '2024-01-01'
+                    },
+                    {
+                        id: 'C002',
+                        name: '春節特惠',
+                        code: 'CNY2024',
+                        type: 'fixed',
+                        discountValue: 200,
+                        minAmount: 1000,
+                        startDate: '2024-02-01T00:00',
+                        endDate: '2024-12-31T23:59',
+                        usageLimit: 500,
+                        userLimit: 2,
+                        usedCount: 89,
+                        categories: ['餐具', '茶具'],
+                        description: '春節期間餐具茶具滿千折200',
+                        status: 'active',
+                        createdDate: '2024-01-15'
+                    },
+                    {
+                        id: 'C004',
+                        name: 'VIP會員專享',
+                        code: 'VIP2024',
+                        type: 'member_only',
+                        discountValue: 20,
+                        minAmount: 800,
+                        startDate: '2024-01-01T00:00',
+                        endDate: '2024-12-31T23:59',
+                        usageLimit: 9999,
+                        userLimit: 5,
+                        usedCount: 245,
+                        categories: ['all'],
+                        description: 'VIP會員專屬20%折扣',
+                        status: 'active',
+                        createdDate: '2024-01-01'
                     }
-                } catch (e) {
-                    console.log('無法載入優惠券功能:', e);
+                ];
+                
+                const coupon = couponsData.find(c => c.code.toUpperCase() === code.toUpperCase());
+                
+                if (!coupon) {
+                    return { valid: false, message: '優惠券不存在' };
                 }
+
+                if (coupon.status !== 'active') {
+                    return { valid: false, message: '優惠券已停用' };
+                }
+
+                const now = new Date();
+                const startDate = new Date(coupon.startDate);
+                const endDate = new Date(coupon.endDate);
+
+                if (now < startDate) {
+                    return { valid: false, message: '優惠券尚未生效' };
+                }
+
+                if (now > endDate) {
+                    return { valid: false, message: '優惠券已過期' };
+                }
+
+                if (coupon.usedCount >= coupon.usageLimit) {
+                    return { valid: false, message: '優惠券使用次數已達上限' };
+                }
+
+                if (orderAmount < coupon.minAmount) {
+                    return { valid: false, message: `最低消費金額為 NT$${coupon.minAmount}` };
+                }
+
+                if (coupon.type === 'member_only' && !memberLevel) {
+                    return { valid: false, message: '此優惠券僅限會員使用' };
+                }
+
+                // 檢查適用分類
+                if (!coupon.categories.includes('all')) {
+                    const hasValidCategory = categories.some(cat => coupon.categories.includes(cat));
+                    if (!hasValidCategory) {
+                        return { valid: false, message: '優惠券不適用於購物車中的商品' };
+                }
+                }
+
+                return { valid: true, coupon: coupon };
             };
-            document.body.appendChild(iframe);
+            
+            window.useCoupon = function(code) {
+                // 簡化的使用優惠券功能
+                console.log('使用優惠券:', code);
+            };
+            
+            window.getCouponsData = function() {
+                return [];
+            };
         }
 
         // 計算優惠券折扣
