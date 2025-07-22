@@ -1,6 +1,8 @@
 // 身份驗證檢查腳本
 // 所有頁面都需要引入此腳本
 
+console.log('=== auth-check.js 已載入 ===');
+
 // 等待認證系統載入
 async function waitForAuth() {
     return new Promise((resolve) => {
@@ -98,7 +100,7 @@ async function logout() {
 }
 
 // 頁面載入時自動檢查身份驗證
-document.addEventListener('DOMContentLoaded', async function() {
+window.addEventListener('load', async function() {
     try {
         console.log('=== 頁面認證檢查開始 ===');
         console.log('EmployeeAuth 是否可用:', typeof EmployeeAuth !== 'undefined');
