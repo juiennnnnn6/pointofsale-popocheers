@@ -1477,6 +1477,55 @@
         let salesHistory = JSON.parse(localStorage.getItem('salesHistory')) || [];
         let receiptNumber = parseInt(localStorage.getItem('lastReceiptNumber')) || 1000;
 
+        // 如果沒有銷售記錄，添加一些測試資料
+        if (salesHistory.length === 0) {
+            console.log('沒有銷售記錄，添加測試資料');
+            const testSales = [
+                {
+                    receiptNumber: 1001,
+                    date: new Date(Date.now() - 86400000).toISOString(), // 昨天
+                    items: [
+                        { name: '波蘭陶杯', variant: '藍色', barcode: '123456789', price: 299, quantity: 2, total: 598 }
+                    ],
+                    subtotal: 598,
+                    memberDiscount: 0,
+                    couponDiscount: 0,
+                    tax: 0,
+                    total: 598,
+                    paymentMethod: '現金',
+                    receivedAmount: 600,
+                    change: 2,
+                    cashier: '管理員',
+                    member: null,
+                    coupon: null
+                },
+                {
+                    receiptNumber: 1002,
+                    date: new Date(Date.now() - 172800000).toISOString(), // 前天
+                    items: [
+                        { name: '波蘭陶盤', variant: '白色', barcode: '987654321', price: 450, quantity: 1, total: 450 },
+                        { name: '波蘭陶杯', variant: '紅色', barcode: '123456789', price: 299, quantity: 1, total: 299 }
+                    ],
+                    subtotal: 749,
+                    memberDiscount: 37,
+                    couponDiscount: 0,
+                    tax: 0,
+                    total: 712,
+                    paymentMethod: '信用卡',
+                    receivedAmount: 712,
+                    change: 0,
+                    cashier: '管理員',
+                    member: { id: 'M001', name: '王小明', level: '金卡', earnedPoints: 7, totalPoints: 150 },
+                    coupon: null
+                }
+            ];
+            salesHistory = testSales;
+            localStorage.setItem('salesHistory', JSON.stringify(salesHistory));
+            localStorage.setItem('lastReceiptNumber', '1002');
+            receiptNumber = 1002;
+            console.log('測試銷售記錄已添加');
+        }
+
         // 添加熱銷商品到購物車
         function addHotProduct(barcode) {
             searchAndAddProduct(barcode);
