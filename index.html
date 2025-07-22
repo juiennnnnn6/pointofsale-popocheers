@@ -380,9 +380,7 @@
         // 頁面載入時的初始化
         document.addEventListener('DOMContentLoaded', async function() {
             // 等待認證系統初始化
-            await new Promise(resolve => {
-                document.addEventListener('authStateChanged', resolve, { once: true });
-            });
+            await EmployeeAuth.initialize();
             
             loadEmployees();
             await checkEmployeeLogin();

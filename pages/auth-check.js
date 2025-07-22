@@ -90,6 +90,9 @@ async function logout() {
 // 頁面載入時自動檢查身份驗證
 document.addEventListener('DOMContentLoaded', async function() {
     try {
+        // 等待認證系統初始化
+        await EmployeeAuth.initialize();
+        
         // 檢查是否已登入
         if (!(await checkAuthentication())) {
             return;
