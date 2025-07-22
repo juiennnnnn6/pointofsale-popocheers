@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檢查員工資料格式</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="database.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .raw-data { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>檢查員工資料格式</h1>
+    <button onclick="checkEmployeeData()">檢查員工資料</button>
+    <div id="result"></div>
+
+    <script>
+        async function checkEmployeeData() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info">檢查中...</div>';
+            
+            try {
+                // 等待資料庫初始化
+                await DatabaseManager.initialize();
+                
+                // 查詢所有員工資料
+                const { data: employees, error } = await supabase
+                    .from('employees')
+                    .select('*');
+                
+                if (error) {
+                    throw error;
+                }
+                
+                if (employees.length === 0) {
+                    resultDiv.innerHTML = '<div class="error">❌ 沒有找到任何員工資料</div>';
+                    return;
+                }
+                
+                let html = `<div class="success">✅ 找到 ${employees.length} 個員工</div>`;
+                
+                // 顯示詳細表格
+                html += '<table>';
+                html += '<tr><th>ID</th><th>employee_id</th><th>username</th><th>name</th><th>position</th><th>role</th><th>permissions</th></tr>';
+                
+                employees.forEach(emp => {
+                    html += `<tr>
+                        <td>${emp.id}</td>
+                        <td>${emp.employee_id || '<span style="color:red">NULL</span>'}</td>
+                        <td>${emp.username || '<span style="color:red">NULL</span>'}</td>
+                        <td>${emp.name || '<span style="color:red">NULL</span>'}</td>
+                        <td>${emp.position || '<span style="color:red">NULL</span>'}</td>
+                        <td>${emp.role || '<span style="color:red">NULL</span>'}</td>
+                        <td>${emp.permissions || '<span style="color:red">NULL</span>'}</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                
+                // 分析資料格式
+                html += '<div class="info"><h3>資料格式分析：</h3>';
+                
+                const firstEmp = employees[0];
+                html += `<p><strong>第一個員工的原始資料：</strong></p>`;
+                html += `<div class="raw-data">${JSON.stringify(firstEmp, null, 2)}</div>`;
+                
+                // 檢查欄位存在性
+                html += '<p><strong>欄位檢查：</strong></p>';
+                html += `<ul>
+                    <li>employee_id: ${firstEmp.employee_id ? '✅ 存在' : '❌ 不存在'}</li>
+                    <li>username: ${firstEmp.username ? '✅ 存在' : '❌ 不存在'}</li>
+                    <li>name: ${firstEmp.name ? '✅ 存在' : '❌ 不存在'}</li>
+                    <li>position: ${firstEmp.position ? '✅ 存在' : '❌ 不存在'}</li>
+                    <li>role: ${firstEmp.role ? '✅ 存在' : '❌ 不存在'}</li>
+                    <li>permissions: ${firstEmp.permissions ? '✅ 存在' : '❌ 不存在'}</li>
+                </ul>`;
+                
+                // 建議可用的登入編號
+                html += '<p><strong>可用的登入編號：</strong></p>';
+                html += '<ul>';
+                employees.forEach(emp => {
+                    const loginOptions = [];
+                    if (emp.employee_id) loginOptions.push(`employee_id: "${emp.employee_id}"`);
+                    if (emp.username) loginOptions.push(`username: "${emp.username}"`);
+                    if (emp.id) loginOptions.push(`id: "${emp.id}"`);
+                    
+                    html += `<li>${emp.name || '未知'} - ${loginOptions.join(' 或 ')}</li>`;
+                });
+                html += '</ul>';
+                
+                // 檢查是否需要修復資料
+                const needsFix = employees.some(emp => !emp.employee_id || !emp.position);
+                if (needsFix) {
+                    html += '<div class="warning"><strong>⚠️ 發現資料格式問題：</strong><br>';
+                    html += '部分員工缺少 employee_id 或 position 欄位。<br>';
+                    html += '建議執行 simple-fix-employees.sql 腳本修復資料。</div>';
+                }
+                
+                html += '</div>';
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 檢查失敗: ${error.message}</div>`;
+                console.error('詳細錯誤:', error);
+            }
+        }
+
+        // 頁面載入時自動檢查
+        document.addEventListener('DOMContentLoaded', checkEmployeeData);
+    </script>
+</body>
+</html> 
