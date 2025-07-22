@@ -1882,42 +1882,13 @@
             
             salesHistory.slice(0, 20).forEach(record => {
                 const date = new Date(record.date).toLocaleDateString('zh-TW');
-                historyHtml += `
-                    <tr>
-                        <td>${record.receiptNumber}</td>
-                        <td>${date}</td>
-                        <td>NT$${record.total.toLocaleString()}</td>
-                        <td>${record.paymentMethod}</td>
-                        <td><button onclick="showReceiptDetail(${record.receiptNumber})">查看</button></td>
-                    </tr>
-                `;
+                historyHtml += '<tr><td>' + record.receiptNumber + '</td><td>' + date + '</td><td>NT$' + record.total.toLocaleString() + '</td><td>' + record.paymentMethod + '</td><td><button onclick="window.opener.showReceiptDetail(' + record.receiptNumber + ')">查看</button></td></tr>';
             });
             
             historyHtml += '</table>';
             
             const historyWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
-            historyWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>銷售記錄</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        table { width: 100%; border-collapse: collapse; }
-                        th { background-color: #f0f0f0; }
-                        th, td { padding: 8px; text-align: left; }
-                        button { background-color: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
-                        button:hover { background-color: #0056b3; }
-                    </style>
-                </head>
-                <body>
-                    ${historyHtml}
-                    <div style="margin-top: 20px;">
-                        <button onclick="window.close()">關閉</button>
-                    </div>
-                </body>
-                </html>
-            `);
+            historyWindow.document.write('<!DOCTYPE html><html><head><title>銷售記錄</title><style>body { font-family: Arial, sans-serif; margin: 20px; } table { width: 100%; border-collapse: collapse; } th { background-color: #f0f0f0; } th, td { padding: 8px; text-align: left; } button { background-color: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; } button:hover { background-color: #0056b3; }</style></head><body>' + historyHtml + '<div style="margin-top: 20px;"><button onclick="window.close()">關閉</button></div></body></html>');
             historyWindow.document.close();
         }
 
