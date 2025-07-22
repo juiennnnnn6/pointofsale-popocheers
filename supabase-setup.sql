@@ -162,6 +162,25 @@ CREATE POLICY "Allow anonymous insert" ON suppliers FOR INSERT WITH CHECK (true)
 CREATE POLICY "Allow anonymous update" ON suppliers FOR UPDATE USING (true);
 CREATE POLICY "Allow anonymous delete" ON suppliers FOR DELETE USING (true);
 
+-- 8. 創建員工會話表（用於多裝置同步）
+CREATE TABLE IF NOT EXISTS employee_sessions (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(100) UNIQUE NOT NULL,
+    employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+    login_time TIMESTAMP DEFAULT NOW(),
+    logout_time TIMESTAMP,
+    device_info JSONB,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 員工會話表策略
+ALTER TABLE employee_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow anonymous read" ON employee_sessions FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert" ON employee_sessions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update" ON employee_sessions FOR UPDATE USING (true);
+CREATE POLICY "Allow anonymous delete" ON employee_sessions FOR DELETE USING (true);
+
 -- 10. 插入預設資料（可選）
 -- 插入預設分類
 INSERT INTO categories (name, description) VALUES 
@@ -171,11 +190,12 @@ INSERT INTO categories (name, description) VALUES
 ('其他', '其他商品分類');
 
 -- 插入預設員工（測試用）
-INSERT INTO employees (name, username, password, role, phone, email) VALUES 
-('陳管理員', 'E004', 'admin123', '管理員', '0912-345-678', 'admin@example.com'),
-('李美華', 'E002', 'manager123', '店長', '0987-654-321', 'manager@example.com'),
-('王小明', 'E001', 'cashier123', '收銀員', '0955-123-456', 'cashier@example.com'),
-('張志偉', 'E003', 'warehouse123', '倉管', '0933-789-012', 'warehouse@example.com');
+INSERT INTO employees (employee_id, name, position, permissions) VALUES 
+('EMP001', '管理員', '管理員', '{"all": true}'),
+('EMP002', '店長', '店長', '{"sales": true, "inventory": true, "reports": true}'),
+('EMP003', '收銀員', '收銀員', '{"sales": true}'),
+('EMP004', '倉管', '倉管', '{"inventory": true, "reports": true}')
+ON CONFLICT (employee_id) DO NOTHING;
 
 -- 插入預設會員（測試用）
 INSERT INTO members (name, phone, email, points, level) VALUES 

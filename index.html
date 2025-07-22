@@ -9,6 +9,7 @@
     <script src="database.js"></script>
     <script src="database-migration.js"></script>
     <script src="sales-migration.js"></script>
+    <script src="employee-auth.js"></script>
     <style>
         /* 蘋果風格自定義樣式 */
         .apple-shadow {
@@ -287,7 +288,7 @@
             document.getElementById('employeeId').value = '';
         }
 
-        function loginEmployee() {
+        async function loginEmployee() {
             const employeeId = document.getElementById('employeeId').value.trim();
             
             if (!employeeId) {
@@ -295,38 +296,35 @@
                 return;
             }
 
-            const employee = employees[employeeId];
-            if (!employee) {
-                alert('員工編號不存在，請重新輸入');
-                return;
+            try {
+                // 使用新的認證系統登入
+                const employee = await EmployeeAuth.login(employeeId);
+                
+                // 更新UI
+                document.getElementById('employeeName').textContent = employee.name;
+                document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
+                document.getElementById('employeeInfo').classList.remove('hidden');
+                
+                // 顯示主選單
+                document.getElementById('loginRequired').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                
+                // 關閉登入視窗
+                closeEmployeeLogin();
+                
+                // 顯示歡迎訊息
+                alert(`歡迎 ${employee.name} (${employee.position})！\n\n您已成功登入系統。\n\n此登入狀態將在所有裝置同步。`);
+                
+            } catch (error) {
+                alert(`登入失敗：${error.message}`);
             }
-
-            // 登入成功
-            currentEmployee = employee;
-            localStorage.setItem('currentEmployee', JSON.stringify(employee));
-            
-            // 更新UI
-            document.getElementById('employeeName').textContent = employee.name;
-            document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
-            document.getElementById('employeeInfo').classList.remove('hidden');
-            
-            // 顯示主選單
-            document.getElementById('loginRequired').classList.add('hidden');
-            document.getElementById('mainMenu').classList.remove('hidden');
-            
-            // 關閉登入視窗
-            closeEmployeeLogin();
-            
-            // 顯示歡迎訊息
-            alert(`歡迎 ${employee.name} (${employee.role})！\n\n您已成功登入系統。`);
         }
 
         // 檢查是否已登入
-        function checkEmployeeLogin() {
-            const savedEmployee = localStorage.getItem('currentEmployee');
-            if (savedEmployee) {
-                currentEmployee = JSON.parse(savedEmployee);
-                document.getElementById('employeeName').textContent = currentEmployee.name;
+        async function checkEmployeeLogin() {
+            if (EmployeeAuth.isLoggedIn()) {
+                const employee = EmployeeAuth.getCurrentEmployee();
+                document.getElementById('employeeName').textContent = employee.name;
                 document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
                 document.getElementById('employeeInfo').classList.remove('hidden');
                 
@@ -342,43 +340,52 @@
 
         // 權限檢查和導航
         function checkPermissionAndNavigate(page, requiredRoles) {
-            if (!currentEmployee) {
+            if (!EmployeeAuth.isLoggedIn()) {
                 alert('請先登入！');
                 return;
             }
 
             // 檢查權限
-            if (requiredRoles.includes('all') || requiredRoles.includes(currentEmployee.role)) {
+            if (EmployeeAuth.hasPermission(requiredRoles)) {
                 navigateToPage(page);
             } else {
-                alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${currentEmployee.role}`);
+                const employee = EmployeeAuth.getCurrentEmployee();
+                alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${employee.position}`);
             }
         }
 
         // 員工登出功能
-        function logoutEmployee() {
-            if (!confirm('確定要登出嗎？')) return;
+        async function logoutEmployee() {
+            if (!confirm('確定要登出嗎？\n\n這將在所有裝置上登出您的帳號。')) return;
             
-            // 清除登入狀態
-            currentEmployee = null;
-            localStorage.removeItem('currentEmployee');
-            
-            // 更新UI
-            document.getElementById('employeeName').textContent = '員工';
-            document.querySelector('[onclick="showEmployeeLogin()"]').classList.remove('hidden');
-            document.getElementById('employeeInfo').classList.add('hidden');
-            
-            // 顯示登入提示
-            document.getElementById('loginRequired').classList.remove('hidden');
-            document.getElementById('mainMenu').classList.add('hidden');
-            
-            alert('已成功登出！');
+            try {
+                // 使用新的認證系統登出
+                await EmployeeAuth.logout();
+                
+                // 更新UI
+                document.getElementById('employeeName').textContent = '員工';
+                document.querySelector('[onclick="showEmployeeLogin()"]').classList.remove('hidden');
+                document.getElementById('employeeInfo').classList.add('hidden');
+                
+                // 顯示登入提示
+                document.getElementById('loginRequired').classList.remove('hidden');
+                document.getElementById('mainMenu').classList.add('hidden');
+                
+                alert('已成功登出！\n\n您已在所有裝置上登出。');
+            } catch (error) {
+                alert(`登出失敗：${error.message}`);
+            }
         }
 
         // 頁面載入時的初始化
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 等待認證系統初始化
+            await new Promise(resolve => {
+                document.addEventListener('authStateChanged', resolve, { once: true });
+            });
+            
             loadEmployees();
-            checkEmployeeLogin();
+            await checkEmployeeLogin();
         });
     </script>
     
