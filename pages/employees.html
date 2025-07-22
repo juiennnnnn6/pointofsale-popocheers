@@ -265,17 +265,33 @@
                     console.log('從 Supabase 載入到員工資料:', data);
                     if (data && data.length > 0) {
                         // 轉換 Supabase 資料格式為本地格式
-                        employees = data.map(emp => ({
-                            id: emp.employee_id || emp.username || emp.id,
-                            name: emp.name,
-                            role: emp.position || emp.role || '員工',
-                            phone: '', // Supabase 表沒有 phone 欄位
-                            email: '', // Supabase 表沒有 email 欄位
-                            status: 'active',
-                            lastLogin: emp.last_login || null,
-                            isOnline: false,
-                            permissions: emp.permissions ? JSON.parse(emp.permissions) : []
-                        }));
+                        employees = data.map(emp => {
+                            let permissions = [];
+                            try {
+                                if (emp.permissions) {
+                                    if (typeof emp.permissions === 'string') {
+                                        permissions = JSON.parse(emp.permissions);
+                                    } else if (Array.isArray(emp.permissions)) {
+                                        permissions = emp.permissions;
+                                    }
+                                }
+                            } catch (parseError) {
+                                console.error('解析權限失敗:', parseError, '原始資料:', emp.permissions);
+                                permissions = [];
+                            }
+                            
+                            return {
+                                id: emp.employee_id || emp.username || emp.id,
+                                name: emp.name,
+                                role: emp.position || emp.role || '員工',
+                                phone: '', // Supabase 表沒有 phone 欄位
+                                email: '', // Supabase 表沒有 email 欄位
+                                status: 'active',
+                                lastLogin: emp.last_login || null,
+                                isOnline: false,
+                                permissions: permissions
+                            };
+                        });
                         console.log('轉換後的員工資料:', employees);
                     } else {
                         console.log('Supabase 中沒有員工資料，使用預設資料');
