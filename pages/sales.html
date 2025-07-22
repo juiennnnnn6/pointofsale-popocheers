@@ -6,6 +6,8 @@
     <title>銷售作業</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../database.js"></script>
     <script src="auth-check.js"></script>
 
     <script>
@@ -1467,9 +1469,41 @@
             }
         }
 
-        // 銷售記錄
-        let salesHistory = JSON.parse(localStorage.getItem('salesHistory')) || [];
-        let receiptNumber = parseInt(localStorage.getItem('lastReceiptNumber')) || 1000;
+        // 銷售記錄 - 使用 Supabase
+        let salesHistory = [];
+        let receiptNumber = 1000;
+        
+        // 初始化銷售記錄
+        async function initializeSalesData() {
+            try {
+                // 獲取最後的收據號碼
+                const { data: lastSale, error: lastError } = await supabase
+                    .from('sales_history')
+                    .select('receipt_number')
+                    .order('receipt_number', { ascending: false })
+                    .limit(1);
+                
+                if (lastSale && lastSale.length > 0) {
+                    const lastNumber = parseInt(lastSale[0].receipt_number.replace('R', ''));
+                    receiptNumber = lastNumber + 1;
+                }
+                
+                // 獲取最近的銷售記錄
+                const { data: recentSales, error: salesError } = await supabase
+                    .from('sales_history')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+                
+                if (recentSales) {
+                    salesHistory = recentSales;
+                }
+                
+                console.log('銷售資料初始化完成，收據號碼:', receiptNumber);
+            } catch (error) {
+                console.error('初始化銷售資料失敗:', error);
+            }
+        }
 
         // 添加熱銷商品到購物車
         function addHotProduct(barcode) {
@@ -1522,7 +1556,7 @@
         }
 
         // 現金付款處理
-        function processCashPayment(total) {
+        async function processCashPayment(total) {
             const receivedAmount = prompt(`總金額：NT$${total.toLocaleString()}\n請輸入收到金額：`);
             
             if (receivedAmount === null) return; // 用戶取消
@@ -1540,22 +1574,22 @@
                 alert(`找零：NT$${change.toLocaleString()}`);
             }
             
-            completeSale('現金', total, received, change);
+            await completeSale('現金', total, received, change);
         }
 
         // 卡片/行動支付處理
-        function processCardPayment(paymentMethod, total) {
+        async function processCardPayment(paymentMethod, total) {
             // 模擬卡片處理
             const processing = confirm(`${paymentMethod}付款\n金額：NT$${total.toLocaleString()}\n\n請客戶進行付款操作`);
             
             if (processing) {
                 // 模擬處理時間
-                setTimeout(() => {
+                setTimeout(async () => {
                     const success = Math.random() > 0.1; // 90% 成功率
                     
                     if (success) {
                         alert('付款成功！');
-                        completeSale(paymentMethod, total, total, 0);
+                        await completeSale(paymentMethod, total, total, 0);
                     } else {
                         alert('付款失敗，請重試或選擇其他付款方式');
                     }
@@ -1564,7 +1598,7 @@
         }
 
         // 完成銷售
-        function completeSale(paymentMethod, total, received, change) {
+        async function completeSale(paymentMethod, total, received, change) {
             receiptNumber++;
             
             // 計算總額詳情
@@ -1620,16 +1654,47 @@
                 coupon: couponInfo
             };
 
-            // 保存到歷史記錄
-            salesHistory.unshift(saleRecord);
-            
-            // 只保留最近100筆記錄
-            if (salesHistory.length > 100) {
-                salesHistory = salesHistory.slice(0, 100);
+            // 保存到 Supabase
+            try {
+                const { data: savedSale, error } = await supabase
+                    .from('sales_history')
+                    .insert([{
+                        receipt_number: saleRecord.receiptNumber,
+                        customer_id: saleRecord.member?.id || null,
+                        employee_id: saleRecord.employeeId || null,
+                        items: saleRecord.items,
+                        subtotal: saleRecord.subtotal,
+                        member_discount: saleRecord.memberDiscount || 0,
+                        coupon_discount: saleRecord.couponDiscount || 0,
+                        tax: saleRecord.tax || 0,
+                        total: saleRecord.total,
+                        payment_method: saleRecord.paymentMethod,
+                        received_amount: saleRecord.receivedAmount || saleRecord.total,
+                        change_amount: saleRecord.change || 0,
+                        cashier_name: saleRecord.cashier,
+                        member_info: saleRecord.member,
+                        coupon_info: saleRecord.coupon,
+                        notes: saleRecord.notes || '',
+                        created_at: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    console.error('保存銷售記錄失敗:', error);
+                    alert('銷售記錄保存失敗，但交易已完成');
+                } else {
+                    console.log('銷售記錄已保存到 Supabase:', savedSale);
+                    // 更新本地記錄
+                    salesHistory.unshift(savedSale);
+                    if (salesHistory.length > 100) {
+                        salesHistory = salesHistory.slice(0, 100);
+                    }
+                }
+            } catch (error) {
+                console.error('保存銷售記錄時發生錯誤:', error);
+                alert('銷售記錄保存失敗，但交易已完成');
             }
-            
-            localStorage.setItem('salesHistory', JSON.stringify(salesHistory));
-            localStorage.setItem('lastReceiptNumber', receiptNumber.toString());
 
             // 顯示會員積分獲得提示
             if (currentMember && earnedPoints > 0) {
@@ -2196,6 +2261,25 @@
         function goBackToMenu() {
             window.location.href = '../index.html';
         }
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // 等待資料庫初始化
+                await DatabaseManager.initialize();
+                
+                // 初始化銷售資料
+                await initializeSalesData();
+                
+                // 更新時間顯示
+                updateTime();
+                setInterval(updateTime, 1000);
+                
+                console.log('銷售頁面初始化完成');
+            } catch (error) {
+                console.error('銷售頁面初始化失敗:', error);
+            }
+        });
     </script>
 </body>
 </html> 
