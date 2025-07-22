@@ -326,18 +326,45 @@
             }
         }
 
+        // 手動觸發顯示更新（用於測試）
+        function forceUpdateDisplay() {
+            console.log('=== 手動觸發顯示更新 ===');
+            console.log('當前員工陣列:', employees);
+            updateEmployeeDisplay();
+            updateStatistics();
+        }
+
         // 更新員工顯示
         function updateEmployeeDisplay() {
             const tbody = document.getElementById('employeesTableBody');
             const searchTerm = document.getElementById('searchEmployee').value.toLowerCase();
             const filterRole = document.getElementById('filterRole').value;
 
+            console.log('=== 更新員工顯示診斷 ===');
+            console.log('當前員工陣列:', employees);
+            console.log('員工陣列長度:', employees.length);
+            console.log('搜尋關鍵字:', searchTerm);
+            console.log('職位篩選:', filterRole);
+
             let filteredEmployees = employees.filter(emp => {
                 const matchesSearch = emp.name.toLowerCase().includes(searchTerm) || 
                                     emp.id.toLowerCase().includes(searchTerm);
                 const matchesRole = !filterRole || emp.role === filterRole;
-                return matchesSearch && matchesRole;
+                const shouldInclude = matchesSearch && matchesRole;
+                
+                console.log(`員工 ${emp.id} (${emp.name}):`, {
+                    matchesSearch,
+                    matchesRole,
+                    shouldInclude,
+                    empRole: emp.role,
+                    filterRole: filterRole
+                });
+                
+                return shouldInclude;
             });
+
+            console.log('篩選後的員工:', filteredEmployees);
+            console.log('篩選後數量:', filteredEmployees.length);
 
             tbody.innerHTML = filteredEmployees.map(emp => `
                 <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -380,6 +407,8 @@
                     </td>
                 </tr>
             `).join('');
+            
+            console.log('=== 顯示更新完成 ===');
         }
 
         // 更新統計資料
