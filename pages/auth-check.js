@@ -1,10 +1,29 @@
 // 身份驗證檢查腳本
 // 所有頁面都需要引入此腳本
 
+// 等待認證系統載入
+async function waitForAuth() {
+    return new Promise((resolve) => {
+        if (typeof EmployeeAuth !== 'undefined') {
+            resolve();
+        } else {
+            const checkAuth = () => {
+                if (typeof EmployeeAuth !== 'undefined') {
+                    resolve();
+                } else {
+                    setTimeout(checkAuth, 100);
+                }
+            };
+            checkAuth();
+        }
+    });
+}
+
 // 檢查用戶是否已登入
-function checkAuthentication() {
-    const currentEmployee = localStorage.getItem('currentEmployee');
-    if (!currentEmployee) {
+async function checkAuthentication() {
+    await waitForAuth();
+    
+    if (!EmployeeAuth.isLoggedIn()) {
         // 未登入，重定向到主頁面
         alert('請先登入系統！');
         window.location.href = '../index.html';
@@ -14,62 +33,75 @@ function checkAuthentication() {
 }
 
 // 檢查用戶權限
-function checkPermission(requiredRoles) {
-    const currentEmployee = JSON.parse(localStorage.getItem('currentEmployee'));
-    if (!currentEmployee) {
+async function checkPermission(requiredRoles) {
+    await waitForAuth();
+    
+    if (!EmployeeAuth.isLoggedIn()) {
         alert('請先登入系統！');
         window.location.href = '../index.html';
         return false;
     }
 
     // 檢查權限
-    if (requiredRoles.includes('all') || requiredRoles.includes(currentEmployee.role)) {
+    if (EmployeeAuth.hasPermission(requiredRoles)) {
         return true;
     } else {
-        alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${currentEmployee.role}`);
+        const employee = EmployeeAuth.getCurrentEmployee();
+        alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${employee.position}`);
         return false;
     }
 }
 
 // 獲取當前登入員工資訊
-function getCurrentEmployee() {
-    const currentEmployee = localStorage.getItem('currentEmployee');
-    if (!currentEmployee) {
+async function getCurrentEmployee() {
+    await waitForAuth();
+    
+    if (!EmployeeAuth.isLoggedIn()) {
         return null;
     }
-    return JSON.parse(currentEmployee);
+    return EmployeeAuth.getCurrentEmployee();
 }
 
 // 顯示員工資訊
-function displayEmployeeInfo() {
-    const employee = getCurrentEmployee();
+async function displayEmployeeInfo() {
+    const employee = await getCurrentEmployee();
     if (employee) {
         // 更新頁面中的員工資訊顯示
         const employeeInfoElements = document.querySelectorAll('.employee-info');
         employeeInfoElements.forEach(element => {
-            element.textContent = `${employee.name} (${employee.role})`;
+            element.textContent = `${employee.name} (${employee.position})`;
         });
     }
 }
 
 // 登出功能
-function logout() {
-    if (confirm('確定要登出嗎？')) {
-        localStorage.removeItem('currentEmployee');
-        alert('已成功登出！');
-        window.location.href = '../index.html';
+async function logout() {
+    if (confirm('確定要登出嗎？\n\n這將在所有裝置上登出您的帳號。')) {
+        try {
+            await EmployeeAuth.logout();
+            alert('已成功登出！\n\n您已在所有裝置上登出。');
+            window.location.href = '../index.html';
+        } catch (error) {
+            alert(`登出失敗：${error.message}`);
+        }
     }
 }
 
 // 頁面載入時自動檢查身份驗證
-document.addEventListener('DOMContentLoaded', function() {
-    // 檢查是否已登入
-    if (!checkAuthentication()) {
-        return;
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        // 檢查是否已登入
+        if (!(await checkAuthentication())) {
+            return;
+        }
+        
+        // 顯示員工資訊
+        await displayEmployeeInfo();
+    } catch (error) {
+        console.error('身份驗證檢查失敗:', error);
+        alert('身份驗證檢查失敗，請重新登入！');
+        window.location.href = '../index.html';
     }
-    
-    // 顯示員工資訊
-    displayEmployeeInfo();
 });
 
 // 防止用戶直接修改localStorage繞過驗證
