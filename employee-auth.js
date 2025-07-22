@@ -15,15 +15,33 @@ class EmployeeAuth {
                 const isValid = await this.validateSession(session);
                 if (isValid) {
                     this.currentEmployee = session.employee;
+                    
+                    // 觸發認證狀態變更事件
+                    document.dispatchEvent(new CustomEvent('authStateChanged', {
+                        detail: { employee: session.employee, action: 'initialize' }
+                    }));
+                    
                     return true;
                 } else {
                     // 會話無效，清除本地儲存
                     this.clearSession();
                 }
             }
+            
+            // 觸發認證狀態變更事件（未登入狀態）
+            document.dispatchEvent(new CustomEvent('authStateChanged', {
+                detail: { employee: null, action: 'initialize' }
+            }));
+            
             return false;
         } catch (error) {
             console.error('認證系統初始化失敗:', error);
+            
+            // 觸發認證狀態變更事件（錯誤狀態）
+            document.dispatchEvent(new CustomEvent('authStateChanged', {
+                detail: { employee: null, action: 'error' }
+            }));
+            
             return false;
         }
     }
@@ -79,28 +97,17 @@ class EmployeeAuth {
                 deviceInfo: this.getDeviceInfo()
             };
             
-            // 暫時禁用會話儲存到 Supabase（避免 employee_sessions 表問題）
-            try {
-                const { error: sessionError } = await supabase
-                    .from('employee_sessions')
-                    .insert([{
-                        session_id: session.sessionId,
-                        employee_id: employee.id,
-                        login_time: session.loginTime,
-                        device_info: JSON.stringify(session.deviceInfo),
-                        is_active: true
-                    }]);
-                
-                if (sessionError) {
-                    console.warn('會話儲存失敗，但登入繼續:', sessionError);
-                }
-            } catch (sessionError) {
-                console.warn('會話儲存失敗，但登入繼續:', sessionError);
-            }
+            // 暫時跳過 Supabase 會話儲存（避免 employee_sessions 表問題）
+            console.log('跳過 Supabase 會話儲存，只儲存到本地');
             
             // 儲存到本地
             this.saveSession(session);
             this.currentEmployee = normalizedEmployee;
+            
+            // 觸發認證狀態變更事件
+            document.dispatchEvent(new CustomEvent('authStateChanged', {
+                detail: { employee: normalizedEmployee, action: 'login' }
+            }));
             
             console.log('員工登入成功:', normalizedEmployee.name);
             return normalizedEmployee;
@@ -136,6 +143,11 @@ class EmployeeAuth {
             // 清除本地會話
             this.clearSession();
             this.currentEmployee = null;
+            
+            // 觸發認證狀態變更事件
+            document.dispatchEvent(new CustomEvent('authStateChanged', {
+                detail: { employee: null, action: 'logout' }
+            }));
             
             console.log('員工登出成功');
             return true;
@@ -181,26 +193,8 @@ class EmployeeAuth {
     // 驗證會話
     static async validateSession(session) {
         try {
-            // 直接創建 Supabase 客戶端
-            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-            const supabase = createClient(
-                'https://cgwhckykrlphnibmuvhz.supabase.co',
-                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
-            );
-            
-            // 檢查會話是否仍然活躍
-            const { data, error } = await supabase
-                .from('employee_sessions')
-                .select('is_active, logout_time')
-                .eq('session_id', session.sessionId)
-                .single();
-            
-            if (error || !data) {
-                return false;
-            }
-            
-            // 檢查會話是否被登出
-            if (!data.is_active || data.logout_time) {
+            // 暫時跳過 Supabase 會話驗證，只檢查本地會話
+            if (!session || !session.employee || !session.loginTime) {
                 return false;
             }
             
@@ -210,18 +204,11 @@ class EmployeeAuth {
             const hoursDiff = (now - loginTime) / (1000 * 60 * 60);
             
             if (hoursDiff > 24) {
-                // 會話過期，標記為非活躍
-                try {
-                    await supabase
-                        .from('employee_sessions')
-                        .update({ is_active: false, logout_time: now.toISOString() })
-                        .eq('session_id', session.sessionId);
-                } catch (error) {
-                    console.warn('會話過期標記失敗:', error);
-                }
+                console.log('會話已過期（超過24小時）');
                 return false;
             }
             
+            console.log('會話驗證成功:', session.employee.name);
             return true;
             
         } catch (error) {
