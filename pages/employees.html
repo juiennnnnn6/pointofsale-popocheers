@@ -295,6 +295,37 @@
             }
         }
 
+        // 測試函數：檢查 Supabase 中的實際資料
+        async function testSupabaseData() {
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .order('employee_id');
+                
+                console.log('=== Supabase 實際資料檢查 ===');
+                console.log('查詢結果:', { data, error });
+                console.log('資料數量:', data ? data.length : 0);
+                if (data) {
+                    data.forEach((emp, index) => {
+                        console.log(`員工 ${index + 1}:`, emp);
+                    });
+                }
+                console.log('========================');
+                
+                return { data, error };
+            } catch (error) {
+                console.error('測試 Supabase 資料失敗:', error);
+                return { data: null, error };
+            }
+        }
+
         // 更新員工顯示
         function updateEmployeeDisplay() {
             const tbody = document.getElementById('employeesTableBody');
@@ -470,7 +501,9 @@
                 }
 
                 // 重新載入員工資料
+                console.log('儲存成功，開始重新載入員工資料...');
                 await loadEmployees();
+                console.log('重新載入完成，當前員工數量:', employees.length);
                 closeEmployeeModal();
                 
                 alert(editingEmployeeId ? '員工資料已更新！' : '員工已新增！');
@@ -583,6 +616,7 @@
         // 事件監聽器
         document.addEventListener('DOMContentLoaded', async function() {
             await loadEmployees();
+            await testSupabaseData(); // 添加測試函數調用
             
             // 搜尋功能
             document.getElementById('searchEmployee').addEventListener('input', updateEmployeeDisplay);
