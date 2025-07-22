@@ -6,7 +6,14 @@
     <title>會員管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
+    <script>
+        // 簡單的認證檢查測試
+        console.log('=== members.html 腳本載入測試 ===');
+        console.log('employee-auth.js 是否載入:', typeof EmployeeAuth !== 'undefined');
+        console.log('auth-check.js 是否載入:', typeof checkAuthentication !== 'undefined');
+    </script>
     <style>
         .apple-card {
             background: rgba(255, 255, 255, 0.95);

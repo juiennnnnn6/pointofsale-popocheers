@@ -6,11 +6,15 @@
     <title>商品管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../database.js"></script>
+    <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
 
     <script>
+        // 簡單的認證檢查測試
+        console.log('=== products.html 腳本載入測試 ===');
+        console.log('employee-auth.js 是否載入:', typeof EmployeeAuth !== 'undefined');
+        console.log('auth-check.js 是否載入:', typeof checkAuthentication !== 'undefined');
+        
         // 檢查掃描功能是否載入
         window.addEventListener('load', function() {
             setTimeout(function() {
@@ -476,27 +480,16 @@
     </div>
 
     <script>
-        // 商品數據 - 使用 Supabase
+        // 商品數據
         let productData = {};
 
         // 載入商品資料
-        async function loadProductData() {
-            try {
-                // 等待資料庫初始化
-                await DatabaseManager.initialize();
-                
-                // 從 Supabase 獲取商品資料
-                const { data: products, error } = await supabase
-                    .from('products')
-                    .select('*')
-                    .order('name');
-                
-                if (error) {
-                    console.error('載入商品資料失敗:', error);
-                    return;
-                }
-                
-                // 按分類組織商品
+        function loadProductData() {
+            const savedProducts = localStorage.getItem('productData');
+            if (savedProducts) {
+                productData = JSON.parse(savedProducts);
+            } else {
+                // 初始化空的商品資料結構
                 productData = {
                     tableware: [],
                     glassware: [],
@@ -505,32 +498,13 @@
                     kitchenware: [],
                     others: []
                 };
-                
-                if (products) {
-                    products.forEach(product => {
-                        const category = product.category || 'others';
-                        if (productData[category]) {
-                            productData[category].push(product);
-                        } else {
-                            productData.others.push(product);
-                        }
-                    });
-                }
-                
-                console.log('商品資料載入完成:', productData);
-            } catch (error) {
-                console.error('載入商品資料時發生錯誤:', error);
+                localStorage.setItem('productData', JSON.stringify(productData));
             }
         }
 
         // 保存商品資料
-        async function saveProductData() {
-            try {
-                // 這個函數現在主要用於本地緩存，實際保存會在添加/編輯商品時進行
-                console.log('商品資料已更新');
-            } catch (error) {
-                console.error('保存商品資料失敗:', error);
-            }
+        function saveProductData() {
+            localStorage.setItem('productData', JSON.stringify(productData));
         }
 
         // 當前選中的分類
@@ -832,7 +806,7 @@
         }
 
         // 新增商品表單提交
-        document.getElementById('addProductForm').addEventListener('submit', async function(e) {
+        document.getElementById('addProductForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const name = document.getElementById('productName').value.trim();
@@ -847,13 +821,15 @@
             const image = document.getElementById('productImage').value.trim() || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center';
 
             // 檢查條碼是否已存在
-            const { data: existingProduct, error: checkError } = await supabase
-                .from('products')
-                .select('id')
-                .eq('barcode', barcode)
-                .single();
+            let barcodeExists = false;
+            for (const cat in productData) {
+                if (productData[cat].some(product => product.barcode === barcode)) {
+                    barcodeExists = true;
+                    break;
+                }
+            }
 
-            if (existingProduct) {
+            if (barcodeExists) {
                 alert('此條碼已存在，請使用其他條碼');
                 return;
             }
@@ -870,45 +846,27 @@
                 price: price,
                 cost: cost,
                 stock: stock,
-                min_stock: minStock,
+                minStock: minStock,
                 supplier: supplier,
                 description: description,
                 image: image,
-                status: status,
-                category: category,
-                created_at: new Date().toISOString()
+                status: status
             };
 
-            try {
-                // 保存到 Supabase
-                const { data: savedProduct, error } = await supabase
-                    .from('products')
-                    .insert([newProduct])
-                    .select()
-                    .single();
+            // 添加到對應分類
+            productData[category].push(newProduct);
+            saveProductData();
 
-                if (error) {
-                    throw error;
-                }
+            // 更新統計
+            updateStatistics();
 
-                // 添加到本地緩存
-                productData[category].push(savedProduct);
-                saveProductData();
-
-                // 更新統計
-                updateStatistics();
-
-                // 如果當前正在查看該分類，重新渲染
-                if (currentCategory === category) {
-                    renderProducts(category);
-                }
-
-                alert('商品新增成功！');
-                hideAddProductModal();
-            } catch (error) {
-                console.error('新增商品失敗:', error);
-                alert('新增商品失敗: ' + error.message);
+            // 如果當前正在查看該分類，重新渲染
+            if (currentCategory === category) {
+                renderProducts(category);
             }
+
+            alert('商品新增成功！');
+            hideAddProductModal();
         });
 
         // 編輯商品
@@ -931,7 +889,7 @@
         }
 
         // 編輯商品表單提交
-        document.getElementById('editProductForm').addEventListener('submit', async function(e) {
+        document.getElementById('editProductForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const index = parseInt(document.getElementById('editProductIndex').value);
@@ -941,82 +899,43 @@
             const price = parseInt(document.getElementById('editProductPrice').value);
             const stock = parseInt(document.getElementById('editProductStock').value);
 
-            // 獲取商品
+            // 更新商品
             const product = productData[category][index];
+            product.name = name;
+            product.barcode = barcode;
+            product.price = price;
+            product.stock = stock;
             
             // 更新庫存狀態
-            const minStock = product.min_stock || 10;
-            let status = 'normal';
-            if (stock === 0) status = 'out';
-            else if (stock <= minStock) status = 'low';
+            const minStock = product.minStock || 10;
+            if (stock === 0) product.status = 'out';
+            else if (stock <= minStock) product.status = 'low';
+            else product.status = 'normal';
 
-            try {
-                // 更新到 Supabase
-                const { data: updatedProduct, error } = await supabase
-                    .from('products')
-                    .update({
-                        name: name,
-                        barcode: barcode,
-                        price: price,
-                        stock: stock,
-                        status: status,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', product.id)
-                    .select()
-                    .single();
+            saveProductData();
 
-                if (error) {
-                    throw error;
-                }
+            // 重新渲染
+            renderProducts(category);
+            updateStatistics();
 
-                // 更新本地緩存
-                Object.assign(product, updatedProduct);
-                saveProductData();
-
-                // 重新渲染
-                renderProducts(category);
-                updateStatistics();
-
-                alert('商品更新成功！');
-                hideEditProductModal();
-            } catch (error) {
-                console.error('更新商品失敗:', error);
-                alert('更新商品失敗: ' + error.message);
-            }
+            alert('商品更新成功！');
+            hideEditProductModal();
         });
 
         // 刪除商品
-        async function deleteProduct() {
+        function deleteProduct() {
             if (confirm('確定要刪除此商品嗎？此操作無法復原。')) {
                 const index = parseInt(document.getElementById('editProductIndex').value);
                 const category = document.getElementById('editProductCategory').value;
-                const product = productData[category][index];
                 
-                try {
-                    // 從 Supabase 刪除
-                    const { error } = await supabase
-                        .from('products')
-                        .delete()
-                        .eq('id', product.id);
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    // 從本地緩存刪除
-                    productData[category].splice(index, 1);
-                    saveProductData();
-                    
-                    renderProducts(category);
-                    updateStatistics();
-                    
-                    alert('商品已刪除');
-                    hideEditProductModal();
-                } catch (error) {
-                    console.error('刪除商品失敗:', error);
-                    alert('刪除商品失敗: ' + error.message);
-                }
+                productData[category].splice(index, 1);
+                saveProductData();
+                
+                renderProducts(category);
+                updateStatistics();
+                
+                alert('商品已刪除');
+                hideEditProductModal();
             }
         }
 
@@ -2013,14 +1932,9 @@ ${product.description ? '描述：' + product.description : ''}
         }
 
         // 頁面載入時初始化
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                await loadProductData();
-                updateStatistics();
-                console.log('商品管理頁面初始化完成');
-            } catch (error) {
-                console.error('商品管理頁面初始化失敗:', error);
-            }
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProductData();
+            updateStatistics();
         });
     </script>
 </body>
