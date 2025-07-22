@@ -269,7 +269,7 @@
                             id: emp.employee_id || emp.username || emp.id,
                             name: emp.name,
                             role: emp.position || emp.role || '員工',
-                            phone: emp.phone || '',
+                            phone: '', // Supabase 表沒有 phone 欄位
                             email: '', // Supabase 表沒有 email 欄位
                             status: 'active',
                             lastLogin: emp.last_login || null,
@@ -449,7 +449,6 @@
                     employee_id: employeeData.id,
                     name: employeeData.name,
                     position: employeeData.role,
-                    phone: employeeData.phone,
                     permissions: JSON.stringify(employeeData.permissions)
                 };
 
