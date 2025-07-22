@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登入測試 - 進銷存系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="database.js"></script>
+    <script src="employee-auth.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 登入問題診斷工具</h1>
+        
+        <div class="test-section">
+            <h3>1. 資料庫連接測試</h3>
+            <button onclick="testDatabaseConnection()">測試連接</button>
+            <div id="db-test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 員工資料檢查</h3>
+            <button onclick="checkEmployees()">檢查員工資料</button>
+            <div id="employees-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 登入測試</h3>
+            <input type="text" id="testEmployeeId" placeholder="輸入員工編號 (如: EMP001)" value="EMP001">
+            <button onclick="testLogin()">測試登入</button>
+            <div id="login-test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 會話管理測試</h3>
+            <button onclick="testSession()">測試會話</button>
+            <div id="session-test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 詳細日誌</h3>
+            <button onclick="clearLog()">清除日誌</button>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let logContent = '';
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logContent += `[${timestamp}] ${message}\n`;
+            document.getElementById('log').textContent = logContent;
+        }
+
+        function clearLog() {
+            logContent = '';
+            document.getElementById('log').textContent = '';
+        }
+
+        async function testDatabaseConnection() {
+            const resultDiv = document.getElementById('db-test-result');
+            resultDiv.innerHTML = '<div class="info">測試中...</div>';
+            
+            try {
+                log('開始測試資料庫連接...');
+                
+                // 測試基本連接
+                const { data, error } = await supabase.from('employees').select('count').limit(1);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log('✅ 資料庫連接成功');
+                resultDiv.innerHTML = '<div class="success">✅ 資料庫連接成功</div>';
+                
+            } catch (error) {
+                log(`❌ 資料庫連接失敗: ${error.message}`);
+                resultDiv.innerHTML = `<div class="error">❌ 資料庫連接失敗: ${error.message}</div>`;
+            }
+        }
+
+        async function checkEmployees() {
+            const resultDiv = document.getElementById('employees-result');
+            resultDiv.innerHTML = '<div class="info">檢查中...</div>';
+            
+            try {
+                log('開始檢查員工資料...');
+                
+                const { data: employees, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .order('employee_id');
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log(`找到 ${employees.length} 個員工`);
+                
+                let html = '<div class="success">✅ 員工資料檢查完成</div>';
+                html += '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
+                html += '<tr><th style="border:1px solid #ddd; padding:8px;">ID</th><th style="border:1px solid #ddd; padding:8px;">員工編號</th><th style="border:1px solid #ddd; padding:8px;">姓名</th><th style="border:1px solid #ddd; padding:8px;">職位</th></tr>';
+                
+                employees.forEach(emp => {
+                    html += `<tr>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.id}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.employee_id || 'N/A'}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.name || 'N/A'}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.position || 'N/A'}</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                resultDiv.innerHTML = html;
+                
+                // 記錄詳細資訊
+                employees.forEach(emp => {
+                    log(`員工: ${emp.employee_id} - ${emp.name} (${emp.position})`);
+                });
+                
+            } catch (error) {
+                log(`❌ 員工資料檢查失敗: ${error.message}`);
+                resultDiv.innerHTML = `<div class="error">❌ 員工資料檢查失敗: ${error.message}</div>`;
+            }
+        }
+
+        async function testLogin() {
+            const employeeId = document.getElementById('testEmployeeId').value.trim();
+            const resultDiv = document.getElementById('login-test-result');
+            
+            if (!employeeId) {
+                resultDiv.innerHTML = '<div class="error">請輸入員工編號</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">登入測試中...</div>';
+            
+            try {
+                log(`開始測試登入: ${employeeId}`);
+                
+                // 測試 EmployeeAuth.login
+                const employee = await EmployeeAuth.login(employeeId);
+                
+                log(`✅ 登入成功: ${employee.name} (${employee.position})`);
+                
+                let html = '<div class="success">✅ 登入測試成功</div>';
+                html += `<div style="margin-top: 10px;">
+                    <strong>員工資訊:</strong><br>
+                    編號: ${employee.employee_id}<br>
+                    姓名: ${employee.name}<br>
+                    職位: ${employee.position}<br>
+                    權限: ${employee.permissions}
+                </div>`;
+                
+                resultDiv.innerHTML = html;
+                
+                // 測試會話狀態
+                const isLoggedIn = EmployeeAuth.isLoggedIn();
+                const currentEmployee = EmployeeAuth.getCurrentEmployee();
+                
+                log(`會話狀態: ${isLoggedIn ? '已登入' : '未登入'}`);
+                if (currentEmployee) {
+                    log(`當前員工: ${currentEmployee.name}`);
+                }
+                
+            } catch (error) {
+                log(`❌ 登入測試失敗: ${error.message}`);
+                resultDiv.innerHTML = `<div class="error">❌ 登入測試失敗: ${error.message}</div>`;
+            }
+        }
+
+        async function testSession() {
+            const resultDiv = document.getElementById('session-test-result');
+            resultDiv.innerHTML = '<div class="info">會話測試中...</div>';
+            
+            try {
+                log('開始測試會話管理...');
+                
+                // 檢查當前會話
+                const isLoggedIn = EmployeeAuth.isLoggedIn();
+                const currentEmployee = EmployeeAuth.getCurrentEmployee();
+                const session = EmployeeAuth.getSession();
+                
+                log(`當前登入狀態: ${isLoggedIn}`);
+                log(`當前員工: ${currentEmployee ? currentEmployee.name : '無'}`);
+                log(`本地會話: ${session ? '存在' : '不存在'}`);
+                
+                // 獲取活躍會話
+                const activeSessions = await EmployeeAuth.getActiveSessions();
+                log(`活躍會話數量: ${activeSessions.length}`);
+                
+                let html = '<div class="success">✅ 會話測試完成</div>';
+                html += `<div style="margin-top: 10px;">
+                    <strong>會話狀態:</strong><br>
+                    當前登入: ${isLoggedIn ? '是' : '否'}<br>
+                    當前員工: ${currentEmployee ? currentEmployee.name : '無'}<br>
+                    本地會話: ${session ? '存在' : '不存在'}<br>
+                    活躍會話: ${activeSessions.length} 個
+                </div>`;
+                
+                if (activeSessions.length > 0) {
+                    html += '<div style="margin-top: 10px;"><strong>活躍會話列表:</strong></div>';
+                    activeSessions.forEach(session => {
+                        html += `<div style="margin: 5px 0; padding: 5px; background: #f0f0f0; border-radius: 3px;">
+                            ${session.employees?.name || '未知'} - ${session.session_id} (${new Date(session.login_time).toLocaleString()})
+                        </div>`;
+                    });
+                }
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                log(`❌ 會話測試失敗: ${error.message}`);
+                resultDiv.innerHTML = `<div class="error">❌ 會話測試失敗: ${error.message}</div>`;
+            }
+        }
+
+        // 頁面載入時自動初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            log('頁面載入，開始初始化...');
+            
+            try {
+                // 等待資料庫初始化
+                await DatabaseManager.initialize();
+                log('✅ 資料庫初始化完成');
+                
+                // 初始化認證系統
+                const isLoggedIn = await EmployeeAuth.initialize();
+                log(`✅ 認證系統初始化完成，登入狀態: ${isLoggedIn}`);
+                
+            } catch (error) {
+                log(`❌ 初始化失敗: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html> 
