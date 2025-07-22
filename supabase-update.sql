@@ -131,9 +131,10 @@ SELECT '資料庫更新完成' as status;
 
 -- 8. 顯示當前資料表狀態
 SELECT 
-    table_name,
-    CASE WHEN row_level_security = 'YES' THEN 'RLS 已啟用' ELSE 'RLS 未啟用' END as rls_status
-FROM information_schema.tables 
-WHERE table_schema = 'public' 
-AND table_name IN ('products', 'categories', 'members', 'employees', 'sales_history', 'coupons', 'suppliers', 'employee_sessions')
-ORDER BY table_name; 
+    schemaname,
+    tablename,
+    CASE WHEN rowsecurity = true THEN 'RLS 已啟用' ELSE 'RLS 未啟用' END as rls_status
+FROM pg_tables 
+WHERE schemaname = 'public' 
+AND tablename IN ('products', 'categories', 'members', 'employees', 'sales_history', 'coupons', 'suppliers', 'employee_sessions')
+ORDER BY tablename; 
