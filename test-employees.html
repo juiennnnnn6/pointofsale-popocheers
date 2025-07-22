@@ -6,13 +6,16 @@
     <title>員工資料測試</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="database.js"></script>
+    <script src="employee-auth.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
         .success { background: #d4edda; color: #155724; }
         .error { background: #f8d7da; color: #721c24; }
         .info { background: #d1ecf1; color: #0c5460; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 5px; }
+        .login-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
     </style>
 </head>
 <body>
@@ -20,7 +23,16 @@
     <button onclick="testEmployees()">測試員工資料</button>
     <div id="result"></div>
 
+    <div class="login-section">
+        <h3>登入測試</h3>
+        <input type="text" id="loginId" placeholder="輸入員工編號" value="EMP001">
+        <button onclick="testLogin()">測試登入</button>
+        <div id="login-result"></div>
+    </div>
+
     <script>
+        let employeesData = [];
+
         async function testEmployees() {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '<div class="info">測試中...</div>';
@@ -38,6 +50,8 @@
                     throw error;
                 }
                 
+                employeesData = employees;
+                
                 if (employees.length === 0) {
                     resultDiv.innerHTML = '<div class="error">❌ 沒有找到任何員工資料</div>';
                     return;
@@ -45,7 +59,7 @@
                 
                 let html = `<div class="success">✅ 找到 ${employees.length} 個員工</div>`;
                 html += '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
-                html += '<tr><th style="border:1px solid #ddd; padding:8px;">ID</th><th style="border:1px solid #ddd; padding:8px;">員工編號</th><th style="border:1px solid #ddd; padding:8px;">姓名</th><th style="border:1px solid #ddd; padding:8px;">職位</th></tr>';
+                html += '<tr><th style="border:1px solid #ddd; padding:8px;">ID</th><th style="border:1px solid #ddd; padding:8px;">員工編號</th><th style="border:1px solid #ddd; padding:8px;">姓名</th><th style="border:1px solid #ddd; padding:8px;">職位</th><th style="border:1px solid #ddd; padding:8px;">權限</th></tr>';
                 
                 employees.forEach(emp => {
                     html += `<tr>
@@ -53,14 +67,65 @@
                         <td style="border:1px solid #ddd; padding:8px;">${emp.employee_id || 'N/A'}</td>
                         <td style="border:1px solid #ddd; padding:8px;">${emp.name || 'N/A'}</td>
                         <td style="border:1px solid #ddd; padding:8px;">${emp.position || 'N/A'}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.permissions || 'N/A'}</td>
                     </tr>`;
                 });
                 
                 html += '</table>';
                 resultDiv.innerHTML = html;
                 
+                // 自動填入第一個員工編號
+                if (employees.length > 0) {
+                    document.getElementById('loginId').value = employees[0].employee_id || 'EMP001';
+                }
+                
             } catch (error) {
                 resultDiv.innerHTML = `<div class="error">❌ 測試失敗: ${error.message}</div>`;
+            }
+        }
+
+        async function testLogin() {
+            const loginId = document.getElementById('loginId').value.trim();
+            const resultDiv = document.getElementById('login-result');
+            
+            if (!loginId) {
+                resultDiv.innerHTML = '<div class="error">請輸入員工編號</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">登入測試中...</div>';
+            
+            try {
+                // 等待認證系統初始化
+                await EmployeeAuth.initialize();
+                
+                // 測試登入
+                const employee = await EmployeeAuth.login(loginId);
+                
+                resultDiv.innerHTML = `<div class="success">✅ 登入成功！<br>
+                    員工: ${employee.name}<br>
+                    職位: ${employee.position}<br>
+                    編號: ${employee.employee_id}
+                </div>`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 登入失敗: ${error.message}</div>`;
+                
+                // 顯示詳細錯誤資訊
+                console.error('登入錯誤詳情:', error);
+                
+                // 檢查是否有匹配的員工
+                const matchingEmployee = employeesData.find(emp => 
+                    emp.employee_id === loginId || 
+                    emp.username === loginId ||
+                    emp.id.toString() === loginId
+                );
+                
+                if (matchingEmployee) {
+                    resultDiv.innerHTML += `<div class="info">找到匹配員工: ${matchingEmployee.name} (${matchingEmployee.employee_id})</div>`;
+                } else {
+                    resultDiv.innerHTML += `<div class="info">未找到匹配的員工編號</div>`;
+                }
             }
         }
 
