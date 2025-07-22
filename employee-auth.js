@@ -31,6 +31,15 @@ class EmployeeAuth {
     // 員工登入
     static async login(employeeId) {
         try {
+            // 確保 supabase 客戶端已初始化
+            if (!supabase) {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+            }
+            
             // 先嘗試用 employee_id 欄位查找
             let { data: employee, error } = await supabase
                 .from('employees')
@@ -70,18 +79,22 @@ class EmployeeAuth {
                 deviceInfo: this.getDeviceInfo()
             };
             
-            // 儲存會話到 Supabase
-            const { error: sessionError } = await supabase
-                .from('employee_sessions')
-                .insert([{
-                    session_id: session.sessionId,
-                    employee_id: employee.id,
-                    login_time: session.loginTime,
-                    device_info: JSON.stringify(session.deviceInfo),
-                    is_active: true
-                }]);
-            
-            if (sessionError) {
+            // 暫時禁用會話儲存到 Supabase（避免 employee_sessions 表問題）
+            try {
+                const { error: sessionError } = await supabase
+                    .from('employee_sessions')
+                    .insert([{
+                        session_id: session.sessionId,
+                        employee_id: employee.id,
+                        login_time: session.loginTime,
+                        device_info: JSON.stringify(session.deviceInfo),
+                        is_active: true
+                    }]);
+                
+                if (sessionError) {
+                    console.warn('會話儲存失敗，但登入繼續:', sessionError);
+                }
+            } catch (sessionError) {
                 console.warn('會話儲存失敗，但登入繼續:', sessionError);
             }
             
@@ -104,10 +117,14 @@ class EmployeeAuth {
             const session = this.getSession();
             if (session) {
                 // 標記會話為非活躍
-                await supabase
-                    .from('employee_sessions')
-                    .update({ is_active: false, logout_time: new Date().toISOString() })
-                    .eq('session_id', session.sessionId);
+                try {
+                    await supabase
+                        .from('employee_sessions')
+                        .update({ is_active: false, logout_time: new Date().toISOString() })
+                        .eq('session_id', session.sessionId);
+                } catch (error) {
+                    console.warn('會話登出失敗，但繼續清除本地狀態:', error);
+                }
             }
             
             // 清除本地會話
@@ -181,10 +198,14 @@ class EmployeeAuth {
             
             if (hoursDiff > 24) {
                 // 會話過期，標記為非活躍
-                await supabase
-                    .from('employee_sessions')
-                    .update({ is_active: false, logout_time: now.toISOString() })
-                    .eq('session_id', session.sessionId);
+                try {
+                    await supabase
+                        .from('employee_sessions')
+                        .update({ is_active: false, logout_time: now.toISOString() })
+                        .eq('session_id', session.sessionId);
+                } catch (error) {
+                    console.warn('會話過期標記失敗:', error);
+                }
                 return false;
             }
             
