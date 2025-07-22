@@ -31,8 +31,12 @@
             resultDiv.innerHTML = '<div class="info">檢查中...</div>';
             
             try {
-                // 等待資料庫初始化
-                await DatabaseManager.initialize();
+                // 直接創建 Supabase 客戶端
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
                 
                 // 查詢所有員工資料
                 const { data: employees, error } = await supabase
