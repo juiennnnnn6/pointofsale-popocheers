@@ -245,13 +245,49 @@
         let editingEmployeeId = null;
 
         // 載入員工資料
-        function loadEmployees() {
-            const savedEmployees = localStorage.getItem('employees');
-            if (savedEmployees) {
-                employees = JSON.parse(savedEmployees);
+        async function loadEmployees() {
+            try {
+                // 從 Supabase 載入員工資料
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+                
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .order('employee_id');
+                
+                if (error) {
+                    console.error('載入員工資料失敗:', error);
+                    // 如果載入失敗，使用預設資料
+                    employees = defaultEmployees;
+                } else {
+                    // 轉換 Supabase 資料格式為本地格式
+                    employees = data.map(emp => ({
+                        id: emp.employee_id || emp.username || emp.id,
+                        name: emp.name,
+                        role: emp.position || emp.role || '員工',
+                        phone: emp.phone || '',
+                        email: emp.email || '',
+                        status: 'active',
+                        lastLogin: emp.last_login || null,
+                        isOnline: false,
+                        permissions: emp.permissions ? JSON.parse(emp.permissions) : []
+                    }));
+                }
+                
+                updateEmployeeDisplay();
+                updateStatistics();
+                
+            } catch (error) {
+                console.error('載入員工資料失敗:', error);
+                // 使用預設資料
+                employees = defaultEmployees;
+                updateEmployeeDisplay();
+                updateStatistics();
             }
-            updateEmployeeDisplay();
-            updateStatistics();
         }
 
         // 更新員工顯示
@@ -363,7 +399,7 @@
         }
 
         // 儲存員工
-        function saveEmployee() {
+        async function saveEmployee() {
             const form = document.getElementById('employeeForm');
             if (!form.checkValidity()) {
                 form.reportValidity();
@@ -397,39 +433,80 @@
                 permissions: permissions
             };
 
-            if (editingEmployeeId) {
-                // 編輯現有員工
-                const index = employees.findIndex(emp => emp.id === editingEmployeeId);
-                if (index !== -1) {
-                    employees[index] = { ...employees[index], ...employeeData };
-                }
-            } else {
-                // 新增員工
-                if (employees.find(emp => emp.id === employeeData.id)) {
-                    alert('員工編號已存在！');
-                    return;
-                }
-                employees.push(employeeData);
-            }
+            try {
+                // 同步到 Supabase
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
 
-            localStorage.setItem('employees', JSON.stringify(employees));
-            updateEmployeeDisplay();
-            updateStatistics();
-            closeEmployeeModal();
-            
-            alert(editingEmployeeId ? '員工資料已更新！' : '員工已新增！');
+                const supabaseData = {
+                    employee_id: employeeData.id,
+                    name: employeeData.name,
+                    position: employeeData.role,
+                    phone: employeeData.phone,
+                    email: employeeData.email,
+                    permissions: JSON.stringify(employeeData.permissions)
+                };
+
+                if (editingEmployeeId) {
+                    // 編輯現有員工
+                    const { error } = await supabase
+                        .from('employees')
+                        .update(supabaseData)
+                        .eq('employee_id', editingEmployeeId);
+                    
+                    if (error) throw error;
+                } else {
+                    // 新增員工
+                    const { error } = await supabase
+                        .from('employees')
+                        .insert([supabaseData]);
+                    
+                    if (error) throw error;
+                }
+
+                // 重新載入員工資料
+                await loadEmployees();
+                closeEmployeeModal();
+                
+                alert(editingEmployeeId ? '員工資料已更新！' : '員工已新增！');
+                
+            } catch (error) {
+                console.error('儲存員工資料失敗:', error);
+                alert(`儲存失敗：${error.message}`);
+            }
         }
 
         // 刪除員工
-        function deleteEmployee(employeeId) {
+        async function deleteEmployee(employeeId) {
             if (!confirm('確定要刪除此員工嗎？')) return;
             
-            employees = employees.filter(emp => emp.id !== employeeId);
-            localStorage.setItem('employees', JSON.stringify(employees));
-            updateEmployeeDisplay();
-            updateStatistics();
-            
-            alert('員工已刪除！');
+            try {
+                // 從 Supabase 刪除員工
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+
+                const { error } = await supabase
+                    .from('employees')
+                    .delete()
+                    .eq('employee_id', employeeId);
+                
+                if (error) throw error;
+
+                // 重新載入員工資料
+                await loadEmployees();
+                
+                alert('員工已刪除！');
+                
+            } catch (error) {
+                console.error('刪除員工失敗:', error);
+                alert(`刪除失敗：${error.message}`);
+            }
         }
 
         // 回到主選單
@@ -502,8 +579,8 @@
         }
 
         // 事件監聽器
-        document.addEventListener('DOMContentLoaded', function() {
-            loadEmployees();
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadEmployees();
             
             // 搜尋功能
             document.getElementById('searchEmployee').addEventListener('input', updateEmployeeDisplay);
