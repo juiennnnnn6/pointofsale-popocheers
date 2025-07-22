@@ -31,20 +31,40 @@ class EmployeeAuth {
     // 員工登入
     static async login(employeeId) {
         try {
-            // 從 Supabase 獲取員工資料
-            const { data: employees, error } = await supabase
+            // 先嘗試用 employee_id 欄位查找
+            let { data: employee, error } = await supabase
                 .from('employees')
                 .select('*')
                 .eq('employee_id', employeeId)
                 .single();
             
-            if (error || !employees) {
-                throw new Error('員工編號不存在');
+            // 如果找不到，嘗試用 username 欄位查找（舊格式）
+            if (error || !employee) {
+                const { data: oldEmployee, error: oldError } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('username', employeeId)
+                    .single();
+                
+                if (oldError || !oldEmployee) {
+                    throw new Error('員工編號不存在');
+                }
+                
+                employee = oldEmployee;
             }
+            
+            // 確保員工資料有正確的欄位
+            const normalizedEmployee = {
+                id: employee.id,
+                employee_id: employee.employee_id || employee.username || employeeId,
+                name: employee.name,
+                position: employee.position || employee.role || '員工',
+                permissions: employee.permissions || '{}'
+            };
             
             // 創建登入會話
             const session = {
-                employee: employees,
+                employee: normalizedEmployee,
                 loginTime: new Date().toISOString(),
                 sessionId: this.generateSessionId(),
                 deviceInfo: this.getDeviceInfo()
@@ -55,9 +75,9 @@ class EmployeeAuth {
                 .from('employee_sessions')
                 .insert([{
                     session_id: session.sessionId,
-                    employee_id: employees.id,
+                    employee_id: employee.id,
                     login_time: session.loginTime,
-                    device_info: session.deviceInfo,
+                    device_info: JSON.stringify(session.deviceInfo),
                     is_active: true
                 }]);
             
@@ -67,10 +87,10 @@ class EmployeeAuth {
             
             // 儲存到本地
             this.saveSession(session);
-            this.currentEmployee = employees;
+            this.currentEmployee = normalizedEmployee;
             
-            console.log('員工登入成功:', employees.name);
-            return employees;
+            console.log('員工登入成功:', normalizedEmployee.name);
+            return normalizedEmployee;
             
         } catch (error) {
             console.error('員工登入失敗:', error);
