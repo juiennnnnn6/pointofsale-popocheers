@@ -40,10 +40,21 @@
             resultDiv.innerHTML = '<div class="info">測試中...</div>';
             
             try {
-                // 等待資料庫初始化
-                await DatabaseManager.initialize();
+                // 直接創建 Supabase 客戶端
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
                 
                 console.log('開始查詢員工:', employeeId);
+                
+                // 先查詢所有員工資料
+                const { data: allEmployees, error: allError } = await supabase
+                    .from('employees')
+                    .select('*');
+                
+                console.log('所有員工資料:', allEmployees);
                 
                 // 直接查詢員工資料
                 let { data: employee, error } = await supabase
@@ -117,7 +128,12 @@
         // 頁面載入時自動填入第一個員工編號
         document.addEventListener('DOMContentLoaded', async function() {
             try {
-                await DatabaseManager.initialize();
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+                
                 const { data: employees } = await supabase
                     .from('employees')
                     .select('employee_id, name')
