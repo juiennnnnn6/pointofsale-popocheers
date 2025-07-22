@@ -8,24 +8,36 @@ class EmployeeAuth {
     // 初始化認證系統
     static async initialize() {
         try {
+            console.log('=== EmployeeAuth.initialize 開始 ===');
+            
             // 檢查是否有現有的登入會話
             const session = this.getSession();
+            console.log('從本地獲取的會話:', session);
+            
             if (session) {
+                console.log('發現現有會話，開始驗證...');
                 // 驗證會話是否仍然有效
                 const isValid = await this.validateSession(session);
+                console.log('會話驗證結果:', isValid);
+                
                 if (isValid) {
                     this.currentEmployee = session.employee;
+                    console.log('會話有效，設定當前員工:', this.currentEmployee);
                     
                     // 觸發認證狀態變更事件
                     document.dispatchEvent(new CustomEvent('authStateChanged', {
                         detail: { employee: session.employee, action: 'initialize' }
                     }));
                     
+                    console.log('=== EmployeeAuth.initialize 完成（已登入）===');
                     return true;
                 } else {
+                    console.log('會話無效，清除本地儲存');
                     // 會話無效，清除本地儲存
                     this.clearSession();
                 }
+            } else {
+                console.log('沒有發現現有會話');
             }
             
             // 觸發認證狀態變更事件（未登入狀態）
@@ -33,6 +45,7 @@ class EmployeeAuth {
                 detail: { employee: null, action: 'initialize' }
             }));
             
+            console.log('=== EmployeeAuth.initialize 完成（未登入）===');
             return false;
         } catch (error) {
             console.error('認證系統初始化失敗:', error);

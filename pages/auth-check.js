@@ -21,14 +21,24 @@ async function waitForAuth() {
 
 // 檢查用戶是否已登入
 async function checkAuthentication() {
-    await waitForAuth();
+    console.log('=== checkAuthentication 開始 ===');
     
-    if (!EmployeeAuth.isLoggedIn()) {
+    await waitForAuth();
+    console.log('waitForAuth 完成');
+    
+    const isLoggedIn = EmployeeAuth.isLoggedIn();
+    console.log('EmployeeAuth.isLoggedIn() 結果:', isLoggedIn);
+    
+    if (!isLoggedIn) {
+        console.log('未登入，準備重定向');
         // 未登入，重定向到主頁面
         alert('請先登入系統！');
         window.location.href = '../index.html';
         return false;
     }
+    
+    console.log('認證成功，當前員工:', EmployeeAuth.getCurrentEmployee());
+    console.log('=== checkAuthentication 完成 ===');
     return true;
 }
 
@@ -90,18 +100,36 @@ async function logout() {
 // 頁面載入時自動檢查身份驗證
 document.addEventListener('DOMContentLoaded', async function() {
     try {
+        console.log('=== 頁面認證檢查開始 ===');
+        console.log('EmployeeAuth 是否可用:', typeof EmployeeAuth !== 'undefined');
+        
         // 等待認證系統初始化
+        console.log('開始初始化 EmployeeAuth...');
         await EmployeeAuth.initialize();
+        console.log('EmployeeAuth 初始化完成');
         
         // 檢查是否已登入
-        if (!(await checkAuthentication())) {
+        console.log('檢查登入狀態...');
+        const isLoggedIn = await checkAuthentication();
+        console.log('登入狀態檢查結果:', isLoggedIn);
+        
+        if (!isLoggedIn) {
+            console.log('認證失敗，重定向到主頁面');
             return;
         }
         
         // 顯示員工資訊
+        console.log('顯示員工資訊...');
         await displayEmployeeInfo();
+        console.log('=== 頁面認證檢查完成 ===');
+        
     } catch (error) {
         console.error('身份驗證檢查失敗:', error);
+        console.error('錯誤詳情:', {
+            message: error.message,
+            stack: error.stack,
+            EmployeeAuth: typeof EmployeeAuth
+        });
         alert('身份驗證檢查失敗，請重新登入！');
         window.location.href = '../index.html';
     }
