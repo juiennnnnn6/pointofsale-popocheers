@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主頁面登入測試</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="database.js"></script>
+    <script src="employee-auth.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 5px; width: 200px; }
+        .login-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>主頁面登入測試</h1>
+    <p>這個測試模擬主頁面的登入功能</p>
+    
+    <div class="login-section">
+        <h3>員工登入</h3>
+        <input type="text" id="employeeId" placeholder="輸入員工編號" value="EMP001">
+        <button onclick="testMainLogin()">測試主頁面登入</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="login-section">
+        <h3>登入狀態</h3>
+        <button onclick="checkLoginStatus()">檢查登入狀態</button>
+        <button onclick="testLogout()">測試登出</button>
+        <div id="status-result"></div>
+    </div>
+
+    <script>
+        async function testMainLogin() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!employeeId) {
+                resultDiv.innerHTML = '<div class="error">請輸入員工編號</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">登入測試中...</div>';
+            
+            try {
+                // 模擬主頁面的登入邏輯
+                const employee = await EmployeeAuth.login(employeeId);
+                
+                resultDiv.innerHTML = `<div class="success">✅ 登入成功！<br>
+                    <strong>員工資訊:</strong><br>
+                    姓名: ${employee.name}<br>
+                    職位: ${employee.position}<br>
+                    編號: ${employee.employee_id}
+                </div>`;
+                
+                // 檢查登入狀態
+                setTimeout(checkLoginStatus, 1000);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 登入失敗: ${error.message}</div>`;
+                console.error('登入錯誤:', error);
+            }
+        }
+
+        async function checkLoginStatus() {
+            const statusDiv = document.getElementById('status-result');
+            
+            const isLoggedIn = EmployeeAuth.isLoggedIn();
+            const currentEmployee = EmployeeAuth.getCurrentEmployee();
+            
+            let html = '<div class="info"><strong>登入狀態:</strong></div>';
+            html += `<div>已登入: ${isLoggedIn ? '是' : '否'}</div>`;
+            
+            if (currentEmployee) {
+                html += `<div>當前員工: ${currentEmployee.name} (${currentEmployee.position})</div>`;
+            }
+            
+            statusDiv.innerHTML = html;
+        }
+
+        async function testLogout() {
+            const statusDiv = document.getElementById('status-result');
+            
+            try {
+                await EmployeeAuth.logout();
+                statusDiv.innerHTML = '<div class="success">✅ 登出成功</div>';
+                
+                // 重新檢查狀態
+                setTimeout(checkLoginStatus, 1000);
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ 登出失敗: ${error.message}</div>`;
+            }
+        }
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('頁面載入，開始初始化...');
+            
+            try {
+                // 等待資料庫初始化
+                await DatabaseManager.initialize();
+                console.log('資料庫初始化完成');
+                
+                // 初始化認證系統
+                const isLoggedIn = await EmployeeAuth.initialize();
+                console.log('認證系統初始化完成，登入狀態:', isLoggedIn);
+                
+                // 檢查初始狀態
+                checkLoginStatus();
+                
+            } catch (error) {
+                console.error('初始化失敗:', error);
+                document.getElementById('result').innerHTML = `<div class="error">初始化失敗: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html> 
