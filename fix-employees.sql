@@ -39,15 +39,25 @@ ON CONFLICT (employee_id) DO UPDATE SET
     permissions = EXCLUDED.permissions,
     updated_at = NOW();
 
--- 4. 如果沒有 employee_id 但有 username，複製過去
-UPDATE employees 
-SET employee_id = username 
-WHERE employee_id IS NULL AND username IS NOT NULL;
-
--- 5. 如果沒有 position 但有 role，複製過去
-UPDATE employees 
-SET position = role 
-WHERE position IS NULL AND role IS NOT NULL;
+-- 4. 檢查並處理舊格式資料
+DO $$ 
+BEGIN
+    -- 如果沒有 employee_id 但有 username，複製過去
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'employees' AND column_name = 'username') THEN
+        UPDATE employees 
+        SET employee_id = username 
+        WHERE employee_id IS NULL AND username IS NOT NULL;
+    END IF;
+    
+    -- 如果沒有 position 但有 role，複製過去
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'employees' AND column_name = 'role') THEN
+        UPDATE employees 
+        SET position = role 
+        WHERE position IS NULL AND role IS NOT NULL;
+    END IF;
+END $$;
 
 -- 6. 顯示修復後的員工資料
 SELECT '修復後的員工資料:' as info;
