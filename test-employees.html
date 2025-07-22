@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>員工資料測試</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="database.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>員工資料測試</h1>
+    <button onclick="testEmployees()">測試員工資料</button>
+    <div id="result"></div>
+
+    <script>
+        async function testEmployees() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info">測試中...</div>';
+            
+            try {
+                // 等待資料庫初始化
+                await DatabaseManager.initialize();
+                
+                // 直接查詢員工資料
+                const { data: employees, error } = await supabase
+                    .from('employees')
+                    .select('*');
+                
+                if (error) {
+                    throw error;
+                }
+                
+                if (employees.length === 0) {
+                    resultDiv.innerHTML = '<div class="error">❌ 沒有找到任何員工資料</div>';
+                    return;
+                }
+                
+                let html = `<div class="success">✅ 找到 ${employees.length} 個員工</div>`;
+                html += '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
+                html += '<tr><th style="border:1px solid #ddd; padding:8px;">ID</th><th style="border:1px solid #ddd; padding:8px;">員工編號</th><th style="border:1px solid #ddd; padding:8px;">姓名</th><th style="border:1px solid #ddd; padding:8px;">職位</th></tr>';
+                
+                employees.forEach(emp => {
+                    html += `<tr>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.id}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.employee_id || 'N/A'}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.name || 'N/A'}</td>
+                        <td style="border:1px solid #ddd; padding:8px;">${emp.position || 'N/A'}</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 測試失敗: ${error.message}</div>`;
+            }
+        }
+
+        // 頁面載入時自動測試
+        document.addEventListener('DOMContentLoaded', testEmployees);
+    </script>
+</body>
+</html> 
