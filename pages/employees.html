@@ -191,21 +191,21 @@
     </div>
 
     <script>
-        // 員工資料庫
-        let employees = [
+        // 預設員工資料
+        const defaultEmployees = [
             {
-                id: 'E001',
-                name: '王小明',
-                role: '收銀員',
-                phone: '0912-345-678',
+                id: 'EMP001',
+                name: '管理員',
+                role: '管理員',
+                phone: '0900-000-000',
                 status: 'active',
                 lastLogin: null,
                 isOnline: false,
-                permissions: ['sales', 'dashboard']
+                permissions: ['all']
             },
             {
-                id: 'E002',
-                name: '李美華',
+                id: 'EMP002',
+                name: '店長',
                 role: '店長',
                 phone: '0987-654-321',
                 status: 'active',
@@ -214,27 +214,29 @@
                 permissions: ['sales', 'products', 'purchase', 'members', 'reports']
             },
             {
-                id: 'E003',
-                name: '張志偉',
+                id: 'EMP003',
+                name: '收銀員',
+                role: '收銀員',
+                phone: '0912-345-678',
+                status: 'active',
+                lastLogin: null,
+                isOnline: false,
+                permissions: ['sales', 'members']
+            },
+            {
+                id: 'EMP004',
+                name: '倉管',
                 role: '倉管',
                 phone: '0923-456-789',
                 status: 'active',
                 lastLogin: null,
                 isOnline: false,
-                permissions: ['products', 'purchase', 'dashboard']
-            },
-            {
-                id: 'E004',
-                name: '陳管理員',
-                role: '管理員',
-                phone: '0900-000-000',
-                status: 'active',
-                lastLogin: null,
-                isOnline: false,
-                permissions: ['all']
+                permissions: ['products', 'purchase', 'reports']
             }
         ];
 
+        // 當前員工資料
+        let employees = [...defaultEmployees];
         let editingEmployeeId = null;
 
         // 載入員工資料
@@ -252,23 +254,33 @@
                     .select('*')
                     .order('employee_id');
                 
+                console.log('Supabase 查詢結果:', { data, error });
+                
                 if (error) {
                     console.error('載入員工資料失敗:', error);
                     // 如果載入失敗，使用預設資料
                     employees = defaultEmployees;
+                    console.log('使用預設員工資料:', employees);
                 } else {
-                    // 轉換 Supabase 資料格式為本地格式
-                    employees = data.map(emp => ({
-                        id: emp.employee_id || emp.username || emp.id,
-                        name: emp.name,
-                        role: emp.position || emp.role || '員工',
-                        phone: emp.phone || '',
-                        email: '', // Supabase 表沒有 email 欄位
-                        status: 'active',
-                        lastLogin: emp.last_login || null,
-                        isOnline: false,
-                        permissions: emp.permissions ? JSON.parse(emp.permissions) : []
-                    }));
+                    console.log('從 Supabase 載入到員工資料:', data);
+                    if (data && data.length > 0) {
+                        // 轉換 Supabase 資料格式為本地格式
+                        employees = data.map(emp => ({
+                            id: emp.employee_id || emp.username || emp.id,
+                            name: emp.name,
+                            role: emp.position || emp.role || '員工',
+                            phone: emp.phone || '',
+                            email: '', // Supabase 表沒有 email 欄位
+                            status: 'active',
+                            lastLogin: emp.last_login || null,
+                            isOnline: false,
+                            permissions: emp.permissions ? JSON.parse(emp.permissions) : []
+                        }));
+                        console.log('轉換後的員工資料:', employees);
+                    } else {
+                        console.log('Supabase 中沒有員工資料，使用預設資料');
+                        employees = defaultEmployees;
+                    }
                 }
                 
                 updateEmployeeDisplay();
