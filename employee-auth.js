@@ -31,14 +31,14 @@ class EmployeeAuth {
     // 員工登入
     static async login(employeeId) {
         try {
-            // 確保 supabase 客戶端已初始化
-            if (!supabase) {
-                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-                supabase = createClient(
-                    'https://cgwhckykrlphnibmuvhz.supabase.co',
-                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
-                );
-            }
+            // 直接創建 Supabase 客戶端
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            const supabase = createClient(
+                'https://cgwhckykrlphnibmuvhz.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+            );
+            
+            console.log('開始查詢員工:', employeeId);
             
             // 先嘗試用 employee_id 欄位查找
             let { data: employee, error } = await supabase
@@ -118,6 +118,12 @@ class EmployeeAuth {
             if (session) {
                 // 標記會話為非活躍
                 try {
+                    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                    const supabase = createClient(
+                        'https://cgwhckykrlphnibmuvhz.supabase.co',
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                    );
+                    
                     await supabase
                         .from('employee_sessions')
                         .update({ is_active: false, logout_time: new Date().toISOString() })
@@ -175,6 +181,13 @@ class EmployeeAuth {
     // 驗證會話
     static async validateSession(session) {
         try {
+            // 直接創建 Supabase 客戶端
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            const supabase = createClient(
+                'https://cgwhckykrlphnibmuvhz.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+            );
+            
             // 檢查會話是否仍然活躍
             const { data, error } = await supabase
                 .from('employee_sessions')
@@ -265,6 +278,12 @@ class EmployeeAuth {
     // 獲取所有活躍會話
     static async getActiveSessions() {
         try {
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            const supabase = createClient(
+                'https://cgwhckykrlphnibmuvhz.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+            );
+            
             const { data, error } = await supabase
                 .from('employee_sessions')
                 .select(`
@@ -291,6 +310,12 @@ class EmployeeAuth {
         try {
             const session = this.getSession();
             if (!session) return;
+            
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            const supabase = createClient(
+                'https://cgwhckykrlphnibmuvhz.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+            );
             
             // 登出除了當前會話外的所有會話
             const { error } = await supabase
@@ -321,6 +346,12 @@ class EmployeeAuth {
             if (!this.currentEmployee) {
                 throw new Error('未登入');
             }
+            
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            const supabase = createClient(
+                'https://cgwhckykrlphnibmuvhz.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+            );
             
             const { data, error } = await supabase
                 .from('employees')
