@@ -100,6 +100,9 @@
                 <button onclick="showCategoryManagement()" class="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-600 transition-colors">
                     <i class="fas fa-tags mr-2"></i>分類管理
                 </button>
+                <button onclick="initializeProducts()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-database mr-2"></i>初始化商品
+                </button>
             </div>
         </div>
     </div>
@@ -510,25 +513,18 @@
         // 當前選中的分類
         let currentCategory = '';
 
-        // 切換分類檢視
+        // 顯示分類商品
         function showCategory(category) {
             currentCategory = category;
-            const categoryNames = {
-                'tableware': '餐具系列',
-                'glassware': '酒具系列',
-                'decorative': '擺飾系列',
-                'teaware': '茶具系列',
-                'kitchenware': '廚具系列',
-                'others': '其他商品'
-            };
-
+            
             document.getElementById('categoryView').style.display = 'none';
             document.getElementById('productsView').style.display = 'block';
-            document.getElementById('backToCategories').style.display = 'inline-block';
-            document.getElementById('pageSubtitle').textContent = `管理 ${categoryNames[category]} 商品`;
-            document.getElementById('categoryTitle').textContent = categoryNames[category];
+            document.getElementById('categoryTitle').textContent = category;
             
-            renderProducts(category);
+            const categoryProducts = allProducts.filter(product => product.category === category);
+            document.getElementById('productCount').textContent = categoryProducts.length;
+            
+            renderProducts(categoryProducts);
         }
 
         // 返回分類檢視
@@ -540,22 +536,23 @@
         }
 
         // 渲染商品
-        function renderProducts(category) {
-            const products = productData[category] || [];
-            const gridView = document.getElementById('gridView');
-            const listView = document.getElementById('listView');
+        function renderProducts(products) {
+            const grid = document.getElementById('productsGrid');
             
-            document.getElementById('productCount').textContent = `共 ${products.length} 項商品`;
-            document.getElementById('totalProducts').textContent = products.length;
-
-            // 網格檢視
-            gridView.innerHTML = products.map(product => `
-                <div class="product-card bg-white rounded-lg p-3 shadow-md">
+            if (products.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">此分類暫無商品</div>';
+                return;
+            }
+            
+            grid.innerHTML = products.map(product => `
+                <div class="product-card bg-white rounded-lg p-4 shadow-md">
                     <div class="relative mb-3">
-                        <img src="${product.image}" alt="${product.name}" class="w-full h-20 object-cover rounded">
-                        <div class="absolute top-1 right-1">
-                            <span class="bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-1 py-0.5 rounded-full">
-                                ${getStatusText(product.status)}
+                        <img src="${product.image_url || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center'}" 
+                             alt="${product.name}" 
+                             class="w-full h-32 object-cover rounded">
+                        <div class="absolute top-2 right-2">
+                            <span class="bg-${getStatusColor(product.stock)}-100 text-${getStatusColor(product.stock)}-800 text-xs px-2 py-1 rounded-full">
+                                ${getStatusText(product.stock)}
                             </span>
                         </div>
                     </div>
@@ -570,46 +567,14 @@
                             <span class="text-xs text-gray-600">庫存</span>
                             <span class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'} text-sm">${product.stock} 件</span>
                         </div>
-                        <div class="flex space-x-1">
-                            <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="flex-1 bg-blue-500 text-white py-1.5 rounded text-xs hover:bg-blue-600 transition-colors">
+                        <div class="flex space-x-2">
+                            <button onclick="editProduct(${product.id})" class="flex-1 bg-blue-500 text-white py-2 rounded text-xs hover:bg-blue-600 transition-colors">
                                 <i class="fas fa-edit mr-1"></i>編輯
                             </button>
-                            <button onclick="viewProduct('${currentCategory}', ${products.indexOf(product)})" class="px-2 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50 transition-colors">
-                                <i class="fas fa-eye"></i>
+                            <button onclick="deleteProduct(${product.id})" class="flex-1 bg-red-500 text-white py-2 rounded text-xs hover:bg-red-600 transition-colors">
+                                <i class="fas fa-trash mr-1"></i>刪除
                             </button>
                         </div>
-                    </div>
-                </div>
-            `).join('');
-
-            // 列表檢視
-            listView.innerHTML = products.map(product => `
-                <div class="flex items-center space-x-4 p-3 bg-white rounded-lg shadow-sm">
-                    <img src="${product.image}" alt="${product.name}" class="w-12 h-12 rounded object-cover">
-                    <div class="flex-1">
-                        <h4 class="font-medium text-gray-800">${product.name}</h4>
-                        <p class="text-sm text-gray-600">條碼: ${product.barcode}</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600">售價</p>
-                        <p class="font-bold text-blue-600">NT$${product.price.toLocaleString()}</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600">庫存</p>
-                        <p class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'}">${product.stock} 件</p>
-                    </div>
-                    <div class="text-center">
-                        <span class="inline-block bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-2 py-1 rounded-full">
-                            ${getStatusText(product.status)}
-                        </span>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-edit mr-1"></i>編輯
-                        </button>
-                        <button onclick="viewProduct('${currentCategory}', ${products.indexOf(product)})" class="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors">
-                            <i class="fas fa-eye"></i>
-                        </button>
                     </div>
                 </div>
             `).join('');
@@ -806,67 +771,43 @@
         }
 
         // 新增商品表單提交
-        document.getElementById('addProductForm').addEventListener('submit', function(e) {
+        document.getElementById('addProductForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const name = document.getElementById('productName').value.trim();
-            const barcode = document.getElementById('productBarcode').value.trim();
-            const price = parseInt(document.getElementById('productPrice').value);
-            const cost = parseInt(document.getElementById('productCost').value) || 0;
-            const category = document.getElementById('productCategory').value;
-            const stock = parseInt(document.getElementById('productStock').value);
-            const minStock = parseInt(document.getElementById('productMinStock').value) || 10;
-            const supplier = document.getElementById('productSupplier').value.trim();
-            const description = document.getElementById('productDescription').value.trim();
-            const image = document.getElementById('productImage').value.trim() || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center';
-
-            // 檢查條碼是否已存在
-            let barcodeExists = false;
-            for (const cat in productData) {
-                if (productData[cat].some(product => product.barcode === barcode)) {
-                    barcodeExists = true;
-                    break;
-                }
-            }
-
-            if (barcodeExists) {
-                alert('此條碼已存在，請使用其他條碼');
+            if (!isDatabaseConnected) {
+                alert('資料庫未連接，無法新增商品');
                 return;
             }
-
-            // 計算庫存狀態
-            let status = 'normal';
-            if (stock === 0) status = 'out';
-            else if (stock <= minStock) status = 'low';
-
-            // 創建新商品
-            const newProduct = {
-                name: name,
-                barcode: barcode,
-                price: price,
-                cost: cost,
-                stock: stock,
-                minStock: minStock,
-                supplier: supplier,
-                description: description,
-                image: image,
-                status: status
+            
+            const formData = {
+                name: document.getElementById('productName').value.trim(),
+                barcode: document.getElementById('productBarcode').value.trim(),
+                price: parseInt(document.getElementById('productPrice').value),
+                cost: parseInt(document.getElementById('productCost').value) || 0,
+                category: document.getElementById('productCategory').value,
+                stock: parseInt(document.getElementById('productStock').value),
+                min_stock: parseInt(document.getElementById('productMinStock').value) || 10,
+                supplier: document.getElementById('productSupplier').value.trim(),
+                description: document.getElementById('productDescription').value.trim(),
+                image_url: document.getElementById('productImage').value.trim() || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center',
+                is_active: true
             };
 
-            // 添加到對應分類
-            productData[category].push(newProduct);
-            saveProductData();
-
-            // 更新統計
-            updateStatistics();
-
-            // 如果當前正在查看該分類，重新渲染
-            if (currentCategory === category) {
-                renderProducts(category);
+            try {
+                const result = await BusinessAPI.addProduct(formData);
+                
+                if (result) {
+                    alert('商品新增成功！');
+                    hideAddProductModal();
+                    await loadProducts();
+                    updateCategoryCounts();
+                } else {
+                    alert('商品新增失敗，請重試');
+                }
+            } catch (error) {
+                console.error('新增商品失敗:', error);
+                alert('新增商品失敗: ' + error.message);
             }
-
-            alert('商品新增成功！');
-            hideAddProductModal();
         });
 
         // 編輯商品
@@ -1936,6 +1877,90 @@ ${product.description ? '描述：' + product.description : ''}
             loadProductData();
             updateStatistics();
         });
+
+        // 全域變數
+        let allProducts = [];
+        let isDatabaseConnected = false;
+
+        // 初始化
+        async function initialize() {
+            console.log('=== 商品管理頁面初始化 ===');
+            
+            // 檢查資料庫連接
+            await checkDatabaseConnection();
+            
+            // 載入商品資料
+            await loadProducts();
+            
+            // 更新分類統計
+            updateCategoryCounts();
+        }
+
+        // 檢查資料庫連接
+        async function checkDatabaseConnection() {
+            try {
+                await DatabaseManager.initialize();
+                const status = DatabaseManager.getStatus();
+                
+                if (status === 'connected') {
+                    isDatabaseConnected = true;
+                    console.log('資料庫連接成功');
+                } else {
+                    isDatabaseConnected = false;
+                    console.error('資料庫連接失敗');
+                }
+            } catch (error) {
+                isDatabaseConnected = false;
+                console.error('資料庫連接錯誤:', error);
+            }
+        }
+
+        // 載入商品資料
+        async function loadProducts() {
+            try {
+                if (!isDatabaseConnected) {
+                    console.log('資料庫未連接，無法載入商品');
+                    return;
+                }
+
+                console.log('開始載入商品資料...');
+                const products = await BusinessAPI.getProducts();
+                
+                if (products) {
+                    allProducts = products;
+                    console.log('成功載入商品資料:', products.length, '項商品');
+                } else {
+                    allProducts = [];
+                    console.log('沒有找到商品資料');
+                }
+            } catch (error) {
+                console.error('載入商品資料失敗:', error);
+                allProducts = [];
+            }
+        }
+
+        // 初始化商品資料
+        async function initializeProducts() {
+            if (!isDatabaseConnected) {
+                alert('資料庫未連接，無法初始化商品');
+                return;
+            }
+            
+            try {
+                const result = await BusinessAPI.initializeProducts();
+                
+                if (result) {
+                    alert(`成功初始化 ${result.length} 樣商品！`);
+                    await loadProducts();
+                    updateCategoryCounts();
+                } else {
+                    alert('商品資料已存在或初始化失敗');
+                }
+            } catch (error) {
+                console.error('初始化商品失敗:', error);
+                alert('初始化商品失敗: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html> 
