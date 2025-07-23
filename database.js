@@ -180,11 +180,11 @@ class BusinessAPI {
         // }
         
         const products = [
-            // 餐具類 (3樣商品)
+            // 餐具系列 (3樣商品)
             {
                 name: '波蘭手工陶瓷餐盤組',
                 barcode: 'PLATE001',
-                category: '餐具',
+                category: '餐具系列',
                 price: 1200,
                 cost: 800,
                 stock: 50,
@@ -196,7 +196,7 @@ class BusinessAPI {
             {
                 name: '歐洲風格咖啡杯組',
                 barcode: 'CUP001',
-                category: '餐具',
+                category: '餐具系列',
                 price: 850,
                 cost: 550,
                 stock: 30,
@@ -208,7 +208,7 @@ class BusinessAPI {
             {
                 name: '手工陶瓷湯碗',
                 barcode: 'BOWL001',
-                category: '餐具',
+                category: '餐具系列',
                 price: 680,
                 cost: 420,
                 stock: 40,
@@ -218,11 +218,11 @@ class BusinessAPI {
                 is_active: true
             },
             
-            // 花瓶類 (3樣商品)
+            // 酒具系列 (3樣商品)
             {
                 name: '波蘭手工花瓶大號',
                 barcode: 'VASE001',
-                category: '花瓶',
+                category: '酒具系列',
                 price: 1800,
                 cost: 1200,
                 stock: 20,
@@ -234,7 +234,7 @@ class BusinessAPI {
             {
                 name: '歐式復古小花瓶',
                 barcode: 'VASE002',
-                category: '花瓶',
+                category: '酒具系列',
                 price: 950,
                 cost: 650,
                 stock: 25,
@@ -246,7 +246,7 @@ class BusinessAPI {
             {
                 name: '手工陶瓷花瓶套組',
                 barcode: 'VASE003',
-                category: '花瓶',
+                category: '酒具系列',
                 price: 2200,
                 cost: 1500,
                 stock: 15,
@@ -256,11 +256,11 @@ class BusinessAPI {
                 is_active: true
             },
             
-            // 裝飾品類 (3樣商品)
+            // 擺飾系列 (3樣商品)
             {
                 name: '波蘭手工陶瓷擺飾',
                 barcode: 'DECOR001',
-                category: '裝飾品',
+                category: '擺飾系列',
                 price: 750,
                 cost: 480,
                 stock: 35,
@@ -272,7 +272,7 @@ class BusinessAPI {
             {
                 name: '歐式陶瓷燭台',
                 barcode: 'DECOR002',
-                category: '裝飾品',
+                category: '擺飾系列',
                 price: 1200,
                 cost: 780,
                 stock: 18,
@@ -284,7 +284,7 @@ class BusinessAPI {
             {
                 name: '手工陶瓷相框',
                 barcode: 'DECOR003',
-                category: '裝飾品',
+                category: '擺飾系列',
                 price: 650,
                 cost: 420,
                 stock: 28,
@@ -294,11 +294,11 @@ class BusinessAPI {
                 is_active: true
             },
             
-            // 廚房用品類 (3樣商品)
+            // 茶具系列 (3樣商品)
             {
                 name: '波蘭手工陶瓷鍋具',
                 barcode: 'KITCHEN001',
-                category: '廚房用品',
+                category: '茶具系列',
                 price: 2800,
                 cost: 1800,
                 stock: 12,
@@ -310,7 +310,7 @@ class BusinessAPI {
             {
                 name: '歐式陶瓷調味罐組',
                 barcode: 'KITCHEN002',
-                category: '廚房用品',
+                category: '茶具系列',
                 price: 980,
                 cost: 620,
                 stock: 22,
@@ -322,7 +322,7 @@ class BusinessAPI {
             {
                 name: '手工陶瓷茶具組',
                 barcode: 'KITCHEN003',
-                category: '廚房用品',
+                category: '茶具系列',
                 price: 1600,
                 cost: 1000,
                 stock: 16,
@@ -332,11 +332,11 @@ class BusinessAPI {
                 is_active: true
             },
             
-            // 浴室用品類 (3樣商品)
+            // 廚具系列 (3樣商品)
             {
                 name: '波蘭手工陶瓷牙刷架',
                 barcode: 'BATH001',
-                category: '浴室用品',
+                category: '廚具系列',
                 price: 450,
                 cost: 280,
                 stock: 45,
@@ -348,7 +348,7 @@ class BusinessAPI {
             {
                 name: '歐式陶瓷肥皂盒',
                 barcode: 'BATH002',
-                category: '浴室用品',
+                category: '廚具系列',
                 price: 380,
                 cost: 240,
                 stock: 38,
@@ -360,7 +360,7 @@ class BusinessAPI {
             {
                 name: '手工陶瓷毛巾架',
                 barcode: 'BATH003',
-                category: '浴室用品',
+                category: '廚具系列',
                 price: 720,
                 cost: 460,
                 stock: 25,

@@ -365,12 +365,12 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">商品分類</label>
                             <select id="productCategory" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
                                 <option value="">請選擇分類</option>
-                                <option value="electronics">電子產品</option>
-                                <option value="sports">運動用品</option>
-                                <option value="fashion">時尚配件</option>
-                                <option value="clothing">服飾鞋帽</option>
-                                <option value="home">家居用品</option>
-                                <option value="others">其他商品</option>
+                                <option value="餐具系列">餐具系列</option>
+                                <option value="酒具系列">酒具系列</option>
+                                <option value="擺飾系列">擺飾系列</option>
+                                <option value="茶具系列">茶具系列</option>
+                                <option value="廚具系列">廚具系列</option>
+                                <option value="其他商品">其他商品</option>
                             </select>
                         </div>
                         <div>
@@ -742,7 +742,7 @@
                     const categoryChoice = prompt('請選擇商品分類：\n1. 餐具系列\n2. 酒具系列\n3. 擺飾系列\n4. 茶具系列\n5. 廚具系列\n6. 其他商品\n\n請輸入數字(1-6)：');
                     
                     if (productName && price && stock && categoryChoice) {
-                        const categories = ['tableware', 'glassware', 'decorative', 'teaware', 'kitchenware', 'others'];
+                        const categories = ['餐具系列', '酒具系列', '擺飾系列', '茶具系列', '廚具系列', '其他商品'];
                         const categoryIndex = parseInt(categoryChoice) - 1;
                         
                         if (categoryIndex >= 0 && categoryIndex < categories.length) {
