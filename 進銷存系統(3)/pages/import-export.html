@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品匯出/入 - 進銷存系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../employee-auth.js"></script>
+    <script src="auth-check.js"></script>
+
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .upload-area {
+            border: 2px dashed #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        .upload-area.dragover {
+            border-color: #17225e;
+            background-color: #eff6ff;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
+    
+    <!-- 標題區域 -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">資料匯出/入</h1>
+                <p class="text-gray-600">批量管理商品和會員資料，支援Excel和CSV格式</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="downloadTemplate()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-download mr-2"></i>下載模板
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能區域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- 商品匯出功能 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-export mr-2 text-[#17225e]"></i>
+                匯出商品資料
+            </h2>
+            
+            <!-- 匯出選項 -->
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">匯出格式</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="exportFormat" value="csv" checked class="mr-2">
+                            <i class="fas fa-file-csv mr-2 text-[#17225e]"></i>
+                            <span>CSV格式</span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="exportFormat" value="excel" class="mr-2">
+                            <i class="fas fa-file-excel mr-2 text-[#17225e]"></i>
+                            <span>Excel格式</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">匯出範圍</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="exportRange" value="all" checked class="mr-2">
+                            <span>所有商品</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="exportRange" value="inStock" class="mr-2">
+                            <span>有庫存商品</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="exportRange" value="lowStock" class="mr-2">
+                            <span>低庫存商品</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="exportRange" value="outOfStock" class="mr-2">
+                            <span>缺貨商品</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 匯出按鈕 -->
+            <button onclick="exportProducts()" class="w-full bg-[#17225e] text-white py-3 px-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-medium">
+                <i class="fas fa-download mr-2"></i>
+                開始匯出
+            </button>
+            
+            <!-- 匯出狀態 -->
+            <div id="exportStatus" class="mt-4 hidden">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div class="flex items-center">
+                                                  <i class="fas fa-spinner fa-spin mr-2 text-[#17225e]"></i>
+                                                  <span class="text-gray-700">正在準備匯出資料...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品匯入功能 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-import mr-2 text-[#17225e]"></i>
+                匯入商品資料
+            </h2>
+            
+            <!-- 檔案上傳區域 -->
+            <div id="uploadArea" class="upload-area rounded-lg p-8 text-center mb-4">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 mb-2">拖放檔案至此處或點擊選擇</p>
+                <p class="text-sm text-gray-500">支援 .csv, .xlsx, .xls 格式</p>
+                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden">
+                <button onclick="selectFile()" class="mt-3 bg-[#17225e] text-white px-4 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    選擇檔案
+                </button>
+            </div>
+            
+            <!-- 檔案資訊 -->
+            <div id="fileInfo" class="hidden mb-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-file mr-2 text-[#17225e]"></i>
+                            <span id="fileName" class="font-medium"></span>
+                        </div>
+                        <button onclick="clearFile()" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                        大小: <span id="fileSize"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 匯入選項 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">匯入模式</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="importMode" value="update" checked class="mr-2">
+                        <span>更新現有商品（根據條碼）</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="importMode" value="add" class="mr-2">
+                        <span>只新增新商品</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="importMode" value="replace" class="mr-2">
+                        <span>替換所有商品</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 匯入按鈕 -->
+            <button id="importBtn" onclick="importProducts()" disabled class="w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed">
+                <i class="fas fa-upload mr-2"></i>
+                開始匯入
+            </button>
+        </div>
+    </div>
+
+    <!-- 會員匯入匯出功能 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- 會員匯出功能 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-export mr-2 text-[#17225e]"></i>
+                匯出會員資料
+            </h2>
+            
+            <!-- 匯出選項 -->
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">匯出格式</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="memberExportFormat" value="csv" checked class="mr-2">
+                            <i class="fas fa-file-csv mr-2 text-[#17225e]"></i>
+                            <span>CSV格式</span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="memberExportFormat" value="excel" class="mr-2">
+                            <i class="fas fa-file-excel mr-2 text-[#17225e]"></i>
+                            <span>Excel格式</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">匯出範圍</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="memberExportRange" value="all" checked class="mr-2">
+                            <span>所有會員</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="memberExportRange" value="active" class="mr-2">
+                            <span>啟用會員</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="memberExportRange" value="vip" class="mr-2">
+                            <span>VIP會員</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 匯出按鈕 -->
+            <button onclick="exportMembers()" class="w-full bg-[#17225e] text-white py-3 px-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-medium">
+                <i class="fas fa-download mr-2"></i>
+                開始匯出會員
+            </button>
+        </div>
+
+        <!-- 會員匯入功能 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-import mr-2 text-[#17225e]"></i>
+                匯入會員資料
+            </h2>
+            
+            <!-- 檔案上傳區域 -->
+            <div id="memberUploadArea" class="upload-area rounded-lg p-8 text-center mb-4">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 mb-2">拖放檔案至此處或點擊選擇</p>
+                <p class="text-sm text-gray-500">支援 .csv, .xlsx, .xls 格式</p>
+                <input type="file" id="memberFileInput" accept=".csv,.xlsx,.xls" class="hidden">
+                <button onclick="selectMemberFile()" class="mt-3 bg-[#17225e] text-white px-4 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    選擇檔案
+                </button>
+            </div>
+            
+            <!-- 檔案資訊 -->
+            <div id="memberFileInfo" class="hidden mb-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-file mr-2 text-[#17225e]"></i>
+                            <span id="memberFileName" class="font-medium"></span>
+                        </div>
+                        <button onclick="clearMemberFile()" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                        大小: <span id="memberFileSize"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 匯入選項 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">匯入模式</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="memberImportMode" value="update" checked class="mr-2">
+                        <span>更新現有會員（根據會員編號）</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="memberImportMode" value="add" class="mr-2">
+                        <span>只新增新會員</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="memberImportMode" value="replace" class="mr-2">
+                        <span>替換所有會員</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 匯入按鈕 -->
+            <button id="memberImportBtn" onclick="importMembers()" disabled class="w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed">
+                <i class="fas fa-upload mr-2"></i>
+                開始匯入會員
+            </button>
+        </div>
+    </div>
+
+    <!-- 進度顯示 -->
+    <div id="progressArea" class="hidden apple-card rounded-xl p-6 shadow-lg mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">匯入進度</h3>
+        <div class="space-y-4">
+            <div class="bg-gray-200 rounded-full h-4">
+                <div id="progressBar" class="progress-bar bg-[#17225e] h-4 rounded-full" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-sm text-gray-600">
+                <span id="progressText">準備中...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果顯示 -->
+    <div id="resultArea" class="hidden apple-card rounded-xl p-6 shadow-lg mb-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i id="resultIcon" class="fas fa-check-circle mr-2 text-[#17225e]"></i>
+            <span id="resultTitle">匯入完成</span>
+        </h3>
+        <div id="resultContent"></div>
+    </div>
+
+    <!-- 商品預覽 -->
+    <div id="previewArea" class="hidden apple-card rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-eye mr-2 text-[#17225e]"></i>
+            資料預覽
+        </h3>
+        <div class="overflow-x-auto">
+            <table id="previewTable" class="min-w-full border-collapse border border-gray-300">
+                <thead id="previewHeader"></thead>
+                <tbody id="previewBody"></tbody>
+            </table>
+        </div>
+        <div class="mt-4 flex justify-between items-center">
+            <div class="text-sm text-gray-600">
+                顯示前 <span id="previewCount">5</span> 筆資料
+            </div>
+            <div class="space-x-3">
+                <button onclick="cancelImport()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                    取消
+                </button>
+                <button onclick="confirmImport()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    確認匯入
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 波波 聚 歐洲家居/波蘭陶食器商品資料庫（支援同條碼多商品小項）
+        let products = {};
+        
+        // 初始化商品資料（展平多商品小項結構以便匯出入）
+        const mockProducts = {
+            '1234567890123': [  // 歐式骨瓷餐盤系列
+                {
+                    id: 'P001-01',
+                    name: '歐式骨瓷餐盤',
+                    variant: '20cm 白色經典款',
+                    price: 890,
+                    stock: 15,
+                    category: '餐具',
+                    supplier: '歐洲精品瓷器',
+                    description: '純白骨瓷，經典歐式設計'
+                },
+                {
+                    id: 'P001-02',
+                    name: '歐式骨瓷餐盤',
+                    variant: '20cm 藍花圖案款',
+                    price: 950,
+                    stock: 8,
+                    category: '餐具',
+                    supplier: '歐洲精品瓷器',
+                    description: '手繪藍花圖案，精緻工藝'
+                },
+                {
+                    id: 'P001-03',
+                    name: '歐式骨瓷餐盤',
+                    variant: '20cm 金邊奢華款',
+                    price: 1280,
+                    stock: 5,
+                    category: '餐具',
+                    supplier: '歐洲精品瓷器',
+                    description: '24K金邊裝飾，奢華典雅'
+                }
+            ],
+            '2345678901234': [  // 水晶酒杯系列
+                {
+                    id: 'P002-01',
+                    name: '施華洛世奇水晶酒杯',
+                    variant: '紅酒杯 300ml',
+                    price: 2890,
+                    stock: 12,
+                    category: '酒具',
+                    supplier: '施華洛世奇',
+                    description: '奧地利水晶，完美酒杯弧度'
+                },
+                {
+                    id: 'P002-02',
+                    name: '施華洛世奇水晶酒杯',
+                    variant: '香檳杯 200ml',
+                    price: 2590,
+                    stock: 18,
+                    category: '酒具',
+                    supplier: '施華洛世奇',
+                    description: '細長杯身，保持氣泡完美'
+                }
+            ],
+            '3456789012345': [  // 家居擺飾系列
+                {
+                    id: 'P003-01',
+                    name: '北歐風陶瓷花瓶',
+                    variant: '小號 15cm 灰色',
+                    price: 680,
+                    stock: 25,
+                    category: '擺飾',
+                    supplier: '北歐家居',
+                    description: '簡約北歐設計，啞光質感'
+                },
+                {
+                    id: 'P003-02',
+                    name: '北歐風陶瓷花瓶',
+                    variant: '中號 25cm 白色',
+                    price: 980,
+                    stock: 15,
+                    category: '擺飾',
+                    supplier: '北歐家居',
+                    description: '純白陶瓷，中性百搭'
+                }
+            ],
+            '4567890123456': [  // 茶具系列
+                {
+                    id: 'P004-01',
+                    name: '英式骨瓷茶杯組',
+                    variant: '經典玫瑰圖案',
+                    price: 1590,
+                    stock: 0,
+                    category: '茶具',
+                    supplier: '英國皇家瓷器',
+                    description: '傳統英式下午茶茶杯'
+                }
+            ],
+            '5678901234567': [  // 餐具套裝
+                {
+                    id: 'P005-01',
+                    name: '法式餐具套裝',
+                    variant: '4人份基礎款',
+                    price: 3890,
+                    stock: 6,
+                    category: '餐具',
+                    supplier: '法國餐具',
+                    description: '包含餐盤、湯碗、茶杯'
+                },
+                {
+                    id: 'P005-02',
+                    name: '法式餐具套裝',
+                    variant: '4人份豪華款',
+                    price: 5890,
+                    stock: 3,
+                    category: '餐具',
+                    supplier: '法國餐具',
+                    description: '包含餐盤、湯碗、茶杯、甜點盤'
+                }
+            ],
+            '6789012345678': [  // 廚房用品
+                {
+                    id: 'P006-01',
+                    name: '德國不鏽鋼廚具',
+                    variant: '基礎3件組',
+                    price: 2200,
+                    stock: 12,
+                    category: '廚具',
+                    supplier: '德國廚具',
+                    description: '湯勺、漏勺、鏟子'
+                }
+            ]
+        };
+
+        // 展平數據結構為單一商品格式（用於匯出入）
+        for (const barcode in mockProducts) {
+            mockProducts[barcode].forEach(product => {
+                products[product.id] = {
+                    name: `${product.name} - ${product.variant}`,
+                    price: product.price,
+                    stock: product.stock,
+                    category: product.category,
+                    supplier: product.supplier,
+                    barcode: barcode,
+                    variant: product.variant,
+                    description: product.description
+                };
+            });
+        }
+
+        let selectedFile = null;
+        let parsedData = null;
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+
+        // 下載模板
+        function downloadTemplate() {
+            // 商品模板
+            const productHeaders = ['條碼', '商品名稱', '價格', '成本', '庫存', '最低庫存', '分類', '供應商', '商品描述', '圖片URL'];
+            const productSampleData = [
+                ['1234567890123', '歐式骨瓷餐盤', '890', '600', '15', '10', '餐具', '歐洲瓷器供應商', '純白骨瓷，經典歐式設計', 'https://example.com/image1.jpg'],
+                ['2345678901234', '施華洛世奇水晶酒杯', '2890', '2000', '12', '5', '酒具', '奧地利水晶供應商', '奧地利水晶，完美酒杯弧度', 'https://example.com/image2.jpg']
+            ];
+            
+            const productCsvContent = [productHeaders, ...productSampleData]
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            
+            const productBlob = new Blob(['\uFEFF' + productCsvContent], { type: 'text/csv;charset=utf-8;' });
+            const productLink = document.createElement('a');
+            productLink.href = URL.createObjectURL(productBlob);
+            productLink.download = '商品匯入模板.csv';
+            productLink.click();
+            
+            // 會員模板
+            const memberHeaders = ['會員編號', '姓名', '電話', '電子郵件', '生日', '會員等級', '積分', '狀態', '地址', '備註'];
+            const memberSampleData = [
+                ['M001', '王小明', '0912345678', 'wang@example.com', '1990-01-15', '一般', '100', 'active', '台北市信義區', '新會員'],
+                ['M002', '李美華', '0923456789', 'lee@example.com', '1985-05-20', '金卡', '500', 'active', '台北市大安區', 'VIP客戶']
+            ];
+            
+            const memberCsvContent = [memberHeaders, ...memberSampleData]
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            
+            const memberBlob = new Blob(['\uFEFF' + memberCsvContent], { type: 'text/csv;charset=utf-8;' });
+            const memberLink = document.createElement('a');
+            memberLink.href = URL.createObjectURL(memberBlob);
+            memberLink.download = '會員匯入模板.csv';
+            memberLink.click();
+            
+            showMessage('商品和會員模板已下載，請依照格式填入資料', 'success');
+        }
+
+        // 匯出商品
+        function exportProducts() {
+            const format = document.querySelector('input[name="exportFormat"]:checked').value;
+            const range = document.querySelector('input[name="exportRange"]:checked').value;
+            
+            document.getElementById('exportStatus').classList.remove('hidden');
+            
+            setTimeout(() => {
+                const filteredProducts = filterProducts(range);
+                const headers = ['條碼', '商品名稱', '價格', '庫存', '分類', '供應商'];
+                const data = [headers];
+                
+                Object.entries(filteredProducts).forEach(([barcode, product]) => {
+                    data.push([
+                        barcode,
+                        product.name,
+                        product.price,
+                        product.stock,
+                        product.category,
+                        product.supplier
+                    ]);
+                });
+                
+                if (format === 'csv') {
+                    exportAsCSV(data);
+                } else {
+                    exportAsExcel(data);
+                }
+                
+                document.getElementById('exportStatus').classList.add('hidden');
+                showMessage(`已匯出 ${data.length - 1} 筆商品資料`, 'success');
+            }, 2000);
+        }
+
+        // 過濾商品
+        function filterProducts(range) {
+            const filtered = {};
+            Object.entries(products).forEach(([barcode, product]) => {
+                switch(range) {
+                    case 'all':
+                        filtered[barcode] = product;
+                        break;
+                    case 'inStock':
+                        if (product.stock > 0) filtered[barcode] = product;
+                        break;
+                    case 'lowStock':
+                        if (product.stock <= 5 && product.stock > 0) filtered[barcode] = product;
+                        break;
+                    case 'outOfStock':
+                        if (product.stock === 0) filtered[barcode] = product;
+                        break;
+                }
+            });
+            return filtered;
+        }
+
+        // 匯出為CSV
+        function exportAsCSV(data) {
+            const csvContent = data
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `商品資料_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // 匯出為Excel (簡化版)
+        function exportAsExcel(data) {
+            // 這裡使用簡化的Excel匯出，實際專案中可使用SheetJS
+            const csvContent = data
+                .map(row => row.join('\t'))
+                .join('\n');
+            
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `商品資料_${new Date().toISOString().split('T')[0]}.xls`;
+            link.click();
+        }
+
+        // 選擇檔案
+        function selectFile() {
+            document.getElementById('fileInput').click();
+        }
+
+        // 檔案選擇事件
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            handleFile(e.target.files[0]);
+        });
+
+        // 拖放事件
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        // 處理檔案
+        function handleFile(file) {
+            if (!file) return;
+            
+            const allowedTypes = [
+                'text/csv',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ];
+            
+            if (!allowedTypes.includes(file.type) && !file.name.match(/\.(csv|xlsx|xls)$/i)) {
+                showMessage('不支援的檔案格式，請選擇CSV或Excel檔案', 'error');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // 顯示檔案資訊
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').classList.remove('hidden');
+            
+            // 啟用匯入按鈕
+            const importBtn = document.getElementById('importBtn');
+            importBtn.disabled = false;
+            importBtn.className = 'w-full bg-[#17225e] text-white py-3 px-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-medium';
+        }
+
+        // 格式化檔案大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 清除檔案
+        function clearFile() {
+            selectedFile = null;
+            parsedData = null;
+            document.getElementById('fileInfo').classList.add('hidden');
+            document.getElementById('fileInput').value = '';
+            
+            const importBtn = document.getElementById('importBtn');
+            importBtn.disabled = true;
+            importBtn.className = 'w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed';
+            
+            hideAreas(['previewArea', 'progressArea', 'resultArea']);
+        }
+
+        // 匯入商品
+        function importProducts() {
+            if (!selectedFile) return;
+            
+            showProgressArea();
+            updateProgress(10, '讀取檔案中...');
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = e.target.result;
+                    updateProgress(30, '解析資料中...');
+                    
+                    setTimeout(() => {
+                        if (selectedFile.name.toLowerCase().includes('.csv')) {
+                            parsedData = parseCSV(data);
+                        } else {
+                            // 簡化的Excel解析，實際專案中應使用專門的庫
+                            parsedData = parseCSV(data);
+                        }
+                        
+                        updateProgress(60, '驗證資料中...');
+                        
+                        setTimeout(() => {
+                            if (validateData(parsedData)) {
+                                updateProgress(80, '準備預覽...');
+                                setTimeout(() => {
+                                    showPreview(parsedData);
+                                    hideProgressArea();
+                                }, 1000);
+                            } else {
+                                hideProgressArea();
+                                showMessage('資料格式錯誤，請檢查檔案內容', 'error');
+                            }
+                        }, 1000);
+                    }, 1000);
+                } catch (error) {
+                    hideProgressArea();
+                    showMessage('檔案讀取失敗: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(selectedFile, 'UTF-8');
+        }
+
+        // 解析CSV
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            const result = [];
+            
+            lines.forEach(line => {
+                const row = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                row.push(current.trim());
+                result.push(row);
+            });
+            
+            return result;
+        }
+
+        // 驗證資料
+        function validateData(data) {
+            if (!data || data.length < 2) return false;
+            
+            const headers = data[0];
+            const expectedHeaders = ['條碼', '商品名稱', '價格', '庫存', '分類', '供應商'];
+            
+            return expectedHeaders.every(header => 
+                headers.some(h => h.includes(header) || header.includes(h))
+            );
+        }
+
+        // 顯示預覽
+        function showPreview(data) {
+            const previewArea = document.getElementById('previewArea');
+            const previewHeader = document.getElementById('previewHeader');
+            const previewBody = document.getElementById('previewBody');
+            
+            // 清空表格
+            previewHeader.innerHTML = '';
+            previewBody.innerHTML = '';
+            
+            // 添加表頭
+            const headerRow = document.createElement('tr');
+            data[0].forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'border border-gray-300 px-4 py-2 bg-gray-50 font-medium text-left';
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            previewHeader.appendChild(headerRow);
+            
+            // 添加資料行（最多5行）
+            const previewCount = Math.min(5, data.length - 1);
+            for (let i = 1; i <= previewCount; i++) {
+                const row = document.createElement('tr');
+                data[i].forEach(cell => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 px-4 py-2';
+                    td.textContent = cell;
+                    row.appendChild(td);
+                });
+                previewBody.appendChild(row);
+            }
+            
+            document.getElementById('previewCount').textContent = previewCount;
+            previewArea.classList.remove('hidden');
+        }
+
+        // 確認匯入
+        function confirmImport() {
+            const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            
+            showProgressArea();
+            hideAreas(['previewArea']);
+            
+            updateProgress(20, '開始匯入...');
+            
+            setTimeout(() => {
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+                
+                // 跳過表頭
+                for (let i = 1; i < parsedData.length; i++) {
+                    const row = parsedData[i];
+                    const [barcode, name, price, stock, category, supplier] = row;
+                    
+                    try {
+                        const product = {
+                            name: name || '',
+                            price: parseFloat(price) || 0,
+                            stock: parseInt(stock) || 0,
+                            category: category || '',
+                            supplier: supplier || ''
+                        };
+                        
+                        if (importMode === 'replace' || !products[barcode] || importMode === 'update') {
+                            products[barcode] = product;
+                            successCount++;
+                        } else if (importMode === 'add' && products[barcode]) {
+                            errors.push(`第${i}行: 條碼 ${barcode} 已存在`);
+                            errorCount++;
+                        } else {
+                            products[barcode] = product;
+                            successCount++;
+                        }
+                        
+                        updateProgress(20 + (i / parsedData.length) * 70, `處理第 ${i} 筆資料...`);
+                    } catch (error) {
+                        errors.push(`第${i}行: ${error.message}`);
+                        errorCount++;
+                    }
+                }
+                
+                updateProgress(100, '匯入完成');
+                
+                setTimeout(() => {
+                    hideProgressArea();
+                    showResult(successCount, errorCount, errors);
+                }, 1000);
+            }, 1000);
+        }
+
+        // 取消匯入
+        function cancelImport() {
+            hideAreas(['previewArea']);
+            clearFile();
+        }
+
+        // 顯示結果
+        function showResult(successCount, errorCount, errors) {
+            const resultArea = document.getElementById('resultArea');
+            const resultIcon = document.getElementById('resultIcon');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            if (errorCount === 0) {
+                resultIcon.className = 'fas fa-check-circle mr-2 text-[#17225e]';
+                resultTitle.textContent = '匯入成功';
+            } else {
+                resultIcon.className = 'fas fa-exclamation-triangle mr-2 text-gray-500';
+                resultTitle.textContent = '部分匯入成功';
+            }
+            
+            let content = `
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-2xl font-bold text-[#17225e]">${successCount}</div>
+                    <div class="text-sm text-gray-700">成功匯入</div>
+                </div>
+                    <div class="bg-red-50 rounded-lg p-3">
+                        <div class="text-2xl font-bold text-red-600">${errorCount}</div>
+                        <div class="text-sm text-red-700">失敗筆數</div>
+                    </div>
+                </div>
+            `;
+            
+            if (errors.length > 0) {
+                content += `
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <h4 class="font-medium text-gray-800 mb-2">錯誤詳情：</h4>
+                    <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                            ${errors.slice(0, 5).map(error => `<li>${error}</li>`).join('')}
+                            ${errors.length > 5 ? `<li>還有 ${errors.length - 5} 個錯誤...</li>` : ''}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            resultContent.innerHTML = content;
+            resultArea.classList.remove('hidden');
+            
+            // 清理
+            setTimeout(() => {
+                clearFile();
+            }, 3000);
+        }
+
+        // 工具函數
+        function showProgressArea() {
+            document.getElementById('progressArea').classList.remove('hidden');
+        }
+
+        function hideProgressArea() {
+            document.getElementById('progressArea').classList.add('hidden');
+        }
+
+        function updateProgress(percent, text) {
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+
+        function hideAreas(areas) {
+            areas.forEach(area => {
+                document.getElementById(area).classList.add('hidden');
+            });
+        }
+
+        function showMessage(message, type = 'info') {
+            const alertClass = {
+                'success': 'bg-gray-100 border-[#17225e] text-gray-700',
+                'error': 'bg-red-100 border-red-500 text-red-700',
+                'warning': 'bg-gray-100 border-gray-500 text-gray-700',
+                'info': 'bg-gray-100 border-[#17225e] text-gray-700'
+            }[type];
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `fixed top-4 right-4 z-50 border-l-4 p-4 rounded shadow-lg ${alertClass}`;
+            messageDiv.innerHTML = `
+                <div class="flex">
+                    <div class="flex-1">${message}</div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // 會員匯入匯出功能
+
+        // 選擇會員檔案
+        function selectMemberFile() {
+            document.getElementById('memberFileInput').click();
+        }
+
+        // 清除會員檔案
+        function clearMemberFile() {
+            document.getElementById('memberFileInput').value = '';
+            document.getElementById('memberFileInfo').classList.add('hidden');
+            document.getElementById('memberImportBtn').disabled = true;
+            document.getElementById('memberImportBtn').className = 'w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed';
+        }
+
+        // 會員檔案處理
+        document.getElementById('memberFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('memberFileName').textContent = file.name;
+                document.getElementById('memberFileSize').textContent = formatFileSize(file.size);
+                document.getElementById('memberFileInfo').classList.remove('hidden');
+                document.getElementById('memberImportBtn').disabled = false;
+                document.getElementById('memberImportBtn').className = 'w-full bg-[#17225e] text-white py-3 px-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-medium';
+            }
+        });
+
+        // 匯出會員資料
+        function exportMembers() {
+            const format = document.querySelector('input[name="memberExportFormat"]:checked').value;
+            const range = document.querySelector('input[name="memberExportRange"]:checked').value;
+            
+            // 從localStorage獲取會員資料
+            const savedMembers = localStorage.getItem('membersData');
+            let membersData = savedMembers ? JSON.parse(savedMembers) : [];
+            
+            // 根據範圍過濾會員
+            let filteredMembers = membersData;
+            switch(range) {
+                case 'active':
+                    filteredMembers = membersData.filter(m => m.status === 'active');
+                    break;
+                case 'vip':
+                    filteredMembers = membersData.filter(m => ['金卡', '白金', '鑽石'].includes(m.level));
+                    break;
+            }
+            
+            const headers = ['會員編號', '姓名', '電話', '電子郵件', '生日', '會員等級', '積分', '狀態', '地址', '備註'];
+            const data = [headers];
+            
+            filteredMembers.forEach(member => {
+                data.push([
+                    member.id || '',
+                    member.name || '',
+                    member.phone || '',
+                    member.email || '',
+                    member.birthday || '',
+                    member.level || '',
+                    member.points || '0',
+                    member.status || 'active',
+                    member.address || '',
+                    member.notes || ''
+                ]);
+            });
+            
+            if (format === 'csv') {
+                exportMembersAsCSV(data);
+            } else {
+                exportMembersAsExcel(data);
+            }
+            
+            showMessage(`已匯出 ${data.length - 1} 筆會員資料`, 'success');
+        }
+
+        // 匯出會員為CSV
+        function exportMembersAsCSV(data) {
+            const csvContent = data
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `會員資料_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // 匯出會員為Excel (簡化版)
+        function exportMembersAsExcel(data) {
+            const csvContent = data
+                .map(row => row.join('\t'))
+                .join('\n');
+            
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `會員資料_${new Date().toISOString().split('T')[0]}.xls`;
+            link.click();
+        }
+
+        // 匯入會員資料
+        function importMembers() {
+            const file = document.getElementById('memberFileInput').files[0];
+            if (!file) {
+                showMessage('請選擇要匯入的檔案', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const lines = content.split('\n');
+                const data = lines.map(line => line.split(',').map(field => field.replace(/"/g, '')));
+                
+                // 顯示預覽
+                showMemberPreview(data);
+            };
+            reader.readAsText(file);
+        }
+
+        // 顯示會員預覽
+        function showMemberPreview(data) {
+            const previewArea = document.getElementById('previewArea');
+            const previewHeader = document.getElementById('previewHeader');
+            const previewBody = document.getElementById('previewBody');
+            
+            previewHeader.innerHTML = '';
+            previewBody.innerHTML = '';
+            
+            // 添加表頭
+            const headerRow = document.createElement('tr');
+            data[0].forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'border border-gray-300 px-4 py-2 bg-gray-50 font-medium text-left';
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            previewHeader.appendChild(headerRow);
+            
+            // 添加資料行（最多5行）
+            const previewCount = Math.min(5, data.length - 1);
+            for (let i = 1; i <= previewCount; i++) {
+                const row = document.createElement('tr');
+                data[i].forEach(cell => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 px-4 py-2';
+                    td.textContent = cell;
+                    row.appendChild(td);
+                });
+                previewBody.appendChild(row);
+            }
+            
+            document.getElementById('previewCount').textContent = previewCount;
+            previewArea.classList.remove('hidden');
+        }
+
+        // 格式化檔案大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 頁面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('資料匯出/入功能已載入');
+        });
+    </script>
+</body>
+</html> 

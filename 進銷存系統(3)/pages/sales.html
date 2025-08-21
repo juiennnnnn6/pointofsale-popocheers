@@ -1,0 +1,6120 @@
+<!DOCTYPE html>
+
+<html lang="zh-TW">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>銷售作業</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="../employee-auth.js"></script>
+
+    <script src="auth-check.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+    <script>
+
+        // Supabase 配置
+        const SUPABASE_URL = 'https://cgwhckykrlphnibmuvhz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_ThaibxLrJdwUixK594BZYw_ad8axjFN';
+        let supabase = null;
+
+        // 初始化 Supabase 客戶端
+        async function initSupabase() {
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase 客戶端初始化成功');
+                return true;
+            } catch (error) {
+                console.error('Supabase 客戶端初始化失敗:', error);
+                return false;
+            }
+        }
+
+        // 簡單的認證檢查測試
+
+        console.log('=== sales.html 腳本載入測試 ===');
+
+        console.log('employee-auth.js 是否載入:', typeof EmployeeAuth !== 'undefined');
+
+        console.log('auth-check.js 是否載入:', typeof checkAuthentication !== 'undefined');
+
+        
+        // 全域條碼處理函數（支援PC條碼掃描器）
+        window.handleBarcodeInput = function(barcode) {
+            const barcodeInput = document.getElementById('salesBarcodeInput');
+            if (barcodeInput) {
+                barcodeInput.value = barcode;
+                // 觸發搜尋
+                searchAndAddProduct(barcode);
+                // 清空輸入框
+                setTimeout(() => {
+                    barcodeInput.value = '';
+                }, 100);
+            }
+        };
+
+
+
+        // 音效播放函數
+        function playSound(soundType) {
+            try {
+                const audio = new Audio();
+                if (soundType === 'success') {
+                    audio.src = '../sounds/正確音效.mp3';
+                } else if (soundType === 'error') {
+                    audio.src = '../sounds/錯誤音效.mp3';
+                }
+                audio.play().catch(error => {
+                    console.log('音效播放失敗:', error);
+                });
+            } catch (error) {
+                console.log('音效播放錯誤:', error);
+            }
+        }
+
+        // 銷售後更新庫存
+        async function updateInventoryAfterSale(saleItems, receiptNumber) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return false;
+                    }
+                }
+
+                console.log('開始更新庫存，銷售項目:', saleItems);
+
+                for (const item of saleItems) {
+                    // 檢查必要欄位
+                    if (!item.id) {
+                        console.error('銷售項目缺少商品ID:', item);
+                        continue;
+                    }
+                    
+                    // 處理商品規格
+                    let productId = item.id;
+                    let variantName = item.variant;
+                    
+                    // 如果ID包含規格信息，提取原始商品ID
+                    if (typeof item.id === 'string' && item.id.includes('-') && item.originalProductId) {
+                        productId = item.originalProductId;
+                    }
+                    
+                    // 查詢商品的當前庫存
+                    const { data: product, error: productError } = await supabase
+                        .from('products')
+                        .select('id, stock, barcode, name, variants')
+                        .eq('id', productId)
+                        .single();
+
+                    if (productError) {
+                        console.error(`查詢商品失敗 (商品ID: ${productId}):`, productError);
+                        continue;
+                    }
+
+                    if (!product) {
+                        console.error(`找不到商品 (商品ID: ${productId})`);
+                        continue;
+                    }
+
+                    // 處理商品規格庫存更新
+                    let newStock;
+                    let currentStock;
+                    let updatedVariants = null;
+                    
+                    if (product.variants && variantName !== '標準規格') {
+                        // 更新規格庫存
+                        try {
+                            const variants = JSON.parse(product.variants);
+                            const variantIndex = variants.findIndex(v => v.name === variantName);
+                            
+                            if (variantIndex !== -1) {
+                                const currentVariantStock = variants[variantIndex].stock || 0;
+                                currentStock = currentVariantStock;
+                                const newVariantStock = Math.max(0, currentVariantStock - item.quantity);
+                                variants[variantIndex].stock = newVariantStock;
+                                updatedVariants = JSON.stringify(variants);
+                                newStock = newVariantStock;
+                            } else {
+                                // 找不到規格，使用主商品庫存
+                                currentStock = product.stock;
+                                newStock = Math.max(0, product.stock - item.quantity);
+                            }
+                        } catch (e) {
+                            console.error('解析商品規格失敗:', e);
+                            currentStock = product.stock;
+                            newStock = Math.max(0, product.stock - item.quantity);
+                        }
+                    } else {
+                        // 更新主商品庫存
+                        currentStock = product.stock;
+                        newStock = Math.max(0, product.stock - item.quantity);
+                    }
+
+                    // 更新商品庫存
+                    const updateData = { 
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    if (updatedVariants) {
+                        updateData.variants = updatedVariants;
+                    } else {
+                        updateData.stock = newStock;
+                    }
+                    
+                    const { error: updateError } = await supabase
+                        .from('products')
+                        .update(updateData)
+                        .eq('id', product.id);
+
+                    if (updateError) {
+                        console.error(`更新庫存失敗 (商品ID: ${product.id}):`, updateError);
+                        continue;
+                    }
+
+                    // 記錄庫存交易（可選，如果表不存在則跳過）
+                    try {
+                        const { error: transactionError } = await supabase
+                            .from('inventory_transactions')
+                            .insert([{
+                                product_id: product.id,
+                                transaction_type: 'sale',
+                                quantity_change: -item.quantity,
+                                previous_stock: currentStock,
+                                new_stock: newStock,
+                                reference_id: receiptNumber.toString(),
+                                reference_type: 'sale',
+                                notes: `銷售減庫存 - ${item.name} (${item.variant})`,
+                                created_by: getCurrentEmployeeName()
+                            }]);
+
+                        if (transactionError) {
+                            console.warn(`記錄庫存交易失敗 (商品ID: ${product.id}):`, transactionError);
+                            // 不影響主要流程，只記錄警告
+                        }
+                    } catch (error) {
+                        console.warn(`庫存交易記錄表不存在或無法訪問:`, error);
+                        // 不影響主要流程，只記錄警告
+                    }
+
+                    console.log(`成功更新庫存 - 商品: ${product.name} (${variantName}), 銷售數量: ${item.quantity}, 新庫存: ${newStock}`);
+
+                    // 檢查庫存不足警告
+                    if (newStock <= 0) {
+                        console.warn(`警告：商品 "${product.name} (${variantName})" 庫存不足或已售完！當前庫存：${newStock}`);
+                    } else if (newStock <= 10) { // 假設最低庫存警告為10
+                        console.warn(`警告：商品 "${product.name} (${variantName})" 庫存偏低！當前庫存：${newStock}`);
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.error('更新庫存時發生錯誤:', error);
+                return false;
+            }
+        }
+
+        // 生成唯一收據號碼
+        async function generateUniqueReceiptNumber() {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return null;
+                    }
+                }
+
+                // 查詢最大的收據號碼
+                const { data: maxReceipt, error } = await supabase
+                    .from('sales_history')
+                    .select('receipt_number')
+                    .order('receipt_number', { ascending: false })
+                    .limit(1);
+
+                if (error) {
+                    console.error('查詢最大收據號碼失敗:', error);
+                    // 如果查詢失敗，使用當前時間戳作為基礎
+                    return Date.now();
+                }
+
+                let nextNumber = 1000; // 預設起始號碼
+                if (maxReceipt && maxReceipt.length > 0) {
+                    const currentMax = parseInt(maxReceipt[0].receipt_number);
+                    if (!isNaN(currentMax)) {
+                        nextNumber = currentMax + 1;
+                    } else {
+                        // 如果無法解析為數字，使用時間戳
+                        nextNumber = Date.now();
+                    }
+                }
+
+                console.log('生成的收據號碼:', nextNumber);
+                return nextNumber;
+            } catch (error) {
+                console.error('生成收據號碼時發生錯誤:', error);
+                return Date.now(); // 使用時間戳作為備用
+            }
+        }
+
+
+
+
+        
+        
+        // 檢查掃描功能是否載入
+
+        window.addEventListener('load', function() {
+
+            setTimeout(function() {
+
+                if (typeof window.quickScan !== 'function') {
+
+                    window.quickScan = function(onSuccess, onError) {
+
+                        const barcode = prompt('請輸入條碼號碼進行銷售');
+
+                        if (barcode) {
+
+                            onSuccess(barcode);
+
+                        } else if (onError) {
+
+                            onError(new Error('用戶取消輸入'));
+
+                        }
+
+                    };
+
+                }
+
+            }, 1000);
+
+        });
+
+    </script>
+
+            <style>
+ 
+        .apple-card {
+ 
+            background: rgba(255, 255, 255, 0.95);
+ 
+            backdrop-filter: blur(10px);
+ 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+ 
+        }
+ 
+        .pos-display {
+ 
+            background: linear-gradient(135deg, #17225e 0%, #1a2a6e 100%);
+ 
+            color: white;
+ 
+            font-family: 'Courier New', monospace;
+ 
+        }
+ 
+        .scan-display {
+ 
+            background: linear-gradient(45deg, #17225e, #1a2a6e);
+ 
+            position: relative;
+ 
+            overflow: hidden;
+ 
+        }
+ 
+        /* 收據專用樣式 - 58mm 收據紙優化 */
+        .receipt-print {
+            font-family: 'Courier New', 'Microsoft JhengHei', monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            width: 218px; /* 58mm = 218px */
+            margin: 0 auto;
+            padding: 12px;
+            background: white;
+            color: black;
+            transform: scale(1.25); /* 整體放大125% */
+            transform-origin: top center;
+            margin-bottom: 50px; /* 為放大後的內容留出空間 */
+        }
+        
+        .receipt-print .header {
+            text-align: center;
+            margin-bottom: 18px;
+            border-bottom: 3px solid #000;
+            padding-bottom: 12px;
+        }
+        
+        .receipt-print .header h2 {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 8px 0;
+            letter-spacing: 1px;
+        }
+        
+        .receipt-print .header p {
+            font-size: 15px;
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+        
+        .receipt-print .line {
+            border-bottom: 2px dashed #000;
+            margin: 10px 0;
+        }
+        
+        .receipt-print .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin: 8px 0;
+            font-size: 15px;
+            line-height: 1.4;
+        }
+        
+        .receipt-print .row.small {
+            font-size: 14px;
+            color: #333;
+            margin: 4px 0;
+            padding-left: 12px;
+        }
+        
+        .receipt-print .total {
+            font-weight: bold;
+            font-size: 18px;
+            border-top: 2px solid #000;
+            padding-top: 10px;
+            margin-top: 12px;
+        }
+        
+        .receipt-print .item-name {
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1.4;
+            word-break: break-all;
+            flex: 1;
+            margin-right: 12px;
+        }
+        
+        .receipt-print .item-price {
+            font-size: 15px;
+            text-align: right;
+            white-space: nowrap;
+        }
+        
+        .receipt-print .item-details {
+            font-size: 13px;
+            color: #555;
+            margin-left: 18px;
+            line-height: 1.3;
+        }
+        
+        .receipt-print .footer {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 14px;
+            color: #666;
+            border-top: 2px dashed #000;
+            padding-top: 12px;
+        }
+        
+        /* 退貨收據特殊樣式 */
+        .receipt-print .refund-title {
+            color: #d32f2f !important;
+            border: 3px solid #d32f2f;
+            padding: 8px 12px;
+            margin: 12px 0;
+            border-radius: 8px;
+            background: rgba(211, 47, 47, 0.1);
+            font-size: 22px;
+        }
+        
+        .receipt-print .refund-notice {
+            background: #ffebee;
+            border: 2px solid #d32f2f;
+            padding: 10px;
+            margin: 12px 0;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #d32f2f;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                width: 58mm;
+                background: white;
+            }
+            .receipt-print {
+                width: 58mm;
+                max-width: none;
+                box-shadow: none;
+                border: none;
+                transform: scale(1.25); /* 打印時也保持125%縮放 */
+                transform-origin: top center;
+            }
+            .receipt-print * {
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+        }
+ 
+        </style>
+
+</head>
+
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4 pb-24">
+
+    
+    
+    <!-- 頂部操作區 -->
+
+    <div class="mb-6">
+
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+            <div>
+
+                <h1 class="text-2xl font-bold text-gray-800">銷售作業</h1>
+
+                <p class="text-gray-600">輸入條碼進行快速銷售和結帳</p>
+
+            </div>
+
+            <div class="flex space-x-3">
+
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+
+                    <i class="fas fa-th-large mr-2"></i>回選單
+
+                </button>
+
+
+
+                <button onclick="showSalesHistory()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+
+                    <i class="fas fa-history mr-2"></i>銷售記錄
+
+                </button>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        
+        
+        <!-- 左側：POS顯示器和快速操作 -->
+
+        <div class="xl:col-span-1">
+
+            
+            
+            <!-- POS 顯示器 -->
+
+            <div class="pos-display rounded-xl p-6 mb-6 shadow-lg">
+
+                <div class="text-center mb-4">
+
+                    <h3 class="text-lg font-bold">波波 聚 歐洲家居/波蘭陶食器</h3>
+
+                    <p class="text-sm opacity-90">歡迎光臨</p>
+
+                </div>
+
+                <div class="space-y-2 text-sm">
+
+                    <div class="flex justify-between">
+
+                        <span>訂單編號：</span>
+
+                        <span id="orderNumber">2024122401</span>
+
+                    </div>
+
+                    <div class="flex justify-between">
+
+                        <span>收銀員：</span>
+
+                        <span id="currentCashier">管理員</span>
+
+                    </div>
+
+                    <div class="flex justify-between">
+
+                        <span>時間：</span>
+
+                        <span id="currentTime"></span>
+
+                    </div>
+
+                    <div id="currentMemberInfo" class="hidden">
+
+                        <hr class="my-2 border-white border-opacity-30">
+
+                        <div class="flex justify-between">
+
+                            <span>會員：</span>
+
+                            <span id="memberName"></span>
+
+                        </div>
+
+
+
+                        </div>
+
+                    <hr class="my-4 border-white border-opacity-30">
+
+                    <div class="flex justify-between text-lg font-bold">
+
+                        <span>總計：</span>
+
+                        <span id="totalAmount">NT$0</span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+                            <!-- 條碼功能區 -->
+
+            <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+
+                                    <h3 class="text-lg font-semibold text-gray-800 mb-4">條碼功能</h3>
+
+
+
+                <input type="text" id="salesBarcodeInput" placeholder="手動輸入條碼或商品名稱" 
+
+                       class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+
+                <p class="text-xs text-gray-600 mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    手動輸入條碼後按Enter鍵搜尋，PC條碼掃描器會自動觸發搜尋
+                </p>
+            </div>
+
+
+
+            <!-- 快速功能 -->
+
+            <div class="apple-card rounded-xl p-6 shadow-lg">
+
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">快速功能</h3>
+
+                <div class="grid grid-cols-2 gap-3">
+
+                    <button id="discountBtn" class="flex flex-col items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+
+                        <i class="fas fa-percentage text-[#17225e] mb-1"></i>
+
+                        <span class="text-xs">折扣</span>
+
+                    </button>
+
+                    <button id="couponBtn" class="flex flex-col items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+
+                        <i class="fas fa-gift text-[#17225e] mb-1"></i>
+
+                        <span class="text-xs">優惠券</span>
+
+                    </button>
+
+                    <button id="memberBtn" class="flex flex-col items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors relative">
+
+                        <i class="fas fa-user text-[#17225e] mb-1"></i>
+
+                        <span class="text-xs" id="memberBtnText">會員</span>
+
+                        <div id="memberStatusDot" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-[#17225e] rounded-full border-2 border-white"></div>
+
+                    </button>
+
+                    <button id="refundBtn" class="flex flex-col items-center p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+
+                        <i class="fas fa-undo text-red-500 mb-1"></i>
+
+                        <span class="text-xs">退貨</span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- 右側：購物車和商品 -->
+
+        <div class="xl:col-span-2">
+
+            
+            
+            <!-- 購物車 -->
+
+            <div id="cartContainer" class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+
+                    <h3 class="text-lg font-semibold text-gray-800">購物車</h3>
+
+                    <span id="cartItemCount" class="text-sm text-gray-600">共 0 項商品</span>
+                </div>
+
+
+
+                <div id="cartItems" class="space-y-4">
+                    <!-- 購物車項目將由 JavaScript 動態生成 -->
+                    </div>
+
+
+
+                <!-- 優惠券輸入區 -->
+
+                <div class="mt-6 pt-6 border-t border-gray-200">
+
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+
+                        <div class="flex items-center mb-3">
+
+                            <i class="fas fa-ticket-alt text-[#17225e] mr-2"></i>
+
+                            <span class="font-medium text-gray-800">優惠券</span>
+
+                        </div>
+
+                        <div class="flex space-x-2">
+
+                            <input type="text" id="couponInput" placeholder="輸入優惠券代碼" 
+
+                                   class="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent text-sm">
+
+                            <button onclick="applyCoupon()" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors text-sm">
+
+                                <i class="fas fa-check mr-1"></i>
+
+                                套用
+
+                            </button>
+
+                            <button onclick="scanCoupon()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+
+                                <i class="fas fa-qrcode"></i>
+
+                            </button>
+
+                        </div>
+
+                        <div id="appliedCoupon" class="mt-3 hidden">
+
+                            <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-3">
+
+                                <div class="flex items-center">
+
+                                    <i class="fas fa-check-circle text-[#17225e] mr-2"></i>
+
+                                    <div>
+
+                                        <span class="font-medium text-gray-800" id="appliedCouponName"></span>
+
+                                        <p class="text-xs text-gray-600" id="appliedCouponDesc"></p>
+
+                                    </div>
+
+                                </div>
+
+                                <button onclick="removeCoupon()" class="text-[#17225e] hover:text-[#1a2a6e]">
+
+                                    <i class="fas fa-times"></i>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    
+                    
+                    <!-- 優惠和總計 -->
+
+                    <div class="space-y-3">
+
+                        <div class="flex justify-between text-sm">
+
+                            <span class="text-gray-600">小計：</span>
+
+                            <span id="subtotalAmount">NT$0</span>
+
+                        </div>
+
+                        <div class="flex justify-between text-sm" id="couponDiscountRow" style="display: none;">
+
+                            <span class="text-gray-600">優惠券折扣：</span>
+
+                            <span class="text-[#17225e]" id="couponDiscountAmount">-NT$0</span>
+
+                        </div>
+
+
+
+                        <hr class="border-gray-200">
+
+                        <div class="flex justify-between text-xl font-bold">
+
+                            <span>總計：</span>
+
+                            <span id="totalAmount" class="text-[#17225e]">NT$0</span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 其他操作按鈕 -->
+
+                    <div class="grid grid-cols-2 gap-3 mt-3">
+
+                        <button onclick="clearCart()" class="bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm">
+
+                            <i class="fas fa-trash mr-2"></i>清空購物車
+
+                        </button>
+
+                <button onclick="resetAllDiscounts()" class="bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm">
+                    <i class="fas fa-undo mr-2"></i>重置折扣
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- 底部結帳按鈕區 -->
+
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
+
+        <div class="max-w-7xl mx-auto">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                <button onclick="checkout('現金')" class="bg-[#17225e] text-white py-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-semibold text-lg">
+
+                    <i class="fas fa-money-bill mr-2"></i>現金結帳
+
+                </button>
+
+                <button onclick="checkout('信用卡')" class="bg-[#17225e] text-white py-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-semibold text-lg">
+
+                    <i class="fas fa-credit-card mr-2"></i>信用卡結帳
+
+                </button>
+
+                <button onclick="checkout('行動支付')" class="bg-[#17225e] text-white py-4 rounded-lg hover:bg-[#1a2a6e] transition-colors font-semibold text-lg">
+
+                    <i class="fas fa-mobile-alt mr-2"></i>行動支付結帳
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- 商品選擇彈出視窗 -->
+
+    <div id="productSelectionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+
+        <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+
+            <div class="flex items-center justify-between mb-4">
+
+                <h3 class="text-xl font-bold text-gray-800">選擇商品小項</h3>
+
+                <button onclick="closeProductSelectionModal()" class="text-gray-500 hover:text-gray-700">
+
+                    <i class="fas fa-times text-xl"></i>
+
+                </button>
+
+            </div>
+            
+            
+            
+                            <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+
+                <div class="flex items-center">
+
+                    <i class="fas fa-info-circle text-[#17225e] mr-2"></i>
+
+                    <span class="text-sm text-gray-700">此條碼對應多個商品小項，請選擇正確的商品：</span>
+
+                </div>
+
+                <div class="mt-2 text-sm text-gray-600">
+
+                    條碼：<span id="modalBarcode" class="font-mono bg-gray-100 px-2 py-1 rounded"></span>
+
+                </div>
+
+            </div>
+
+            
+            
+            <div id="productVariantsList" class="space-y-3 max-h-96 overflow-y-auto">
+
+                <!-- 商品小項將動態添加到這裡 -->
+
+            </div>
+
+            
+            
+            <div class="mt-6 flex justify-end space-x-3">
+
+                <button onclick="closeProductSelectionModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+
+                    取消
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+    
+
+    <!-- 選取品項折扣彈出視窗 -->
+    <div id="itemDiscountModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800">選取品項折扣</h3>
+                <button onclick="closeItemDiscountModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+                            <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div class="flex items-center">
+                                            <i class="fas fa-info-circle text-[#17225e] mr-2"></i>
+                                            <span class="text-sm text-gray-700">請選擇要套用折扣的商品項目，然後選擇折扣類型：</span>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 商品選擇區域 -->
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">選擇商品項目</h4>
+                    <div id="cartItemsForDiscount" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- 購物車商品將動態添加到這裡 -->
+                    </div>
+                </div>
+                
+                <!-- 折扣設定區域 -->
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">折扣設定</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">折扣類型</label>
+                            <select id="discountType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                                <option value="percentage">百分比折扣</option>
+                                <option value="fixed">固定金額折扣</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">折扣值</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="number" id="discountValue" min="0" step="0.01" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                                <span id="discountUnit" class="text-sm text-gray-600">%</span>
+                            </div>
+                        </div>
+                        
+                        <div id="discountPreview" class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-gray-600">選擇商品和折扣後會顯示預覽</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end space-x-3">
+                <button onclick="closeItemDiscountModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                    取消
+                </button>
+                <button onclick="applyItemDiscount()" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    套用折扣
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    
+    <script>
+
+        // 會員數據庫（模擬）
+
+        const membersDatabase = {
+
+            'M001': {
+
+                id: 'M001',
+
+                name: '王小明',
+
+                phone: '0912-345-678',
+
+                email: 'wang@example.com',
+
+                level: '金卡',
+
+                totalSpent: 45280,
+
+                status: 'active'
+            },
+
+            'M002': {
+
+                id: 'M002',
+
+                name: '李美華',
+
+                phone: '0987-654-321',
+
+                email: 'li@example.com',
+
+                level: '白金',
+
+                totalSpent: 78965,
+
+                status: 'active'
+            },
+
+            'M003': {
+
+                id: 'M003',
+
+                name: '張志偉',
+
+                phone: '0923-456-789',
+
+                email: 'zhang@example.com',
+
+                level: '銀卡',
+
+                totalSpent: 23400,
+
+                status: 'active'
+            },
+
+            'M004': {
+
+                id: 'M004',
+
+                name: '陳雅琪',
+
+                phone: '0934-567-890',
+
+                email: 'chen@example.com',
+
+                level: '鑽石',
+
+                totalSpent: 125000,
+
+                status: 'active'
+            },
+
+            'M005': {
+
+                id: 'M005',
+
+                name: '林建華',
+
+                phone: '0945-678-901',
+
+                email: 'lin@example.com',
+
+                level: '普通',
+
+                totalSpent: 5600,
+
+                status: 'active'
+            }
+
+        };
+
+
+
+        // 手機號碼對應會員ID的查詢表
+
+        const phoneToMemberMap = {
+
+            '0912-345-678': 'M001',
+
+            '0912345678': 'M001',
+
+            '0987-654-321': 'M002',
+
+            '0987654321': 'M002',
+
+            '0923-456-789': 'M003',
+
+            '0923456789': 'M003',
+
+            '0934-567-890': 'M004',
+
+            '0934567890': 'M004',
+
+            '0945-678-901': 'M005',
+
+            '0945678901': 'M005'
+
+        };
+
+
+
+        // 波波 聚 歐洲家居/波蘭陶食器商品數據庫（支援同條碼多商品小項）
+
+        const mockProducts = {
+
+            '1234567890123': [  // 歐式骨瓷餐盤系列
+
+                {
+
+                    id: 'P001-01',
+
+                    name: '歐式骨瓷餐盤',
+
+                    variant: '20cm 白色經典款',
+
+                    price: 890,
+
+                    stock: 15,
+
+                    category: '餐具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '純白骨瓷，經典歐式設計'
+
+                },
+
+                {
+
+                    id: 'P001-02',
+
+                    name: '歐式骨瓷餐盤',
+
+                    variant: '20cm 藍花圖案款',
+
+                    price: 950,
+
+                    stock: 8,
+
+                    category: '餐具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '手繪藍花圖案，精緻工藝'
+
+                },
+
+                {
+
+                    id: 'P001-03',
+
+                    name: '歐式骨瓷餐盤',
+
+                    variant: '20cm 金邊奢華款',
+
+                    price: 1280,
+
+                    stock: 5,
+
+                    category: '餐具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '24K金邊裝飾，奢華典雅'
+
+                }
+
+            ],
+
+            '2345678901234': [  // 水晶酒杯系列
+
+                {
+
+                    id: 'P002-01',
+
+                    name: '施華洛世奇水晶酒杯',
+
+                    variant: '紅酒杯 300ml',
+
+                    price: 2890,
+
+                    stock: 12,
+
+                    category: '酒具',
+
+                    image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '奧地利水晶，完美酒杯弧度'
+
+                },
+
+                {
+
+                    id: 'P002-02',
+
+                    name: '施華洛世奇水晶酒杯',
+
+                    variant: '香檳杯 200ml',
+
+                    price: 2590,
+
+                    stock: 18,
+
+                    category: '酒具',
+
+                    image: 'https://images.unsplash.com/photo-1509669803555-fd5c49448db3?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '細長杯身，保持氣泡完美'
+
+                }
+
+            ],
+
+            '3456789012345': [  // 家居擺飾系列
+
+                {
+
+                    id: 'P003-01',
+
+                    name: '北歐風陶瓷花瓶',
+
+                    variant: '小號 15cm 灰色',
+
+                    price: 680,
+
+                    stock: 25,
+
+                    category: '擺飾',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '簡約北歐設計，啞光質感'
+
+                },
+
+                {
+
+                    id: 'P003-02',
+
+                    name: '北歐風陶瓷花瓶',
+
+                    variant: '中號 25cm 白色',
+
+                    price: 980,
+
+                    stock: 15,
+
+                    category: '擺飾',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '純白陶瓷，中性百搭'
+
+                },
+
+                {
+
+                    id: 'P003-03',
+
+                    name: '北歐風陶瓷花瓶',
+
+                    variant: '大號 35cm 黑色',
+
+                    price: 1380,
+
+                    stock: 8,
+
+                    category: '擺飾',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '黑色啞光，現代藝術感'
+
+                }
+
+            ],
+
+            '4567890123456': [  // 茶具系列
+
+                {
+
+                    id: 'P004-01',
+
+                    name: '英式骨瓷茶杯組',
+
+                    variant: '經典玫瑰圖案',
+
+                    price: 1590,
+
+                    stock: 0,
+
+                    category: '茶具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'out',
+
+                    description: '傳統英式下午茶茶杯'
+
+                }
+
+            ],
+
+            '5678901234567': [  // 餐具套裝
+
+                {
+
+                    id: 'P005-01',
+
+                    name: '法式餐具套裝',
+
+                    variant: '4人份基礎款',
+
+                    price: 3890,
+
+                    stock: 6,
+
+                    category: '餐具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '包含餐盤、湯碗、茶杯'
+
+                },
+
+                {
+
+                    id: 'P005-02',
+
+                    name: '法式餐具套裝',
+
+                    variant: '4人份豪華款',
+
+                    price: 5890,
+
+                    stock: 3,
+
+                    category: '餐具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'low',
+
+                    description: '包含餐盤、湯碗、茶杯、甜點盤'
+
+                }
+
+            ],
+
+            '6789012345678': [  // 廚房用品
+
+                {
+
+                    id: 'P006-01',
+
+                    name: '德國不鏽鋼廚具',
+
+                    variant: '基礎3件組',
+
+                    price: 2200,
+
+                    stock: 12,
+
+                    category: '廚具',
+
+                    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=60&h=60&fit=crop&crop=center',
+
+                    status: 'normal',
+
+                    description: '湯勺、漏勺、鏟子'
+
+                }
+
+            ]
+
+        };
+
+
+
+        // 購物車
+
+        let cart = [];
+
+        
+        
+        // 當前登入會員
+
+        let currentMember = null;
+
+        
+        
+        // 當前優惠券
+
+        let currentCoupon = null;
+
+
+
+        // 更新當前時間
+
+        function updateTime() {
+
+            const now = new Date();
+
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('zh-TW');
+
+        }
+
+        updateTime();
+
+        setInterval(updateTime, 1000);
+
+
+
+        // 初始化事件監聽
+
+        document.addEventListener('DOMContentLoaded', async function() {
+
+            // 進行權限檢查
+
+            const isAuthenticated = await checkAuthentication();
+
+            if (!isAuthenticated) {
+
+                return; // 如果未通過認證，函數會自動重定向
+
+            }
+
+            
+            // 初始化 Supabase 客戶端
+            await initSupabase();
+            
+            
+            const barcodeInput = document.getElementById('salesBarcodeInput');
+
+            
+            
+            // 載入優惠券功能
+
+            loadCouponFunctions();
+
+
+
+            // 手動輸入條碼事件（已整合到keydown事件中）
+            // 保留此處以備將來擴展
+
+            // 條碼輸入事件處理 - 只在按下Enter鍵時搜尋
+            barcodeInput.addEventListener('keydown', function(e) {
+                // 只有按下Enter鍵時才處理條碼搜尋
+                if (e.key === 'Enter') {
+
+                    e.preventDefault();
+                    const barcode = this.value.trim();
+
+                    if (barcode) {
+
+                        searchAndAddProduct(barcode);
+
+                        this.value = '';
+
+                    }
+
+                }
+
+            });
+
+
+            // 支援PC條碼掃描器的自動輸入（掃描器通常會自動按Enter）
+            barcodeInput.addEventListener('paste', function(e) {
+                // 延遲處理，確保剪貼簿內容已更新
+                setTimeout(() => {
+                    const barcode = this.value.trim();
+                    if (barcode) {
+                        // 自動觸發Enter鍵事件來搜尋
+                        const enterEvent = new KeyboardEvent('keydown', {
+                            key: 'Enter',
+                            code: 'Enter',
+                            keyCode: 13,
+                            which: 13,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        this.dispatchEvent(enterEvent);
+                    }
+                }, 100);
+            });
+
+
+            // 快速功能事件監聽
+
+            document.getElementById('discountBtn').addEventListener('click', applyDiscount);
+
+            document.getElementById('couponBtn').addEventListener('click', applyCoupon);
+
+            document.getElementById('memberBtn').addEventListener('click', () => manageMember());
+            document.getElementById('refundBtn').addEventListener('click', () => processRefund());
+
+
+
+            // 初始化購物車顯示
+
+            updateCartDisplay();
+
+        });
+
+
+
+
+
+
+        // 從 Supabase 查詢商品資料
+        async function searchProductFromSupabase(barcode) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        throw new Error('Supabase 初始化失敗');
+                    }
+                }
+
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('barcode', barcode);
+
+                if (error) {
+                    console.error('Supabase 查詢錯誤:', error);
+                    throw error;
+                }
+
+                console.log('Supabase 查詢結果:', data);
+                return data || [];
+            } catch (error) {
+                console.error('查詢 Supabase 商品資料失敗:', error);
+                return [];
+            }
+        }
+
+        // 將 Supabase 商品資料轉換為本地格式
+        function convertSupabaseProductToLocal(supabaseProduct) {
+            // 解析商品規格
+            let variants = [];
+            if (supabaseProduct.variants) {
+                try {
+                    variants = JSON.parse(supabaseProduct.variants);
+                } catch (e) {
+                    console.error('解析商品規格失敗:', e);
+                }
+            }
+            
+            // 如果有規格，創建多個商品項目
+            if (variants.length > 0) {
+                return variants.map(variant => ({
+                    id: `${supabaseProduct.id}-${variant.name}`,
+                    name: supabaseProduct.name,
+                    variant: variant.name,
+                    price: parseFloat(variant.price) || parseFloat(supabaseProduct.price) || 0,
+                    stock: parseInt(variant.stock) || 0,
+                    image: supabaseProduct.image_url || supabaseProduct.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center',
+                    description: supabaseProduct.description || '',
+                    barcode: variant.barcode || supabaseProduct.barcode || '',
+                    originalProductId: supabaseProduct.id
+                }));
+            } else {
+                // 沒有規格，返回單一商品
+                return [{
+                    id: supabaseProduct.id.toString(),
+                    name: supabaseProduct.name || '未知商品',
+                    variant: supabaseProduct.variant || '標準規格',
+                    price: parseFloat(supabaseProduct.price) || 0,
+                    stock: parseInt(supabaseProduct.stock) || 0,
+                    image: supabaseProduct.image_url || supabaseProduct.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center',
+                    description: supabaseProduct.description || '',
+                    barcode: supabaseProduct.barcode || '',
+                    originalProductId: supabaseProduct.id
+                }];
+            }
+        }
+
+
+        // 查詢並添加商品到購物車（支援多商品小項選擇）
+
+        async function searchAndAddProduct(barcode) {
+            console.log('查詢商品條碼:', barcode);
+            
+            
+
+            // 顯示載入狀態
+            const barcodeInput = document.getElementById('salesBarcodeInput');
+            const originalPlaceholder = barcodeInput.placeholder;
+            barcodeInput.placeholder = '正在查詢商品資料...';
+            barcodeInput.disabled = true;
+            
+            try {
+                // 首先嘗試從 Supabase 查詢
+                const supabaseProducts = await searchProductFromSupabase(barcode);
+            
+            if (supabaseProducts && supabaseProducts.length > 0) {
+                // 將 Supabase 資料轉換為本地格式（可能包含多個規格）
+                const allProducts = [];
+                supabaseProducts.forEach(supabaseProduct => {
+                    const convertedProducts = convertSupabaseProductToLocal(supabaseProduct);
+                    allProducts.push(...convertedProducts);
+                });
+                
+                // 過濾出符合條碼的商品
+                const products = allProducts.filter(product => 
+                    product.barcode === barcode || 
+                    product.barcode === `${barcode}-${product.variant}`
+                );
+                
+                if (products.length === 1) {
+
+                    // 只有一個商品，直接添加
+
+                    const product = products[0];
+
+                    if (product.stock > 0) {
+
+                        const addResult = addToCart(product, barcode);
+                        
+                        if (addResult) {
+                            // 添加成功，音效已在 addToCart 中播放
+                    } else {
+                            // 添加失敗（庫存不足），播放錯誤音效
+                            playSound('error');
+                        }
+
+                    } else {
+
+                        playSound('error'); // 播放錯誤音效
+
+                        setTimeout(() => {
+                        alert(`${product.name} - ${product.variant} 庫存不足，無法銷售`);
+                        }, 300);
+
+                    }
+
+                } else {
+
+                    // 多個商品，彈出選擇視窗
+
+                    playSound('success'); // 播放成功音效（找到商品）
+
+                    showProductSelectionModal(products, barcode);
+
+                }
+
+                return;
+            }
+            
+            // 如果 Supabase 沒有找到，嘗試從本地 mockProducts 查詢
+            const localProducts = mockProducts[barcode];
+            
+            if (localProducts && localProducts.length > 0) {
+                if (localProducts.length === 1) {
+                    // 只有一個商品，直接添加
+                    const product = localProducts[0];
+                    if (product.stock > 0) {
+                        const addResult = addToCart(product, barcode);
+                        
+                        if (addResult) {
+                            // 添加成功，音效已在 addToCart 中播放
+            } else {
+                            // 添加失敗（庫存不足），播放錯誤音效
+                            playSound('error');
+                        }
+            } else {
+                        playSound('error'); // 播放錯誤音效
+                        setTimeout(() => {
+                            alert(`${product.name} - ${product.variant} 庫存不足，無法銷售`);
+                        }, 300);
+                    }
+                } else {
+                    // 多個商品，彈出選擇視窗
+                    playSound('success'); // 播放成功音效（找到商品）
+                    showProductSelectionModal(localProducts, barcode);
+                }
+            } else {
+
+                playSound('error'); // 播放錯誤音效
+
+                setTimeout(() => {
+                alert(`條碼 ${barcode} 找不到對應商品`);
+                }, 300);
+
+            }
+
+            } catch (error) {
+                console.error('查詢商品時發生錯誤:', error);
+                playSound('error'); // 播放錯誤音效
+                setTimeout(() => {
+                    alert('查詢商品時發生錯誤，請稍後再試');
+                }, 300);
+            } finally {
+                // 恢復輸入框狀態
+                barcodeInput.placeholder = originalPlaceholder;
+                barcodeInput.disabled = false;
+                barcodeInput.focus();
+            }
+        }
+
+
+
+        // 顯示商品選擇彈出視窗
+
+        function showProductSelectionModal(products, barcode) {
+
+            // 儲存當前商品資料到全域變數
+            currentProductData[barcode] = products;
+            
+            document.getElementById('modalBarcode').textContent = barcode;
+
+            const variantsList = document.getElementById('productVariantsList');
+
+            
+            
+            variantsList.innerHTML = products.map((product, index) => {
+
+                const stockStatus = product.stock > 0 ? 
+
+                    (product.stock <= 5 ? `低庫存 ${product.stock} 件` : `庫存 ${product.stock} 件`) : 
+
+                    '缺貨';
+
+                const stockClass = product.stock > 0 ? 
+
+                    (product.stock <= 5 ? 'text-orange-600' : 'text-green-600') : 
+
+                    'text-red-600';
+                
+                
+                
+                const isAvailable = product.stock > 0;
+
+                const buttonClass = isAvailable ? 
+
+                    'bg-[#17225e] hover:bg-[#1a2a6e] text-white' : 
+
+                    'bg-gray-300 text-gray-500 cursor-not-allowed';
+                
+                
+                
+                return `
+
+                    <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors ${!isAvailable ? 'opacity-60' : ''}">
+
+                        <div class="flex items-center space-x-4">
+
+                            <img src="${product.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center'}" alt="${product.name}" class="w-16 h-16 rounded-lg object-cover">
+
+                            <div class="flex-1">
+
+                                <h4 class="font-semibold text-gray-800">${product.name}</h4>
+
+                                <p class="text-sm text-gray-600 mt-1">規格：${product.variant}</p>
+
+                                <p class="text-xs text-gray-500 mt-1">${product.description}</p>
+
+                                <div class="flex items-center justify-between mt-2">
+
+                                    <span class="text-lg font-bold text-[#17225e]">NT$${product.price.toLocaleString()}</span>
+
+                                    <span class="text-sm ${stockClass}">${stockStatus}</span>
+
+                                </div>
+
+                            </div>
+
+                            <button onclick="selectProductVariant('${product.id}', '${barcode}')" 
+
+                                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors ${buttonClass}"
+
+                                    ${!isAvailable ? 'disabled' : ''}>
+
+                                ${isAvailable ? '選擇此項' : '缺貨'}
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }).join('');
+
+            
+            
+            document.getElementById('productSelectionModal').classList.remove('hidden');
+
+        }
+
+
+
+        // 關閉商品選擇彈出視窗
+
+        function closeProductSelectionModal() {
+
+            document.getElementById('productSelectionModal').classList.add('hidden');
+
+        }
+
+
+        // 顯示選取品項折扣彈出視窗
+        function showItemDiscountModal() {
+            const modal = document.getElementById('itemDiscountModal');
+            const itemsContainer = document.getElementById('cartItemsForDiscount');
+            
+            // 清空容器
+            itemsContainer.innerHTML = '';
+            
+            // 添加購物車商品
+            cart.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors';
+                itemDiv.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" id="item-${index}" class="item-checkbox w-4 h-4 text-[#17225e] border-gray-300 rounded focus:ring-[#17225e]">
+                        <img src="${item.image}" alt="${item.name}" class="w-12 h-12 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h5 class="font-semibold text-gray-800">${item.name}</h5>
+                            <p class="text-sm text-gray-600">規格：${item.variant}</p>
+                            <p class="text-sm text-gray-500">數量：${item.quantity}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">原價：NT$${item.originalPrice ? item.originalPrice.toLocaleString() : item.price.toLocaleString()}</p>
+                            <p class="font-bold text-[#17225e]">現價：NT$${item.price.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+                itemsContainer.appendChild(itemDiv);
+            });
+            
+            // 設置事件監聽器
+            setupItemDiscountEventListeners();
+            
+            // 顯示視窗
+            modal.classList.remove('hidden');
+        }
+
+        // 關閉選取品項折扣彈出視窗
+        function closeItemDiscountModal() {
+            document.getElementById('itemDiscountModal').classList.add('hidden');
+        }
+
+        // 設置選取品項折扣的事件監聽器
+        function setupItemDiscountEventListeners() {
+            // 折扣類型變更事件
+            const discountTypeSelect = document.getElementById('discountType');
+            if (discountTypeSelect) {
+                discountTypeSelect.removeEventListener('change', updateDiscountPreview);
+                discountTypeSelect.addEventListener('change', updateDiscountPreview);
+            }
+            
+            // 折扣值變更事件
+            const discountValueInput = document.getElementById('discountValue');
+            if (discountValueInput) {
+                discountValueInput.removeEventListener('input', updateDiscountPreview);
+                discountValueInput.addEventListener('input', updateDiscountPreview);
+            }
+            
+            // 商品選擇變更事件 - 使用事件委託
+            const itemsContainer = document.getElementById('cartItemsForDiscount');
+            if (itemsContainer) {
+                itemsContainer.removeEventListener('change', handleCheckboxChange);
+                itemsContainer.addEventListener('change', handleCheckboxChange);
+            }
+        }
+        
+        // 處理複選框變更事件
+        function handleCheckboxChange(event) {
+            if (event.target.classList.contains('item-checkbox')) {
+                updateDiscountPreview();
+            }
+        }
+
+        // 更新折扣預覽
+        function updateDiscountPreview() {
+            const discountType = document.getElementById('discountType').value;
+            const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
+            const discountUnit = document.getElementById('discountUnit');
+            const preview = document.getElementById('discountPreview');
+            
+            // 更新單位顯示
+            discountUnit.textContent = discountType === 'percentage' ? '%' : 'NT$';
+            
+            // 獲取選中的商品
+            const selectedItems = [];
+            document.querySelectorAll('.item-checkbox:checked').forEach((checkbox, index) => {
+                const itemIndex = parseInt(checkbox.id.split('-')[1]);
+                if (cart[itemIndex]) {
+                    selectedItems.push({
+                        ...cart[itemIndex],
+                        index: itemIndex
+                    });
+                }
+            });
+            
+            if (selectedItems.length === 0) {
+                preview.innerHTML = '<p class="text-sm text-gray-600">請選擇要套用折扣的商品</p>';
+                return;
+            }
+            
+            if (discountValue <= 0) {
+                preview.innerHTML = '<p class="text-sm text-gray-600">請輸入折扣值</p>';
+                return;
+            }
+            
+            // 計算折扣預覽
+            let previewHtml = '<div class="space-y-2">';
+            let totalDiscount = 0;
+            
+            if (discountType === 'percentage') {
+                // 百分比折扣：每件商品按比例折扣
+                selectedItems.forEach(item => {
+                    const originalPrice = item.originalPrice || item.price;
+                    const newPrice = Math.floor(originalPrice * (1 - discountValue / 100));
+                    const itemDiscount = (originalPrice - newPrice) * item.quantity;
+                    totalDiscount += itemDiscount;
+                    
+                    previewHtml += `
+                        <div class="flex justify-between text-sm">
+                            <span>${item.name} (${item.quantity}件)</span>
+                            <span>NT$${originalPrice.toLocaleString()} → NT$${newPrice.toLocaleString()}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                // 固定金額折扣：選取的商品總共折價固定金額
+                const totalOriginalValue = selectedItems.reduce((sum, item) => {
+                    return sum + (item.originalPrice || item.price) * item.quantity;
+                }, 0);
+                
+                // 按商品價值比例分配折扣
+                selectedItems.forEach(item => {
+                    const originalPrice = item.originalPrice || item.price;
+                    const itemValue = originalPrice * item.quantity;
+                    const discountRatio = itemValue / totalOriginalValue;
+                    const itemDiscount = Math.floor(discountValue * discountRatio);
+                    const newPrice = Math.max(0, originalPrice - Math.floor(itemDiscount / item.quantity));
+                    
+                    previewHtml += `
+                        <div class="flex justify-between text-sm">
+                            <span>${item.name} (${item.quantity}件)</span>
+                            <span>NT$${originalPrice.toLocaleString()} → NT$${newPrice.toLocaleString()}</span>
+                        </div>
+                    `;
+                });
+                
+                totalDiscount = discountValue;
+            }
+            
+            previewHtml += `
+                <hr class="my-2">
+                <div class="flex justify-between font-semibold">
+                    <span>總折扣金額：</span>
+                    <span class="text-red-600">-NT$${totalDiscount.toLocaleString()}</span>
+                </div>
+            </div>`;
+            
+            preview.innerHTML = previewHtml;
+        }
+
+        // 套用選取品項折扣
+        function applyItemDiscount() {
+            const discountType = document.getElementById('discountType').value;
+            const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
+            
+            if (discountValue <= 0) {
+                alert('請輸入有效的折扣值');
+                return;
+            }
+            
+            // 獲取選中的商品
+            const selectedItems = [];
+            document.querySelectorAll('.item-checkbox:checked').forEach((checkbox, index) => {
+                const itemIndex = parseInt(checkbox.id.split('-')[1]);
+                if (cart[itemIndex]) {
+                    selectedItems.push({
+                        ...cart[itemIndex],
+                        index: itemIndex
+                    });
+                }
+            });
+            
+            if (selectedItems.length === 0) {
+                alert('請選擇要套用折扣的商品');
+                return;
+            }
+            
+            // 套用折扣
+            if (discountType === 'percentage') {
+                // 百分比折扣：每件商品按比例折扣
+                selectedItems.forEach(item => {
+                    const cartItem = cart[item.index];
+                    
+                    // 確保有originalPrice屬性
+                    if (!cartItem.originalPrice) {
+                        cartItem.originalPrice = cartItem.price;
+                    }
+                    
+                    const originalPrice = cartItem.originalPrice;
+                    const newPrice = Math.floor(originalPrice * (1 - discountValue / 100));
+                    
+                    cartItem.price = newPrice;
+                    cartItem.total = cartItem.quantity * newPrice;
+                });
+            } else {
+                // 固定金額折扣：選取的商品總共折價固定金額
+                const totalOriginalValue = selectedItems.reduce((sum, item) => {
+                    return sum + (item.originalPrice || item.price) * item.quantity;
+                }, 0);
+                
+                // 按商品價值比例分配折扣
+                selectedItems.forEach(item => {
+                    const cartItem = cart[item.index];
+                    
+                    // 確保有originalPrice屬性
+                    if (!cartItem.originalPrice) {
+                        cartItem.originalPrice = cartItem.price;
+                    }
+                    
+                    const originalPrice = cartItem.originalPrice;
+                    const itemValue = originalPrice * item.quantity;
+                    const discountRatio = itemValue / totalOriginalValue;
+                    const itemDiscount = Math.floor(discountValue * discountRatio);
+                    const newPrice = Math.max(0, originalPrice - Math.floor(itemDiscount / item.quantity));
+                    
+                    cartItem.price = newPrice;
+                    cartItem.total = cartItem.quantity * newPrice;
+                });
+            }
+            
+            // 更新顯示
+            updateCartDisplay();
+            closeItemDiscountModal();
+            
+            const discountText = discountType === 'percentage' ? `${discountValue}%` : `NT$${discountValue}`;
+            alert(`已對 ${selectedItems.length} 項商品套用 ${discountText} 折扣`);
+        }
+
+        // 重置所有折扣
+        function resetAllDiscounts() {
+            if (cart.length === 0) {
+                alert('購物車為空');
+                return;
+            }
+            
+            const hasDiscounts = cart.some(item => item.originalPrice && item.originalPrice > item.price);
+            
+            if (!hasDiscounts) {
+                alert('目前沒有套用任何折扣');
+                return;
+            }
+            
+            if (confirm('確定要重置所有商品的折扣嗎？這會將所有商品恢復到原價。')) {
+                cart.forEach(item => {
+                    if (item.originalPrice) {
+                        item.price = item.originalPrice;
+                        item.total = item.quantity * item.price;
+                    }
+                });
+                
+                updateCartDisplay();
+                alert('已重置所有折扣，商品恢復原價');
+            }
+        }
+
+        // 全域變數：儲存當前查詢的商品資料
+        let currentProductData = {};
+
+
+        // 選擇商品小項
+
+        async function selectProductVariant(productId, barcode) {
+            // 使用儲存的全域變數中的商品資料
+            let products = currentProductData[barcode] || [];
+            
+            // 如果全域變數中沒有資料，嘗試重新查詢
+            if (products.length === 0) {
+                const supabaseProducts = await searchProductFromSupabase(barcode);
+                if (supabaseProducts && supabaseProducts.length > 0) {
+                    products = supabaseProducts.map(convertSupabaseProductToLocal);
+                } else {
+                    products = mockProducts[barcode] || [];
+                }
+            }
+            
+            const selectedProduct = products.find(p => p.id === productId);
+
+            
+            
+            if (selectedProduct && selectedProduct.stock > 0) {
+
+                const addResult = addToCart(selectedProduct, barcode);
+                
+                if (addResult) {
+                closeProductSelectionModal();
+                    // 音效已在 addToCart 中播放
+            } else {
+                    // 添加失敗（庫存不足），播放錯誤音效
+                    playSound('error');
+                }
+
+            } else {
+
+                playSound('error'); // 播放錯誤音效
+
+                setTimeout(() => {
+                alert('商品庫存不足或不存在');
+                }, 300);
+
+            }
+
+        }
+
+
+
+        // 添加商品到購物車（更新支援商品小項）
+
+        function addToCart(product, barcode) {
+
+            const existingItem = cart.find(item => item.id === product.id);
+
+            
+            
+            if (existingItem) {
+
+                if (existingItem.quantity < product.stock) {
+
+                    existingItem.quantity++;
+
+                    existingItem.total = existingItem.quantity * existingItem.price;
+
+                    playSound('success'); // 播放成功音效（增加數量）
+
+                } else {
+
+                    // 庫存不足，不播放音效（由調用方處理）
+
+                    setTimeout(() => {
+                    alert(`${product.name} - ${product.variant} 庫存不足，無法再添加`);
+                    }, 300);
+
+                    return false; // 返回 false 表示添加失敗
+
+                }
+
+            } else {
+
+                cart.push({
+
+                    ...product,
+
+                    barcode: barcode,
+
+                    quantity: 1,
+
+                    originalPrice: product.price,
+
+                    total: product.price * 1
+
+                });
+
+                playSound('success'); // 播放成功音效（新增商品）
+
+            }
+
+            
+
+            updateCartDisplay();
+
+            updateCartItemCount();
+            return true; // 返回 true 表示添加成功
+        }
+
+
+
+
+        // 更改商品數量
+
+        function changeQuantity(index, delta) {
+
+            const item = cart[index];
+
+            const newQuantity = item.quantity + delta;
+
+            
+            
+            if (newQuantity <= 0) {
+
+                removeFromCart(index);
+
+            } else if (newQuantity <= item.stock) {
+
+                item.quantity = newQuantity;
+
+                item.total = item.quantity * item.price;
+
+                updateCartDisplay();
+
+                updateCartItemCount();
+            } else {
+
+                alert(`${item.name} 庫存不足，最多只能購買 ${item.stock} 件`);
+
+            }
+
+        }
+
+
+
+        // 從購物車移除商品
+
+        function removeFromCart(index) {
+
+            cart.splice(index, 1);
+
+            updateCartDisplay();
+
+            updateCartItemCount();
+        }
+
+
+
+        // 更新總計
+
+        function updateTotals() {
+
+            const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+            
+            
+            
+            // 計算優惠券折扣
+
+            let couponDiscount = 0;
+
+            if (currentCoupon) {
+
+                couponDiscount = calculateCouponDiscount(currentCoupon, subtotal);
+            }
+
+            
+            
+            // 商品售價已包含5%營業稅，無需額外計算
+
+            const total = subtotal - couponDiscount;
+
+
+            // 更新顯示
+
+            const totalAmountElements = document.querySelectorAll('#totalAmount');
+
+            totalAmountElements.forEach(element => {
+
+                element.textContent = `NT$${total.toLocaleString()}`;
+
+            });
+
+            
+            
+            // 更新各項金額顯示
+
+            const subtotalEl = document.getElementById('subtotalAmount');
+
+            const couponDiscountEl = document.getElementById('couponDiscountAmount');
+
+            const couponDiscountRow = document.getElementById('couponDiscountRow');
+
+            
+            
+            if (subtotalEl) subtotalEl.textContent = `NT$${subtotal.toLocaleString()}`;
+            
+            
+            
+            // 優惠券折扣顯示
+
+            if (couponDiscountEl && couponDiscountRow) {
+
+                if (currentCoupon && couponDiscount > 0) {
+
+                    couponDiscountEl.textContent = `-NT$${couponDiscount.toLocaleString()}`;
+
+                    couponDiscountRow.style.display = 'flex';
+
+                } else {
+
+                    couponDiscountRow.style.display = 'none';
+
+                }
+
+            }
+            
+            
+
+            return { subtotal, memberDiscount: 0, couponDiscount, tax: 0, total };
+        }
+
+
+
+        // 優惠券相關功能
+
+        
+        
+        // 載入優惠券管理功能
+
+        function loadCouponFunctions() {
+
+            // 從localStorage獲取優惠券資料
+
+            function getCouponsData() {
+
+                const savedCoupons = localStorage.getItem('couponsData');
+
+                return savedCoupons ? JSON.parse(savedCoupons) : [];
+
+            }
+
+            
+            
+            // 驗證優惠券
+
+            window.validateCoupon = function(code, orderAmount, memberLevel, categories) {
+
+                const couponsData = getCouponsData();
+
+                const coupon = couponsData.find(c => c.code.toUpperCase() === code.toUpperCase());
+
+                
+                
+                if (!coupon) {
+
+                    return { valid: false, message: '優惠券不存在' };
+
+                }
+
+
+
+                if (coupon.status !== 'active') {
+
+                    return { valid: false, message: '優惠券已停用' };
+
+                }
+
+
+
+                const now = new Date();
+
+                const startDate = new Date(coupon.startDate);
+
+                const endDate = new Date(coupon.endDate);
+
+
+
+                if (now < startDate) {
+
+                    return { valid: false, message: '優惠券尚未生效' };
+
+                }
+
+
+
+                if (now > endDate) {
+
+                    return { valid: false, message: '優惠券已過期' };
+
+                }
+
+
+
+                if (coupon.usedCount >= coupon.usageLimit) {
+
+                    return { valid: false, message: '優惠券使用次數已達上限' };
+
+                }
+
+
+
+                if (orderAmount < coupon.minAmount) {
+
+                    return { valid: false, message: `最低消費金額為 NT$${coupon.minAmount}` };
+
+                }
+
+
+
+                if (coupon.type === 'member_only' && !memberLevel) {
+
+                    return { valid: false, message: '此優惠券僅限會員使用' };
+
+                }
+
+
+
+                // 檢查適用分類
+
+                if (!coupon.categories.includes('all')) {
+
+                    const hasValidCategory = categories.some(cat => coupon.categories.includes(cat));
+
+                    if (!hasValidCategory) {
+
+                        return { valid: false, message: '優惠券不適用於購物車中的商品' };
+
+                    }
+
+                }
+
+
+
+                return { valid: true, coupon: coupon };
+
+            };
+
+            
+            
+            window.useCoupon = function(code) {
+
+                const couponsData = getCouponsData();
+
+                const coupon = couponsData.find(c => c.code.toUpperCase() === code.toUpperCase());
+
+                if (coupon) {
+
+                    coupon.usedCount++;
+
+                    localStorage.setItem('couponsData', JSON.stringify(couponsData));
+
+                }
+
+            };
+
+            
+            
+            window.getCouponsData = getCouponsData;
+
+        }
+
+
+
+        // 計算優惠券折扣
+
+        function calculateCouponDiscount(coupon, amount) {
+
+            switch (coupon.type) {
+
+                case 'percentage':
+
+                    return Math.floor(amount * (coupon.discountValue / 100));
+
+                case 'fixed':
+
+                    return Math.min(coupon.discountValue, amount);
+
+                case 'buy_x_get_y':
+
+                    // 買X送Y的邏輯需要根據購物車商品計算
+
+                    return calculateBuyXGetYDiscount(coupon);
+
+                case 'member_only':
+
+                    if (currentMember) {
+
+                        return Math.floor(amount * (coupon.discountValue / 100));
+
+                    }
+
+                    return 0;
+
+                default:
+
+                    return 0;
+
+            }
+
+        }
+
+
+
+        // 計算買X送Y的折扣
+
+        function calculateBuyXGetYDiscount(coupon) {
+
+            // 簡化實現：如果有符合分類的商品且數量≥3，則給予最便宜商品的價格作為折扣
+
+            const eligibleItems = cart.filter(item => 
+
+                coupon.categories.includes('all') || 
+
+                coupon.categories.some(cat => item.category === cat)
+
+            );
+
+            
+            
+            if (eligibleItems.length >= 3) {
+
+                const cheapestItem = eligibleItems.reduce((min, item) => 
+
+                    item.price < min.price ? item : min
+
+                );
+
+                return cheapestItem.price;
+
+            }
+
+            return 0;
+
+        }
+
+
+
+        // 套用優惠券
+
+        function applyCoupon() {
+
+            const couponCode = document.getElementById('couponInput').value.trim();
+
+            if (!couponCode) {
+
+                alert('請輸入優惠券代碼');
+
+                return;
+
+            }
+
+
+
+            if (!window.validateCoupon) {
+
+                alert('優惠券功能載入中，請稍後再試');
+
+                return;
+
+            }
+
+
+
+            const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+
+            const orderAmount = subtotal;
+            
+            
+            // 獲取購物車商品分類
+
+            const categories = [...new Set(cart.map(item => item.category))];
+
+            
+            
+            const result = window.validateCoupon(
+
+                couponCode, 
+
+                orderAmount, 
+
+                currentMember?.level, 
+
+                categories
+
+            );
+
+
+
+            if (result.valid) {
+
+                currentCoupon = result.coupon;
+
+                showAppliedCoupon();
+
+                updateTotals();
+
+                alert(`優惠券套用成功！${getDiscountText(currentCoupon)}`);
+
+            } else {
+
+                alert(`優惠券套用失敗：${result.message}`);
+
+            }
+
+        }
+
+
+
+        // 移除優惠券
+
+        function removeCoupon() {
+
+            currentCoupon = null;
+
+            hideAppliedCoupon();
+
+            updateTotals();
+
+            document.getElementById('couponInput').value = '';
+
+        }
+
+
+
+        // 顯示已套用的優惠券
+
+        function showAppliedCoupon() {
+
+            const appliedCouponDiv = document.getElementById('appliedCoupon');
+
+            if (appliedCouponDiv && currentCoupon) {
+
+                document.getElementById('appliedCouponName').textContent = currentCoupon.name;
+
+                document.getElementById('appliedCouponDesc').textContent = getDiscountText(currentCoupon);
+
+                appliedCouponDiv.classList.remove('hidden');
+
+                document.getElementById('couponInput').value = currentCoupon.code;
+
+            }
+
+        }
+
+
+
+        // 隱藏已套用的優惠券
+
+        function hideAppliedCoupon() {
+
+            const appliedCouponDiv = document.getElementById('appliedCoupon');
+
+            if (appliedCouponDiv) {
+
+                appliedCouponDiv.classList.add('hidden');
+
+            }
+
+        }
+
+
+
+        // 掃描優惠券
+
+        function scanCoupon() {
+
+            if (typeof window.quickScan === 'function') {
+
+                window.quickScan(
+
+                    function(barcode) {
+
+                        document.getElementById('couponInput').value = barcode;
+
+                        applyCoupon();
+
+                    },
+
+                    function(error) {
+
+                        alert('掃描失敗: ' + error.message);
+
+                    }
+
+                );
+
+            } else {
+
+                alert('掃描功能尚未載入，請重新整理頁面');
+
+            }
+
+        }
+
+
+
+        // 獲取優惠券描述文字
+
+        function getDiscountText(coupon) {
+
+            switch (coupon.type) {
+
+                case 'percentage':
+
+                    return `${coupon.discountValue}% 折扣`;
+
+                case 'fixed':
+
+                    return `NT$${coupon.discountValue} 折扣`;
+
+                case 'buy_x_get_y':
+
+                    return '買3送1優惠';
+
+                case 'member_only':
+
+                    return `會員專屬 ${coupon.discountValue}% 折扣`;
+
+                default:
+
+                    return '特殊優惠';
+
+            }
+
+        }
+
+
+
+
+
+
+        // 快速功能實現
+
+
+
+        // 1. 折扣功能
+
+        function applyDiscount() {
+
+            if (cart.length === 0) {
+
+                alert('購物車為空，請先添加商品');
+
+                return;
+
+            }
+
+
+
+            const discountOptions = [
+
+                { name: '全購物車9折', value: 0.9, type: 'all' },
+                { name: '全購物車8折', value: 0.8, type: 'all' },
+                { name: '全購物車7折', value: 0.7, type: 'all' },
+                { name: '全購物車5折', value: 0.5, type: 'all' },
+                { name: '選取品項折扣', value: 0, type: 'selected' }
+            ];
+
+
+
+            let optionsText = '選擇折扣：\n';
+
+            discountOptions.forEach((option, index) => {
+
+                optionsText += `${index + 1}. ${option.name}\n`;
+
+            });
+
+
+
+            const choice = prompt(optionsText + '請輸入數字 (1-5):');
+            const selectedIndex = parseInt(choice) - 1;
+
+
+
+            if (selectedIndex >= 0 && selectedIndex < discountOptions.length) {
+
+                const discount = discountOptions[selectedIndex];
+                
+                
+
+                if (discount.type === 'all') {
+                // 對所有商品應用折扣
+
+                cart.forEach(item => {
+
+                    // 確保有originalPrice屬性
+
+                    if (!item.originalPrice) {
+
+                        item.originalPrice = item.price;
+
+                    }
+
+                    
+                    
+                    item.price = Math.floor(item.originalPrice * discount.value);
+
+                    item.total = item.quantity * item.price;
+
+                });
+
+
+
+                updateCartDisplay();
+
+                alert(`已應用${discount.name}折扣`);
+
+                } else if (discount.type === 'selected') {
+                    // 開啟選取品項折扣視窗
+                    showItemDiscountModal();
+            }
+        }
+
+        }
+
+
+
+        // 2. 優惠券功能
+
+        function applyCoupon() {
+
+            const coupons = {
+
+                'SAVE100': { type: 'fixed', value: 100, minAmount: 1000, description: '滿千折百' },
+
+                'SAVE10': { type: 'percent', value: 0.1, minAmount: 500, description: '滿五百打九折' },
+
+                'MEMBER20': { type: 'percent', value: 0.2, minAmount: 2000, description: '會員專享八折' },
+
+                'WELCOME': { type: 'fixed', value: 50, minAmount: 0, description: '新客戶優惠' }
+
+            };
+
+
+
+            const couponCode = prompt('請輸入優惠券代碼：\n\n可用優惠券：\nSAVE100 - 滿千折百\nSAVE10 - 滿五百打九折\nMEMBER20 - 會員專享八折\nWELCOME - 新客戶優惠');
+
+
+
+            if (!couponCode) return;
+
+
+
+            const coupon = coupons[couponCode.toUpperCase()];
+
+            if (!coupon) {
+
+                alert('無效的優惠券代碼');
+
+                return;
+
+            }
+
+
+
+            const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+
+            if (subtotal < coupon.minAmount) {
+
+                alert(`此優惠券需要消費滿 NT$${coupon.minAmount}`);
+
+                return;
+
+            }
+
+
+
+            let discountAmount = 0;
+
+            if (coupon.type === 'fixed') {
+
+                discountAmount = coupon.value;
+
+            } else {
+
+                discountAmount = Math.floor(subtotal * coupon.value);
+
+            }
+
+
+
+            // 模擬優惠券應用（實際需要修改結帳邏輯）
+
+            alert(`優惠券「${coupon.description}」已應用\n折扣金額：NT$${discountAmount}`);
+
+        }
+
+
+
+        // 3. 會員功能
+
+        async function manageMember() {
+            const action = prompt('會員功能：\n1. 會員查詢\n2. 會員登入\n3. 會員登出\n4. 快速新增會員\n5. 開啟會員管理\n\n請選擇 (1-5):');
+
+
+
+            switch(action) {
+
+                case '1': // 會員查詢
+
+                    await searchMember();
+                    break;
+
+
+
+                case '2': // 會員登入
+
+                    await loginMember();
+                    break;
+
+
+
+                case '3': // 會員登出
+
+                    logoutMember();
+
+                    break;
+
+
+
+                case '4': // 快速新增會員
+
+                    quickAddMember();
+
+                    break;
+
+
+
+                case '5': // 開啟會員管理
+
+                    navigateToPage('members');
+
+                    break;
+
+
+
+                default:
+
+                    if (action !== null) {
+
+                        alert('無效選擇');
+
+                    }
+
+            }
+
+        }
+
+
+
+        // 快速新增會員
+
+        async function quickAddMember() {
+
+            const name = prompt('請輸入會員姓名：');
+
+            if (!name) return;
+
+            
+            
+            const phone = prompt('請輸入會員手機號碼：');
+
+            if (!phone) return;
+
+            
+            
+            // 檢查手機號碼是否已存在
+
+            if (phoneToMemberMap[phone]) {
+
+                alert('此手機號碼已註冊為會員！');
+
+                return;
+
+            }
+
+            
+            
+            const email = prompt('請輸入會員電子郵件（可選）：') || '';
+            
+            
+            
+            try {
+                // 初始化 Supabase
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        alert('Supabase 初始化失敗，無法新增會員');
+                        return;
+                    }
+                }
+
+                // 檢查 Supabase 中是否已存在相同手機號碼
+                const { data: existingMembers, error: checkError } = await supabase
+                    .from('members')
+                    .select('*')
+                    .eq('phone', phone);
+
+                if (checkError) {
+                    console.error('檢查重複會員時發生錯誤:', checkError);
+                    alert('檢查重複會員時發生錯誤，請重試');
+                    return;
+                }
+
+                if (existingMembers && existingMembers.length > 0) {
+                    alert('此手機號碼已在 Supabase 中註冊為會員！');
+                    return;
+                }
+
+                // 準備新增到 Supabase 的資料（不包含 id，讓 Supabase 自動處理）
+                const supabaseMemberData = {
+                name: name,
+                phone: phone,
+                email: email,
+                    total_spent: 0,
+                    address: '' // 可選欄位
+                };
+
+                // 新增到 Supabase
+                const { data: newSupabaseMember, error: insertError } = await supabase
+                    .from('members')
+                    .insert([supabaseMemberData])
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    console.error('新增會員到 Supabase 失敗:', insertError);
+                    
+                    // 處理重複主鍵錯誤
+                    if (insertError.code === '23505') {
+                        console.log('嘗試重試新增會員...');
+                        
+                        // 重試一次，不指定任何 ID 相關欄位
+                        const retryData = {
+                            name: name,
+                            phone: phone,
+                            email: email,
+                            total_spent: 0,
+                            address: ''
+                        };
+                        
+                        const { data: retryMember, error: retryError } = await supabase
+                            .from('members')
+                            .insert([retryData])
+                            .select()
+                            .single();
+                            
+                        if (retryError) {
+                            console.error('重試新增會員失敗:', retryError);
+                            alert('會員新增失敗：資料庫主鍵衝突，請聯繫管理員');
+                            return;
+                        }
+                        
+                        // 重試成功
+                        newSupabaseMember = retryMember;
+                    } else {
+                        alert(`新增會員失敗: ${insertError.message}`);
+                        return;
+                    }
+                }
+
+                // 生成本地會員編號（用於相容性）
+                const memberId = 'M' + Date.now().toString().slice(-8);
+
+                // 創建本地會員物件（用於相容性）
+                const newMember = {
+                    id: newSupabaseMember.id, // 使用 Supabase 的 ID
+                    name: newSupabaseMember.name,
+                    phone: newSupabaseMember.phone,
+                    email: newSupabaseMember.email || '',
+                    totalSpent: parseFloat(newSupabaseMember.total_spent) || 0,
+                    status: 'active', // 預設為啟用狀態
+                    joinDate: newSupabaseMember.created_at || new Date().toISOString(),
+                    lastVisit: newSupabaseMember.updated_at || new Date().toISOString()
+                };
+
+                // 更新本地記憶體中的數據（用於相容性）
+            membersDatabase[memberId] = newMember;
+            phoneToMemberMap[phone] = memberId;
+            
+                alert(`會員新增成功！\n\n會員編號：${newSupabaseMember.id}\n姓名：${name}\n手機：${phone}\n\n是否要立即登入此會員？`);
+            
+            const loginNow = confirm('是否要立即登入此會員？');
+
+            if (loginNow) {
+                currentMember = newMember;
+                updateMemberDisplay();
+                updateCartDisplay();
+                    alert(`${name} 已登入！`);
+                }
+
+            } catch (error) {
+                console.error('快速新增會員時發生錯誤:', error);
+                alert(`新增會員時發生錯誤: ${error.message}`);
+            }
+        }
+
+        // 從 Supabase 查詢會員資料
+        async function searchMemberFromSupabase(identifier) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        throw new Error('Supabase 初始化失敗');
+                    }
+                }
+
+                console.log('開始查詢會員:', identifier);
+
+                // 首先嘗試用手機號碼查詢（精確匹配）
+                let { data: memberData, error: memberError } = await supabase
+                    .from('members')
+                    .select('id, name, phone, email, total_spent, created_at, updated_at')
+                    .eq('phone', identifier);
+
+                console.log('手機號碼查詢結果:', memberData, memberError);
+
+                // 如果沒找到，嘗試用姓名查詢（模糊匹配）
+                if ((!memberData || memberData.length === 0) && !memberError) {
+                    console.log('嘗試用姓名模糊查詢:', identifier);
+                    const { data: nameData, error: nameError } = await supabase
+                        .from('members')
+                        .select('id, name, phone, email, total_spent, created_at, updated_at')
+                        .ilike('name', `%${identifier}%`)
+                        .limit(5);
+                    
+                    console.log('姓名查詢結果:', nameData, nameError);
+                    
+                    if (nameData && nameData.length > 0) {
+                        memberData = nameData;
+                    }
+                }
+
+                // 如果還是沒找到，嘗試用 ID 查詢（但先檢查是否為數字）
+                if ((!memberData || memberData.length === 0) && !memberError) {
+                    // 檢查是否為純數字 ID
+                    if (/^\d+$/.test(identifier)) {
+                        console.log('嘗試用數字ID查詢:', identifier);
+                        const { data: idData, error: idError } = await supabase
+                            .from('members')
+                            .select('id, name, phone, email, total_spent, created_at, updated_at')
+                            .eq('id', parseInt(identifier));
+                        
+                        console.log('ID查詢結果:', idData, idError);
+                        
+                        if (idData && idData.length > 0) {
+                            memberData = idData;
+                        }
+                    } else {
+                        console.log('ID不是純數字，跳過ID查詢:', identifier);
+                    }
+                }
+
+                // 如果找到了資料，取第一個結果
+                if (memberData && memberData.length > 0) {
+                    const member = memberData[0];
+                    console.log('找到會員資料:', member);
+                    
+                    // 將 Supabase 會員資料轉換為本地格式
+                    return {
+                        id: member.id,
+                        name: member.name || '未知會員',
+                        phone: member.phone || '',
+                        email: member.email || '',
+                        totalSpent: parseFloat(member.total_spent) || 0,
+                        status: 'active', // 預設為啟用狀態
+                        joinDate: member.created_at || new Date().toISOString(),
+                        lastVisit: member.updated_at || new Date().toISOString()
+                    };
+                }
+
+                console.log('未找到會員資料');
+                return null;
+            } catch (error) {
+                console.error('查詢 Supabase 會員資料失敗:', error);
+                return null;
+            }
+
+        }
+
+
+
+        // 搜尋會員
+
+        async function searchMember() {
+            const input = prompt('請輸入會員手機號碼或會員編號：');
+
+            if (!input) return;
+
+
+
+            let member = null;
+            
+            
+
+            // 首先嘗試從 Supabase 查詢
+            member = await searchMemberFromSupabase(input);
+            
+            // 如果 Supabase 沒有找到，嘗試從本地資料庫查詢
+            if (!member) {
+            // 先嘗試用會員編號搜尋
+
+            if (membersDatabase[input]) {
+
+                member = membersDatabase[input];
+
+            } else {
+
+                // 用手機號碼搜尋
+
+                const memberId = phoneToMemberMap[input];
+
+                if (memberId) {
+
+                    member = membersDatabase[memberId];
+
+                }
+            }
+
+            }
+
+
+
+            if (member) {
+
+                const memberInfo = `會員資訊：\n` +
+
+                    `編號：${member.id}\n` +
+
+                    `姓名：${member.name}\n` +
+
+                    `電話：${member.phone}\n` +
+
+
+
+                    `累計消費：NT$${member.totalSpent.toLocaleString()}\n` +
+
+                    `狀態：${member.status === 'active' ? '啟用' : '停用'}`;
+                
+                
+                
+                const action = confirm(memberInfo + '\n\n是否要登入此會員？');
+
+                if (action) {
+
+                    currentMember = member;
+
+                    updateMemberDisplay();
+
+                    updateCartDisplay(); // 重新計算會員價格
+
+                    alert(`${member.name} 已登入！`);
+                }
+
+            } else {
+
+                alert('查無此會員');
+
+            }
+
+        }
+
+
+
+        // 會員登入
+
+        async function loginMember() {
+            const input = prompt('請輸入會員手機號碼或會員編號：');
+
+            if (!input) return;
+
+
+
+            let member = null;
+            
+            
+
+            // 首先嘗試從 Supabase 查詢
+            member = await searchMemberFromSupabase(input);
+            
+            // 如果 Supabase 沒有找到，嘗試從本地資料庫查詢
+            if (!member) {
+            // 先嘗試用會員編號搜尋
+
+            if (membersDatabase[input]) {
+
+                member = membersDatabase[input];
+
+            } else {
+
+                // 用手機號碼搜尋
+
+                const memberId = phoneToMemberMap[input];
+
+                if (memberId) {
+
+                    member = membersDatabase[memberId];
+
+                }
+            }
+
+            }
+
+
+
+            if (member) {
+
+                if (member.status === 'active') {
+
+                    currentMember = member;
+
+                    updateMemberDisplay();
+
+                    updateCartDisplay(); // 重新計算會員價格
+                    
+                    
+                    
+                    alert(`歡迎 ${member.name}！`);
+                } else {
+
+                    alert('此會員帳號已停用，請聯繫客服');
+
+                }
+
+            } else {
+
+                const register = confirm('查無此會員，是否要建立新會員？');
+
+                if (register) {
+
+                    navigateToPage('members');
+
+                }
+
+            }
+
+        }
+
+
+
+        // 會員登出
+
+        function logoutMember() {
+
+            if (currentMember) {
+
+                const confirm_logout = confirm(`確定要讓 ${currentMember.name} 登出嗎？`);
+
+                if (confirm_logout) {
+
+                    currentMember = null;
+
+                    updateMemberDisplay();
+
+                    updateCartDisplay(); // 移除會員價格
+
+                    alert('會員已登出');
+
+                }
+
+            } else {
+
+                alert('目前沒有會員登入');
+
+            }
+
+        }
+
+
+
+        // 隱藏會員資訊
+        function hideMemberInfo() {
+            const memberInfo = document.getElementById('currentMemberInfo');
+            if (memberInfo) {
+                memberInfo.classList.add('hidden');
+            }
+        }
+
+        // 更新會員顯示
+
+        function updateMemberDisplay() {
+
+            const memberInfo = document.getElementById('currentMemberInfo');
+
+            const memberName = document.getElementById('memberName');
+
+            const memberBtnText = document.getElementById('memberBtnText');
+
+            const memberStatusDot = document.getElementById('memberStatusDot');
+
+
+
+            if (currentMember) {
+
+                // 更新POS顯示器中的會員資訊
+
+                memberInfo.classList.remove('hidden');
+
+                memberName.textContent = currentMember.name;
+
+                
+                
+                // 更新快速功能按鈕
+
+                memberBtnText.textContent = currentMember.name.length > 4 ? 
+
+                    currentMember.name.substring(0, 4) + '...' : currentMember.name;
+
+                memberStatusDot.classList.remove('hidden');
+
+            } else {
+
+                // 隱藏會員資訊
+
+                memberInfo.classList.add('hidden');
+
+                
+                
+                // 重置快速功能按鈕
+
+                memberBtnText.textContent = '會員';
+
+                memberStatusDot.classList.add('hidden');
+
+            }
+
+        }
+
+
+
+
+
+
+        // 4. 上傳銷售記錄到 Supabase
+        async function uploadSalesRecordToSupabase(saleRecord) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗，無法上傳銷售記錄');
+                        return false;
+                    }
+                }
+
+                // 插入銷售記錄主表
+                const { data: saleData, error: saleError } = await supabase
+                    .from('sales_history')
+                    .insert([{
+                        receipt_number: saleRecord.receiptNumber.toString(),
+                        sale_date: saleRecord.date,
+                        subtotal: saleRecord.subtotal,
+                        member_discount: saleRecord.memberDiscount,
+                        coupon_discount: saleRecord.couponDiscount,
+                        tax: saleRecord.tax,
+                        total_amount: saleRecord.total,
+                        total: saleRecord.total, // 添加 total 欄位，與 total_amount 相同
+                        payment_method: saleRecord.paymentMethod,
+                        received_amount: saleRecord.receivedAmount,
+                        change_amount: saleRecord.change,
+                        cashier: saleRecord.cashier,
+                        employee_id: getCurrentEmployeeId() || 'E001', // 使用當前員工ID，如果沒有則使用預設值
+                        member_id: saleRecord.member ? saleRecord.member.id : null,
+                        coupon_id: saleRecord.coupon ? saleRecord.coupon.id : null,
+                        items: JSON.stringify(saleRecord.items) // 添加 items 欄位，將商品項目轉換為 JSON 字串
+                    }])
+                    .select();
+
+                if (saleError) {
+                    console.error('插入銷售記錄失敗:', saleError);
+                    
+                    // 檢查是否是重複收據號碼錯誤
+                    if (saleError.code === '23505' && saleError.message.includes('receipt_number')) {
+                        console.error('收據號碼重複，嘗試重新生成...');
+                        // 重新生成收據號碼並重試
+                        const newReceiptNumber = Date.now();
+                        saleRecord.receiptNumber = newReceiptNumber;
+                        
+                        // 重試插入
+                        const { data: retryData, error: retryError } = await supabase
+                            .from('sales_history')
+                            .insert([{
+                                receipt_number: newReceiptNumber.toString(),
+                                sale_date: saleRecord.date,
+                                subtotal: saleRecord.subtotal,
+                                member_discount: saleRecord.memberDiscount,
+                                coupon_discount: saleRecord.couponDiscount,
+                                tax: saleRecord.tax,
+                                total_amount: saleRecord.total,
+                                total: saleRecord.total,
+                                payment_method: saleRecord.paymentMethod,
+                                received_amount: saleRecord.receivedAmount,
+                                change_amount: saleRecord.change,
+                                cashier: saleRecord.cashier,
+                                employee_id: getCurrentEmployeeId() || 'E001',
+                                member_id: saleRecord.member ? saleRecord.member.id : null,
+                                coupon_id: saleRecord.coupon ? saleRecord.coupon.id : null,
+                                items: JSON.stringify(saleRecord.items)
+                            }])
+                            .select();
+                        
+                        if (retryError) {
+                            console.error('重試插入銷售記錄失敗:', retryError);
+                            return false;
+                        }
+                        
+                        console.log('使用新收據號碼插入成功:', newReceiptNumber);
+                        const saleId = retryData[0].id;
+                        
+                        // 繼續插入銷售項目
+                        const salesItems = saleRecord.items.map(item => ({
+                            sale_id: saleId,
+                            product_name: item.name,
+                            product_variant: item.variant || null,
+                            barcode: item.barcode || null,
+                            unit_price: item.price,
+                            quantity: item.quantity,
+                            total_price: item.total,
+                            discount_amount: item.discountAmount || 0,
+                            discount_percentage: item.discountPercentage || 0
+                        }));
+
+                        const { error: itemsError } = await supabase
+                            .from('sales_items')
+                            .insert(salesItems);
+
+                        if (itemsError) {
+                            console.error('插入銷售項目失敗:', itemsError);
+                            return false;
+                        }
+
+                        console.log('銷售記錄成功上傳到 Supabase (重試)');
+                        return true;
+                    }
+                    
+                    return false;
+                }
+
+                const saleId = saleData[0].id;
+
+                // 插入銷售項目明細
+                const salesItems = saleRecord.items.map(item => ({
+                    sale_id: saleId,
+                    product_name: item.name,
+                    product_variant: item.variant || null,
+                    barcode: item.barcode || null,
+                    unit_price: item.price,
+                    quantity: item.quantity,
+                    total_price: item.total,
+                    discount_amount: item.discountAmount || 0,
+                    discount_percentage: item.discountPercentage || 0
+                }));
+
+                const { error: itemsError } = await supabase
+                    .from('sales_items')
+                    .insert(salesItems);
+
+                if (itemsError) {
+                    console.error('插入銷售項目失敗:', itemsError);
+                    return false;
+                }
+
+                console.log('銷售記錄成功上傳到 Supabase');
+                return true;
+            } catch (error) {
+                console.error('上傳銷售記錄時發生錯誤:', error);
+                return false;
+            }
+        }
+
+        // 5. 從 Supabase 查詢銷售記錄
+        async function searchSaleRecordFromSupabase(receiptNumber) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗，無法查詢銷售記錄');
+                        return null;
+                    }
+                }
+
+                // 查詢銷售記錄主表
+                // 先查詢銷售記錄主表
+                const { data: saleData, error: saleError } = await supabase
+                    .from('sales_history')
+                    .select('*')
+                    .eq('receipt_number', receiptNumber)
+                    .single();
+
+                if (saleError) {
+                    console.error('查詢銷售記錄失敗:', saleError);
+                    return null;
+                }
+
+                if (!saleData) {
+                    console.log('找不到對應的銷售記錄');
+                    return null;
+                }
+
+                // 查詢銷售項目
+                const { data: salesItems, error: itemsError } = await supabase
+                    .from('sales_items')
+                    .select('*')
+                    .eq('sale_id', saleData.id);
+
+                if (itemsError) {
+                    console.error('查詢銷售項目失敗:', itemsError);
+                    return null;
+                }
+
+                // 查詢會員資訊（如果有）
+                let memberData = null;
+                if (saleData.member_id) {
+                    const { data: member, error: memberError } = await supabase
+                        .from('members')
+                        .select('id, name, phone')
+                        .eq('id', saleData.member_id)
+                        .single();
+                    
+                    if (!memberError && member) {
+                        memberData = member;
+                    }
+                }
+
+                // 查詢優惠券資訊（如果有）
+                let couponData = null;
+                if (saleData.coupon_id) {
+                    const { data: coupon, error: couponError } = await supabase
+                        .from('coupons')
+                        .select('id, code, name')
+                        .eq('id', saleData.coupon_id)
+                        .single();
+                    
+                    if (!couponError && coupon) {
+                        couponData = coupon;
+                    }
+                }
+
+                // 轉換為本地格式
+                const saleRecord = {
+                    id: saleData.id,
+                    receiptNumber: saleData.receipt_number,
+                    date: saleData.sale_date,
+                    items: salesItems.map(item => ({
+                        name: item.product_name,
+                        variant: item.product_variant,
+                        barcode: item.barcode,
+                        price: parseFloat(item.unit_price),
+                        quantity: item.quantity,
+                        total: parseFloat(item.total_price),
+                        discountAmount: parseFloat(item.discount_amount || 0),
+                        discountPercentage: parseFloat(item.discount_percentage || 0)
+                    })),
+                    subtotal: parseFloat(saleData.subtotal),
+                    memberDiscount: parseFloat(saleData.member_discount || 0),
+                    couponDiscount: parseFloat(saleData.coupon_discount || 0),
+                    tax: parseFloat(saleData.tax || 0),
+                    total: parseFloat(saleData.total_amount),
+                    paymentMethod: saleData.payment_method,
+                    receivedAmount: parseFloat(saleData.received_amount),
+                    change: parseFloat(saleData.change_amount),
+                    cashier: saleData.cashier,
+                    member: memberData ? {
+                        id: memberData.id,
+                        name: memberData.name,
+                        phone: memberData.phone
+                    } : null,
+                    coupon: couponData ? {
+                        id: couponData.id,
+                        code: couponData.code,
+                        name: couponData.name
+                    } : null
+                };
+
+                return saleRecord;
+            } catch (error) {
+                console.error('查詢銷售記錄時發生錯誤:', error);
+                return null;
+            }
+        }
+
+                // 6. 退貨功能
+
+                async function processRefund() {
+            const refundOptions = [
+                '商品瑕疵',
+                '尺寸不合',
+                '顏色不符',
+                '客戶不滿意',
+                '其他原因'
+            ];
+
+            let optionsText = '選擇退貨原因：\n';
+            refundOptions.forEach((reason, index) => {
+                optionsText += `${index + 1}. ${reason}\n`;
+            });
+
+            const choice = prompt(optionsText + '請輸入數字 (1-5):');
+            const selectedIndex = parseInt(choice) - 1;
+
+            if (selectedIndex >= 0 && selectedIndex < refundOptions.length) {
+                const reason = refundOptions[selectedIndex];
+                const receiptNumber = prompt('請輸入收據號碼：');
+                
+                if (receiptNumber) {
+                    // 先從 Supabase 查詢銷售記錄
+                    const saleRecord = await searchSaleRecordFromSupabase(receiptNumber);
+                    
+                    if (saleRecord) {
+                        // 顯示銷售記錄詳情並確認退貨
+                        const confirmed = await showRefundConfirmation(saleRecord, reason);
+                        
+                        if (confirmed) {
+                            // 處理退貨交易
+                            await processRefundTransaction(saleRecord, reason);
+                    }
+                } else {
+                        // 如果 Supabase 查詢失敗，嘗試從本地記錄查詢
+                        const localRecord = salesHistory.find(record => record.receiptNumber.toString() === receiptNumber);
+                        
+                        if (localRecord) {
+                            alert(`找到本地銷售記錄：\n收據號碼：${localRecord.receiptNumber}\n總金額：NT$${localRecord.total}\n\n注意：此記錄僅存在於本地，建議同步到 Supabase`);
+                        } else {
+                            alert('找不到對應的銷售記錄，請確認收據號碼是否正確');
+                        }
+                    }
+                } else {
+                    alert('請提供收據號碼');
+                }
+            }
+        }
+
+        // 顯示退貨確認對話框
+        async function showRefundConfirmation(saleRecord, reason) {
+            let saleInfo = `銷售記錄詳情：\n`;
+                            saleInfo += `收據號碼：${saleRecord.receiptNumber}\n`;
+            saleInfo += `銷售日期：${new Date(saleRecord.date).toLocaleString('zh-TW')}\n`;
+            saleInfo += `總金額：NT$${saleRecord.total.toLocaleString()}\n`;
+            saleInfo += `付款方式：${saleRecord.paymentMethod}\n`;
+            saleInfo += `收銀員：${saleRecord.cashier}\n\n`;
+            
+            saleInfo += `商品明細：\n`;
+            saleRecord.items.forEach((item, index) => {
+                saleInfo += `${index + 1}. ${item.product_name || item.name} ${item.variant || ''} x${item.quantity} NT$${item.total.toLocaleString()}\n`;
+            });
+            
+            if (saleRecord.member) {
+                saleInfo += `\n會員：${saleRecord.member.name}`;
+                if (saleRecord.member.phone) {
+                    saleInfo += ` (${saleRecord.member.phone})`;
+                }
+                saleInfo += `\n`;
+            }
+            
+            if (saleRecord.coupon) {
+                saleInfo += `優惠券：${saleRecord.coupon.name} (${saleRecord.coupon.code})\n`;
+            }
+            
+            alert(saleInfo);
+            
+            // 確認退貨
+            const refundAmount = saleRecord.total;
+            return confirm(`退貨資訊確認：\n原因：${reason}\n收據號碼：${saleRecord.receiptNumber}\n退款金額：NT$${refundAmount.toLocaleString()}\n\n確認處理退貨？`);
+        }
+
+        // 檢查銷售記錄是否已經退貨
+        async function checkRefundStatus(saleId) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return null;
+                    }
+                }
+
+                // 查詢該銷售記錄的退貨狀態
+                const { data: refunds, error } = await supabase
+                    .from('refunds')
+                    .select('*')
+                    .eq('sale_id', saleId)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('查詢退貨記錄失敗:', error);
+                    return null;
+                }
+
+                return refunds;
+            } catch (error) {
+                console.error('檢查退貨狀態時發生錯誤:', error);
+                return null;
+            }
+        }
+
+        // 處理退貨交易
+        async function processRefundTransaction(saleRecord, reason) {
+            try {
+                // 檢查是否已經退貨
+                const existingRefunds = await checkRefundStatus(saleRecord.id);
+                
+                if (existingRefunds && existingRefunds.length > 0) {
+                    // 顯示已退貨的記錄
+                    let refundInfo = `此銷售記錄已經有退貨記錄：\n\n`;
+                    existingRefunds.forEach((refund, index) => {
+                        refundInfo += `退貨記錄 ${index + 1}：\n`;
+                        refundInfo += `退貨單號：${refund.refund_number}\n`;
+                        refundInfo += `退貨日期：${new Date(refund.refund_date).toLocaleString('zh-TW')}\n`;
+                        refundInfo += `退貨原因：${refund.refund_reason}\n`;
+                        refundInfo += `退款金額：NT$${refund.refund_amount.toLocaleString()}\n`;
+                        refundInfo += `處理人員：${refund.processed_by}\n\n`;
+                    });
+                    
+                    alert(refundInfo + '此銷售記錄無法重複退貨。');
+                    return;
+                }
+
+                // 詢問是否恢復庫存
+                const restoreInventory = confirm(`是否將退貨商品加回庫存？\n\n選擇「確定」: 商品將加回庫存\n選擇「取消」: 不影響庫存（適用於瑕疵品等情況）`);
+                
+                // 生成退貨單號
+                const refundNumber = `R${Date.now()}`;
+                
+                // 解析銷售記錄中的商品項目
+                let saleItems = [];
+                try {
+                    if (typeof saleRecord.items === 'string') {
+                        saleItems = JSON.parse(saleRecord.items);
+                    } else if (Array.isArray(saleRecord.items)) {
+                        saleItems = saleRecord.items;
+                    } else {
+                        console.error('無法解析銷售記錄中的商品項目:', saleRecord.items);
+                        alert('無法解析銷售記錄，退貨失敗');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('解析銷售記錄商品項目失敗:', error);
+                    alert('解析銷售記錄失敗，退貨失敗');
+                    return;
+                }
+                
+                console.log('解析後的銷售商品項目:', saleItems);
+                
+                // 創建退貨記錄
+                const refundRecord = {
+                    refundNumber: refundNumber,
+                    originalReceiptNumber: saleRecord.receipt_number || saleRecord.receiptNumber,
+                    refundDate: new Date().toISOString(),
+                    reason: reason,
+                    refundAmount: saleRecord.total,
+                    restoreInventory: restoreInventory,
+                    items: saleItems.map(item => {
+                        // 確保退貨項目包含所有必要的商品資訊
+                        const refundItem = {
+                            ...item,
+                            id: item.id || item.product_id, // 確保有商品ID
+                            name: item.name || item.product_name,
+                            variant: item.variant || item.product_variant || '標準規格',
+                            quantity: item.quantity || 1,
+                            price: item.price || 0,
+                            total: item.total || (item.price * item.quantity)
+                        };
+                        
+                        // 如果是規格商品，確保有原始商品ID
+                        if (item.id && typeof item.id === 'string' && item.id.includes('-')) {
+                            refundItem.originalProductId = item.originalProductId || item.id.split('-')[0];
+                        }
+                        
+                        return refundItem;
+                    }),
+                    member: saleRecord.member,
+                    processedBy: getCurrentEmployeeName(),
+                    notes: `退貨原因：${reason}${restoreInventory ? '，已恢復庫存' : '，未恢復庫存'}`
+                };
+
+                // 保存退貨記錄到 Supabase
+                const saveSuccess = await saveRefundRecord(refundRecord);
+                
+                if (saveSuccess) {
+                    // 如果選擇恢復庫存，更新商品庫存
+                    if (restoreInventory) {
+                        const inventorySuccess = await restoreInventoryAfterRefund(saleItems, refundNumber);
+                        if (!inventorySuccess) {
+                            alert('退貨記錄已保存，但庫存恢復失敗。請手動檢查庫存。');
+                        }
+                    }
+                    
+                    // 生成並顯示退貨單
+                    generateRefundReceipt(refundRecord);
+                    
+                    alert(`退貨處理完成！\n退貨單號：${refundNumber}\n退款金額：NT$${saleRecord.total.toLocaleString()}\n${restoreInventory ? '庫存已恢復' : '庫存未變動'}`);
+                } else {
+                    alert('退貨記錄保存失敗，請重試或聯繫管理員。');
+                }
+                
+            } catch (error) {
+                console.error('處理退貨時發生錯誤:', error);
+                alert('處理退貨時發生錯誤，請重試或聯繫管理員。');
+            }
+        }
+
+        // 保存退貨記錄到 Supabase
+        async function saveRefundRecord(refundRecord) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return false;
+                    }
+                }
+
+                // 先查詢原始銷售記錄的 ID
+                const { data: saleData, error: saleError } = await supabase
+                    .from('sales_history')
+                    .select('id')
+                    .eq('receipt_number', refundRecord.originalReceiptNumber)
+                    .single();
+
+                if (saleError) {
+                    console.error('查詢原始銷售記錄失敗:', saleError);
+                    return false;
+                }
+
+                if (!saleData) {
+                    console.error('找不到原始銷售記錄');
+                    return false;
+                }
+
+                // 保存退貨記錄到 refunds 表
+                const { data, error } = await supabase
+                    .from('refunds')
+                    .insert([{
+                        sale_id: saleData.id, // 添加原始銷售記錄的 ID
+                        refund_number: refundRecord.refundNumber,
+                        original_receipt_number: refundRecord.originalReceiptNumber,
+                        refund_date: refundRecord.refundDate,
+                        refund_reason: refundRecord.reason, // 原始欄位
+                        reason: refundRecord.reason, // 新欄位
+                        refund_amount: refundRecord.refundAmount,
+                        refund_method: '現金', // 添加退款方式（必填欄位）
+                        restore_inventory: refundRecord.restoreInventory,
+                        refund_items: JSON.stringify(refundRecord.items),
+                        member_id: refundRecord.member ? refundRecord.member.id : null,
+                        processed_by: refundRecord.processedBy,
+                        notes: refundRecord.notes,
+                        status: 'completed' // 設定狀態為已完成
+                    }]);
+
+                if (error) {
+                    console.error('保存退貨記錄失敗:', error);
+                    return false;
+                }
+
+                console.log('退貨記錄已成功保存到 Supabase');
+                return true;
+            } catch (error) {
+                console.error('保存退貨記錄時發生錯誤:', error);
+                return false;
+            }
+        }
+
+        // 退貨後恢復庫存
+        async function restoreInventoryAfterRefund(refundItems, refundNumber) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return false;
+                    }
+                }
+
+                console.log('開始恢復庫存，退貨項目:', refundItems);
+
+                for (const item of refundItems) {
+                    console.log('處理退貨項目:', item);
+                    
+                    // 檢查必要欄位
+                    if (!item.id && !item.barcode) {
+                        console.error('退貨項目缺少商品ID和條碼:', item);
+                        continue;
+                    }
+                    
+                    // 處理商品規格
+                    let productId = item.id;
+                    let variantName = item.variant || item.product_variant || '標準規格';
+                    
+                    console.log(`商品ID: ${productId}, 條碼: ${item.barcode}, 規格: ${variantName}`);
+                    
+                    // 如果沒有ID但有條碼，先通過條碼查找商品
+                    if (!productId && item.barcode) {
+                        console.log(`通過條碼查找商品: ${item.barcode}`);
+                        const { data: productByBarcode, error: barcodeError } = await supabase
+                            .from('products')
+                            .select('id, name, variants')
+                            .eq('barcode', item.barcode)
+                            .single();
+                        
+                        if (barcodeError) {
+                            console.error(`通過條碼查找商品失敗: ${item.barcode}`, barcodeError);
+                            // 嘗試模糊匹配
+                            const { data: fuzzyProducts, error: fuzzyError } = await supabase
+                                .from('products')
+                                .select('id, name, variants, barcode')
+                                .ilike('barcode', `%${item.barcode}%`);
+                            
+                            if (fuzzyError || !fuzzyProducts || fuzzyProducts.length === 0) {
+                                console.error(`模糊匹配也找不到商品: ${item.barcode}`, fuzzyError);
+                                continue;
+                            }
+                            
+                            console.log(`模糊匹配找到商品:`, fuzzyProducts);
+                            productId = fuzzyProducts[0].id;
+                        } else if (!productByBarcode) {
+                            console.error(`通過條碼找不到商品: ${item.barcode}`);
+                            continue;
+                        } else {
+                            productId = productByBarcode.id;
+                        }
+                        
+                        console.log(`通過條碼找到商品ID: ${productId}`);
+                    }
+                    
+                    // 如果ID包含規格信息，提取原始商品ID
+                    if (productId && typeof productId === 'string' && productId.includes('-') && item.originalProductId) {
+                        productId = item.originalProductId;
+                        console.log(`檢測到規格商品，原始商品ID: ${productId}`);
+                    }
+                    
+                    // 查詢商品的當前庫存
+                    const { data: product, error: productError } = await supabase
+                        .from('products')
+                        .select('id, stock, barcode, name, variants')
+                        .eq('id', productId)
+                        .single();
+
+                    if (productError) {
+                        console.error(`查詢商品失敗 (商品ID: ${productId}):`, productError);
+                        continue;
+                    }
+
+                    if (!product) {
+                        console.error(`找不到商品 (商品ID: ${productId})`);
+                        continue;
+                    }
+
+                    // 處理商品規格庫存恢復
+                    let newStock;
+                    let currentStock;
+                    let updatedVariants = null;
+                    
+                    if (product.variants && variantName && variantName !== '標準規格') {
+                        // 恢復規格庫存
+                        try {
+                            const variants = JSON.parse(product.variants);
+                            const variantIndex = variants.findIndex(v => v.name === variantName);
+                            
+                            if (variantIndex !== -1) {
+                                const currentVariantStock = variants[variantIndex].stock || 0;
+                                currentStock = currentVariantStock;
+                                const newVariantStock = currentVariantStock + item.quantity;
+                                variants[variantIndex].stock = newVariantStock;
+                                updatedVariants = JSON.stringify(variants);
+                                newStock = newVariantStock;
+                            } else {
+                                // 找不到規格，恢復主商品庫存
+                                currentStock = product.stock;
+                                newStock = product.stock + item.quantity;
+                            }
+                        } catch (e) {
+                            console.error('解析商品規格失敗:', e);
+                            currentStock = product.stock;
+                            newStock = product.stock + item.quantity;
+                        }
+                    } else {
+                        // 恢復主商品庫存
+                        currentStock = product.stock;
+                        newStock = product.stock + item.quantity;
+                    }
+
+                    // 更新商品庫存
+                    const updateData = { 
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    if (updatedVariants) {
+                        updateData.variants = updatedVariants;
+                    } else {
+                        updateData.stock = newStock;
+                    }
+                    
+                    const { error: updateError } = await supabase
+                        .from('products')
+                        .update(updateData)
+                        .eq('id', product.id);
+
+                    if (updateError) {
+                        console.error(`更新庫存失敗 (商品ID: ${product.id}):`, updateError);
+                        continue;
+                    }
+
+                    // 記錄庫存交易（可選，如果表不存在則跳過）
+                    try {
+                        const { error: transactionError } = await supabase
+                            .from('inventory_transactions')
+                            .insert([{
+                                product_id: product.id,
+                                transaction_type: 'refund',
+                                quantity_change: item.quantity,
+                                previous_stock: currentStock,
+                                new_stock: newStock,
+                                reference_id: refundNumber,
+                                reference_type: 'refund',
+                                notes: `退貨恢復庫存 - ${item.product_name || item.name} (${item.variant || ''})`,
+                                created_by: getCurrentEmployeeName()
+                            }]);
+
+                        if (transactionError) {
+                            console.warn(`記錄庫存交易失敗 (商品ID: ${product.id}):`, transactionError);
+                            // 不影響主要流程，只記錄警告
+                        }
+                    } catch (error) {
+                        console.warn(`庫存交易記錄表不存在或無法訪問:`, error);
+                        // 不影響主要流程，只記錄警告
+                    }
+
+                    console.log(`成功恢復庫存 - 商品: ${product.name}, 原庫存: ${currentStock}, 退貨數量: ${item.quantity}, 新庫存: ${newStock}`);
+                }
+
+                return true;
+            } catch (error) {
+                console.error('恢復庫存時發生錯誤:', error);
+                return false;
+            }
+        }
+
+        // 生成退貨單
+        function generateRefundReceipt(refundRecord) {
+            const refundContent = generateRefundReceiptContent(refundRecord);
+
+            // 創建退貨單視窗
+            const refundWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes');
+            refundWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>退貨單 #${refundRecord.refundNumber}</title>
+                    <style>
+                        body { 
+                            font-family: 'Courier New', 'Microsoft JhengHei', monospace; 
+                            font-size: 16px; 
+                            line-height: 1.5;
+                            margin: 20px; 
+                            background: white;
+                        }
+
+                        .receipt-print { 
+                            max-width: 300px; 
+                            margin: 0 auto; 
+                            padding: 12px;
+                            transform: scale(1.25);
+                            transform-origin: top center;
+                            margin-bottom: 50px;
+                        }
+
+                        .receipt-print .header { 
+                            text-align: center; 
+                            margin-bottom: 18px; 
+                            border-bottom: 3px solid #000; 
+                            padding-bottom: 12px; 
+                        }
+
+                        .receipt-print .header h2 {
+                            font-size: 20px;
+                            font-weight: bold;
+                            margin: 8px 0;
+                            letter-spacing: 1px;
+                        }
+
+                        .receipt-print .header p {
+                            font-size: 15px;
+                            margin: 5px 0;
+                            line-height: 1.4;
+                        }
+
+                        .receipt-print .line { 
+                            border-bottom: 2px dashed #000; 
+                            margin: 10px 0; 
+                        }
+
+                        .receipt-print .row { 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: flex-start;
+                            margin: 8px 0; 
+                            font-size: 15px;
+                            line-height: 1.4;
+                        }
+
+                        .receipt-print .row.small { 
+                            font-size: 14px; 
+                            color: #333; 
+                            margin: 4px 0; 
+                            padding-left: 12px; 
+                        }
+
+                        .receipt-print .total { 
+                            font-weight: bold; 
+                            font-size: 18px; 
+                            border-top: 2px solid #000; 
+                            padding-top: 10px; 
+                            margin-top: 12px; 
+                        }
+
+                        .receipt-print .item-name {
+                            font-size: 15px;
+                            font-weight: bold;
+                            line-height: 1.4;
+                            word-break: break-all;
+                            flex: 1;
+                            margin-right: 12px;
+                        }
+
+                        .receipt-print .item-price {
+                            font-size: 15px;
+                            text-align: right;
+                            white-space: nowrap;
+                        }
+
+                        .receipt-print .item-details {
+                            font-size: 13px;
+                            color: #555;
+                            margin-left: 18px;
+                            line-height: 1.3;
+                        }
+
+                        .receipt-print .footer {
+                            text-align: center;
+                            margin-top: 18px;
+                            font-size: 14px;
+                            color: #666;
+                            border-top: 2px dashed #000;
+                            padding-top: 12px;
+                        }
+
+                        .receipt-print .refund-title {
+                            color: #d32f2f !important;
+                            border: 3px solid #d32f2f;
+                            padding: 8px 12px;
+                            margin: 12px 0;
+                            border-radius: 8px;
+                            background: rgba(211, 47, 47, 0.1);
+                            font-size: 22px;
+                        }
+
+                        .receipt-print .refund-notice {
+                            background: #ffebee;
+                            border: 2px solid #d32f2f;
+                            padding: 10px;
+                            margin: 12px 0;
+                            border-radius: 8px;
+                            font-size: 16px;
+                            color: #d32f2f;
+                            text-align: center;
+                            font-weight: bold;
+                        }
+
+                        @media print { 
+                            body { 
+                                margin: 0; 
+                                padding: 0;
+                                width: 58mm;
+                                background: white;
+                            }
+                            .receipt-print {
+                                width: 58mm;
+                                max-width: none;
+                                box-shadow: none;
+                                border: none;
+                                transform: scale(1.25);
+                                transform-origin: top center;
+                            }
+                            .receipt-print * {
+                                -webkit-print-color-adjust: exact;
+                                color-adjust: exact;
+                            }
+                        }
+
+                    </style>
+                </head>
+                <body>
+                    ${refundContent}
+                    <div style="text-align: center; margin-top: 150px; padding: 30px; border-top: 1px solid #ccc;">
+                        <button onclick="window.print()" style="margin: 0 10px; padding: 10px 20px; background: #17225e; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">列印退貨單</button>
+                        <button onclick="window.close()" style="margin: 0 10px; padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">關閉</button>
+                    </div>
+                </body>
+                </html>
+            `);
+            refundWindow.document.close();
+        }
+
+        // 生成退貨單內容
+        function generateRefundReceiptContent(refundRecord) {
+            const refundDate = new Date(refundRecord.refundDate);
+            
+            let itemsHtml = '';
+            // 處理退貨商品明細
+            const items = Array.isArray(refundRecord.items) ? refundRecord.items : [];
+            
+            items.forEach(item => {
+                itemsHtml += `
+                    <div class="row">
+                        <span class="item-name">${item.product_name || item.name}</span>
+                        <span class="item-price">NT$${(item.total_price || item.total).toLocaleString()}</span>
+                    </div>
+                    <div class="row small">
+                        <span class="item-details">規格：${item.product_variant || item.variant || '無'}</span>
+                    </div>
+                    <div class="row small">
+                        <span class="item-details">編號：${item.barcode || item.id || '無'}</span>
+                    </div>
+                    <div class="row small">
+                        <span class="item-details">${item.quantity} x NT$${(item.unit_price || item.price).toLocaleString()}</span>
+                    </div>
+                    <div class="line"></div>
+                `;
+            });
+
+            return `
+                <div class="receipt-print">
+                    <div class="header">
+                        <img src="../images/收據LOGO.png" alt="波波 聚 歐洲家居/波蘭陶食器" style="max-width: 220px; height: auto; margin: 0 auto 15px; display: block; border-radius: 4px;">
+                        <p>POPO CHEERS CO., LTD.</p>
+                        <p>統一編號：24708167</p>
+                        <p>地址：高雄市前鎮區永豐路9號1樓</p>
+                        <p>電話：07-717-0089</p>
+                    </div>
+                    
+                    <div class="line"></div>
+                    
+                    <div class="refund-notice">
+                        <strong>退貨單</strong>
+                    </div>
+                    
+                    <div class="row">
+                        <span class="item-name">退貨單號：${refundRecord.refundNumber}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">原收據號：${refundRecord.originalReceiptNumber}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">退貨日期：${refundDate.toLocaleDateString('zh-TW')}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">退貨時間：${refundDate.toLocaleTimeString('zh-TW')}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">處理人員：${refundRecord.processedBy}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">退貨原因：${refundRecord.reason}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">庫存狀況：${refundRecord.restoreInventory ? '已恢復庫存' : '未恢復庫存'}</span>
+                    </div>
+                    
+                    <div class="line"></div>
+                    
+                    ${itemsHtml}
+                    
+                    ${refundRecord.member ? `
+                    <div class="line"></div>
+                    <div class="row">
+                        <span class="item-name">會員資訊</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">會員：${refundRecord.member.name}</span>
+                    </div>
+                    <div class="row">
+                        <span class="item-name">會員編號：${refundRecord.member.id}</span>
+                    </div>
+                    <div class="line"></div>
+                    ` : ''}
+                    
+                    <div class="line"></div>
+                    
+                    <div class="row total">
+                        <span>退款總額</span>
+                        <span>NT$${refundRecord.refundAmount.toLocaleString()}</span>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>退貨處理完成</p>
+                    </div>
+                </div>
+            `;
+        }
+
+
+
+        // 銷售記錄
+
+        let salesHistory = [];
+        let refundHistory = []; // 新增退貨記錄陣列
+        let receiptNumber = parseInt(localStorage.getItem('lastReceiptNumber')) || 1000;
+
+        // 從 Supabase 載入退貨記錄
+        async function loadRefundHistoryFromSupabase() {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return;
+                    }
+                }
+
+                console.log('從 Supabase 載入退貨記錄...');
+
+                // 查詢退貨記錄
+                const { data: refundData, error } = await supabase
+                    .from('refunds')
+                    .select('*')
+                    .order('refund_date', { ascending: false })
+                    .limit(50); // 限制載入最近50筆記錄
+
+                if (error) {
+                    console.error('載入退貨記錄失敗:', error);
+                    return;
+                }
+
+                // 轉換資料格式
+                refundHistory = refundData.map(refund => ({
+                    id: refund.id,
+                    refundNumber: refund.refund_number,
+                    originalReceiptNumber: refund.original_receipt_number,
+                    refundDate: refund.refund_date,
+                    reason: refund.refund_reason,
+                    refundAmount: parseFloat(refund.refund_amount),
+                    processedBy: refund.processed_by,
+                    restoreInventory: refund.restore_inventory,
+                    member_id: refund.member_id,
+                    sale_id: refund.sale_id,
+                    member: null, // 暫時設為 null，稍後載入
+                    items: [] // 暫時設為空陣列，稍後載入
+                }));
+
+                console.log(`成功載入 ${refundHistory.length} 筆退貨記錄`);
+
+            } catch (error) {
+                console.error('載入退貨記錄時發生錯誤:', error);
+            }
+        }
+
+        // 從 Supabase 載入銷售記錄
+        async function loadSalesHistoryFromSupabase() {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return;
+                    }
+                }
+
+                console.log('從 Supabase 載入銷售記錄...');
+
+                // 簡單查詢銷售記錄，避免複雜關聯
+                const { data: salesData, error } = await supabase
+                    .from('sales_history')
+                    .select('*')
+                    .order('sale_date', { ascending: false })
+                    .limit(50); // 限制載入最近50筆記錄
+
+                if (error) {
+                    console.error('載入銷售記錄失敗:', error);
+                    return;
+                }
+
+                // 轉換資料格式
+                salesHistory = salesData.map(sale => ({
+                    id: sale.id, // 添加 ID 欄位
+                    receiptNumber: parseInt(sale.receipt_number),
+                    date: sale.sale_date,
+                    items: [], // 暫時設為空陣列，稍後載入
+                    subtotal: parseFloat(sale.subtotal),
+                    memberDiscount: parseFloat(sale.member_discount),
+                    couponDiscount: parseFloat(sale.coupon_discount),
+                    tax: parseFloat(sale.tax),
+                    total: parseFloat(sale.total_amount),
+                    paymentMethod: sale.payment_method,
+                    receivedAmount: parseFloat(sale.received_amount),
+                    change: parseFloat(sale.change_amount),
+                    cashier: sale.cashier,
+                    member_id: sale.member_id, // 添加會員 ID
+                    coupon_id: sale.coupon_id, // 添加優惠券 ID
+                    member: null, // 暫時設為 null，稍後載入
+                    coupon: null  // 暫時設為 null，稍後載入
+                }));
+
+                console.log(`成功載入 ${salesHistory.length} 筆銷售記錄`);
+                
+                // 更新收據號碼
+                if (salesHistory.length > 0) {
+                    const maxReceiptNumber = Math.max(...salesHistory.map(sale => sale.receiptNumber));
+                    receiptNumber = maxReceiptNumber;
+                    localStorage.setItem('lastReceiptNumber', receiptNumber.toString());
+                }
+
+            } catch (error) {
+                console.error('載入銷售記錄時發生錯誤:', error);
+            }
+        }
+
+        // 載入銷售項目的詳細資料
+        async function loadSalesItems(saleId) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        console.error('Supabase 初始化失敗');
+                        return [];
+                    }
+                }
+
+                const { data: itemsData, error } = await supabase
+                    .from('sales_items')
+                    .select('*')
+                    .eq('sale_id', saleId)
+                    .order('id');
+
+                if (error) {
+                    console.error('載入銷售項目失敗:', error);
+                    return [];
+                }
+
+                return itemsData || [];
+            } catch (error) {
+                console.error('載入銷售項目時發生錯誤:', error);
+                return [];
+            }
+        }
+
+        // 載入會員資料
+        async function loadMemberData(memberId) {
+            try {
+                if (!memberId || !supabase) {
+                    return null;
+                }
+
+                const { data: memberData, error } = await supabase
+                    .from('members')
+                    .select('id, name, phone, email, address')
+                    .eq('id', memberId)
+                    .single();
+
+                if (error) {
+                    console.error('載入會員資料失敗:', error);
+                    return null;
+                }
+
+
+
+                return memberData;
+            } catch (error) {
+                console.error('載入會員資料時發生錯誤:', error);
+                return null;
+            }
+        }
+
+        // 載入優惠券資料
+        async function loadCouponData(couponId) {
+            try {
+                if (!couponId || !supabase) {
+                    return null;
+                }
+
+                const { data: couponData, error } = await supabase
+                    .from('coupons')
+                    .select('id, code, name, type, discount_value')
+                    .eq('id', couponId)
+                    .single();
+
+                if (error) {
+                    console.error('載入優惠券資料失敗:', error);
+                    return null;
+                }
+
+                return couponData;
+            } catch (error) {
+                console.error('載入優惠券資料時發生錯誤:', error);
+                return null;
+            }
+        }
+
+        // 頁面載入時自動載入銷售記錄
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSalesHistoryFromSupabase();
+        });
+
+
+
+
+
+
+        // 結帳功能
+
+        function checkout(paymentMethod) {
+
+            if (cart.length === 0) {
+
+                alert('購物車是空的，請先添加商品');
+
+                return;
+
+            }
+
+
+
+            // 計算總額
+
+            const totals = updateTotals();
+
+            const items = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+            
+            
+            // 準備結帳確認訊息
+
+            let confirmMessage = `確認結帳嗎？\n\n`;
+
+            
+            
+            // 如果有會員登入，顯示會員資訊
+
+            if (currentMember) {
+
+                confirmMessage += `會員：${currentMember.name}\n\n`;
+            }
+
+            
+            
+            confirmMessage += `商品數量：${items} 件\n` +
+
+                `小計：NT$${totals.subtotal.toLocaleString()}\n`;
+                
+            
+            
+            if (totals.couponDiscount > 0) {
+
+                confirmMessage += `優惠券：-NT$${totals.couponDiscount.toLocaleString()}\n`;
+
+            }
+
+            
+            
+            confirmMessage += `總金額：NT$${totals.total.toLocaleString()}\n` +
+
+                `付款方式：${paymentMethod}`;
+
+
+
+            if (confirm(confirmMessage)) {
+
+                // 處理付款
+
+                if (paymentMethod === '現金') {
+
+                    processCashPayment(totals.total);
+
+                } else {
+
+                    processCardPayment(paymentMethod, totals.total);
+
+                }
+
+            }
+
+        }
+
+
+
+        // 現金付款處理
+
+        async function processCashPayment(total) {
+
+            const receivedAmount = prompt(`總金額：NT$${total.toLocaleString()}\n請輸入收到金額：`);
+
+            
+            
+            if (receivedAmount === null) return; // 用戶取消
+
+            
+            
+            const received = parseFloat(receivedAmount);
+
+            
+            
+            if (isNaN(received) || received < total) {
+
+                alert('收到金額不足或格式錯誤');
+
+                return;
+
+            }
+
+            
+            
+            const change = received - total;
+
+            
+            
+            if (change > 0) {
+
+                alert(`找零：NT$${change.toLocaleString()}`);
+
+            }
+            
+            
+            
+            await completeSale('現金', total, received, change);
+
+        }
+
+
+
+        // 卡片/行動支付處理
+
+        async function processCardPayment(paymentMethod, total) {
+
+            // 模擬卡片處理
+
+            const processing = confirm(`${paymentMethod}付款\n金額：NT$${total.toLocaleString()}\n\n請進行付款操作`);
+
+            
+            
+            if (processing) {
+
+                // 模擬處理時間
+
+                setTimeout(async () => {
+
+                    // 移除隨機失敗機制，確保付款成功
+
+                    alert('結帳完成！');
+
+                    await completeSale(paymentMethod, total, total, 0);
+
+                }, 1000);
+
+            }
+
+        }
+
+
+
+        // 完成銷售
+
+        async function completeSale(paymentMethod, total, received, change) {
+
+            // 生成唯一的收據號碼
+            const uniqueReceiptNumber = await generateUniqueReceiptNumber();
+            if (!uniqueReceiptNumber) {
+                alert('無法生成收據號碼，銷售失敗');
+                return;
+            }
+            
+            // 更新本地收據號碼
+            receiptNumber = uniqueReceiptNumber;
+            
+            // 計算總額詳情
+
+            const totals = updateTotals();
+            
+            
+
+            // 更新會員消費記錄
+            let memberInfo = null;
+
+            if (currentMember) {
+
+                currentMember.totalSpent += total;
+                memberInfo = {
+
+                    id: currentMember.id,
+
+                    name: currentMember.name
+
+                };
+
+            }
+
+            
+            
+            // 處理優惠券使用
+
+            let couponInfo = null;
+
+            if (currentCoupon) {
+
+                couponInfo = {
+
+                    id: currentCoupon.id,
+
+                    code: currentCoupon.code,
+
+                    name: currentCoupon.name,
+
+                    type: currentCoupon.type,
+
+                    discountValue: currentCoupon.discountValue,
+
+                    discountAmount: totals.couponDiscount
+
+                };
+
+                
+                
+                // 增加優惠券使用次數
+
+                if (window.useCoupon) {
+
+                    window.useCoupon(currentCoupon.code);
+
+                }
+
+            }
+
+
+
+            // 創建銷售記錄
+
+            const saleRecord = {
+
+                receiptNumber: receiptNumber,
+
+                date: new Date().toISOString(),
+
+                items: cart.map(item => ({...item})),
+
+                subtotal: totals.subtotal,
+
+                memberDiscount: 0,
+                couponDiscount: totals.couponDiscount,
+
+                tax: 0,
+
+                total: total,
+
+                paymentMethod: paymentMethod,
+
+                receivedAmount: received,
+
+                change: change,
+
+                cashier: getCurrentEmployeeName(),
+                employeeId: getCurrentEmployeeId(),
+
+                member: memberInfo,
+
+                coupon: couponInfo
+
+            };
+
+
+
+            // 保存到歷史記錄
+
+            salesHistory.unshift(saleRecord);
+
+            
+            
+            // 只保留最近100筆記錄
+
+            if (salesHistory.length > 100) {
+
+                salesHistory = salesHistory.slice(0, 100);
+
+            }
+
+            
+            
+            localStorage.setItem('salesHistory', JSON.stringify(salesHistory));
+
+            localStorage.setItem('lastReceiptNumber', receiptNumber.toString());
+
+            
+
+            // 上傳銷售記錄到 Supabase
+            try {
+                const uploadSuccess = await uploadSalesRecordToSupabase(saleRecord);
+                if (uploadSuccess) {
+                    console.log('銷售記錄已成功上傳到 Supabase');
+                    
+                    // 更新庫存
+                    const inventoryUpdateSuccess = await updateInventoryAfterSale(saleRecord.items, saleRecord.receiptNumber);
+                    if (inventoryUpdateSuccess) {
+                        console.log('庫存已成功更新');
+                    } else {
+                        console.warn('庫存更新失敗，請手動檢查');
+                        alert('銷售完成，但庫存更新失敗。請檢查庫存狀況。');
+                    }
+                    
+                    // 重新載入銷售記錄以顯示最新資料
+                    await loadSalesHistoryFromSupabase();
+                } else {
+                    console.warn('銷售記錄上傳到 Supabase 失敗，但本地記錄已保存');
+                    alert('銷售記錄上傳失敗，但本地記錄已保存。請檢查網路連線。');
+                }
+            } catch (error) {
+                console.error('上傳銷售記錄時發生錯誤:', error);
+                alert('銷售記錄上傳時發生錯誤，但本地記錄已保存。');
+            }
+
+
+
+
+
+
+            // 顯示收據
+
+            showReceipt(saleRecord);
+
+            
+            
+            // 清空購物車和優惠券
+
+            cart = [];
+
+            currentCoupon = null;
+
+            hideAppliedCoupon();
+
+            document.getElementById('couponInput').value = '';
+
+            updateCartDisplay();
+
+            updateCartItemCount();
+            
+            // 自動登出會員
+            if (currentMember) {
+                console.log('結帳完成，自動登出會員:', currentMember.name);
+                currentMember = null;
+                updateMemberDisplay();
+                updateCartDisplay(); // 移除會員價格
+            }
+        }
+
+
+
+        // 顯示收據
+
+        function showReceipt(saleRecord) {
+
+            const receiptContent = generateReceiptContent(saleRecord);
+
+            
+            
+            // 創建收據視窗
+
+            const receiptWindow = window.open('', '_blank', 'width=400,height=600,scrollbars=yes');
+
+            receiptWindow.document.write(`
+
+                <!DOCTYPE html>
+
+                <html>
+
+                <head>
+
+                    <title>收據 #${saleRecord.receiptNumber}</title>
+
+                    <style>
+
+                        body { 
+                            font-family: 'Courier New', 'Microsoft JhengHei', monospace; 
+                            font-size: 16px; 
+                            line-height: 1.5;
+                            margin: 20px; 
+                            background: white;
+                        }
+
+                        .receipt-print { 
+                            max-width: 300px; 
+                            margin: 0 auto; 
+                            padding: 12px;
+                            transform: scale(1.25);
+                            transform-origin: top center;
+                            margin-bottom: 50px;
+                        }
+
+                        .receipt-print .header { 
+                            text-align: center; 
+                            margin-bottom: 18px; 
+                            border-bottom: 3px solid #000; 
+                            padding-bottom: 12px; 
+                        }
+
+                        .receipt-print .header h2 {
+                            font-size: 20px;
+                            font-weight: bold;
+                            margin: 8px 0;
+                            letter-spacing: 1px;
+                        }
+
+                        .receipt-print .header p {
+                            font-size: 15px;
+                            margin: 5px 0;
+                            line-height: 1.4;
+                        }
+
+                        .receipt-print .line { 
+                            border-bottom: 2px dashed #000; 
+                            margin: 10px 0; 
+                        }
+
+                        .receipt-print .row { 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: flex-start;
+                            margin: 8px 0; 
+                            font-size: 15px;
+                            line-height: 1.4;
+                        }
+
+                        .receipt-print .row.small { 
+                            font-size: 14px; 
+                            color: #333; 
+                            margin: 4px 0; 
+                            padding-left: 12px; 
+                        }
+
+                        .receipt-print .total { 
+                            font-weight: bold; 
+                            font-size: 18px; 
+                            border-top: 2px solid #000; 
+                            padding-top: 10px; 
+                            margin-top: 12px; 
+                        }
+
+                        .receipt-print .item-name {
+                            font-size: 15px;
+                            font-weight: bold;
+                            line-height: 1.4;
+                            word-break: break-all;
+                            flex: 1;
+                            margin-right: 12px;
+                        }
+
+                        .receipt-print .item-price {
+                            font-size: 15px;
+                            text-align: right;
+                            white-space: nowrap;
+                        }
+
+                        .receipt-print .item-details {
+                            font-size: 13px;
+                            color: #555;
+                            margin-left: 18px;
+                            line-height: 1.3;
+                        }
+
+                        .receipt-print .footer {
+                            text-align: center;
+                            margin-top: 18px;
+                            font-size: 14px;
+                            color: #666;
+                            border-top: 2px dashed #000;
+                            padding-top: 12px;
+                        }
+
+                        .receipt-print .refund-title {
+                            color: #d32f2f !important;
+                            border: 3px solid #d32f2f;
+                            padding: 8px 12px;
+                            margin: 12px 0;
+                            border-radius: 8px;
+                            background: rgba(211, 47, 47, 0.1);
+                            font-size: 22px;
+                        }
+
+                        .receipt-print .refund-notice {
+                            background: #ffebee;
+                            border: 2px solid #d32f2f;
+                            padding: 10px;
+                            margin: 12px 0;
+                            border-radius: 8px;
+                            font-size: 16px;
+                            color: #d32f2f;
+                            text-align: center;
+                            font-weight: bold;
+                        }
+
+                        @media print { 
+                            body { 
+                                margin: 0; 
+                                padding: 0;
+                                width: 58mm;
+                                background: white;
+                            }
+                            .receipt-print {
+                                width: 58mm;
+                                max-width: none;
+                                box-shadow: none;
+                                border: none;
+                                transform: scale(1.25);
+                                transform-origin: top center;
+                            }
+                            .receipt-print * {
+                                -webkit-print-color-adjust: exact;
+                                color-adjust: exact;
+                            }
+                        }
+
+                    </style>
+
+                </head>
+
+                <body>
+
+                    ${receiptContent}
+
+                    <div style="text-align: center; margin-top: 150px; padding: 30px; border-top: 1px solid #ccc;">
+
+                        <button onclick="window.print()" style="margin: 0 10px; padding: 10px 20px; background: #17225e; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">列印收據</button>
+
+                        <button onclick="window.close()" style="margin: 0 10px; padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">關閉</button>
+
+                    </div>
+
+                </body>
+
+                </html>
+
+            `);
+
+            receiptWindow.document.close();
+
+        }
+
+
+
+        // 生成收據內容
+
+        function generateReceiptContent(saleRecord) {
+
+            const saleDate = new Date(saleRecord.date);
+
+            
+            
+            let itemsHtml = '';
+
+            // 處理從 Supabase 載入的資料格式
+            const items = Array.isArray(saleRecord.items) ? saleRecord.items : [];
+            
+            items.forEach(item => {
+
+                itemsHtml += `
+
+                    <div class="row">
+
+                        <span class="item-name">${item.product_name || item.name}</span>
+
+                        <span class="item-price">NT$${(item.total_price || item.total).toLocaleString()}</span>
+
+                    </div>
+
+                    <div class="row small">
+
+                        <span class="item-details">規格：${item.product_variant || item.variant || '無'}</span>
+
+                    </div>
+
+                    <div class="row small">
+
+                        <span class="item-details">編號：${item.barcode || item.id || '無'}</span>
+
+                    </div>
+
+                    <div class="row small">
+
+                        <span class="item-details">${item.quantity} x NT$${(item.unit_price || item.price).toLocaleString()}</span>
+
+                    </div>
+
+                    <div class="line"></div>
+
+                `;
+
+            });
+
+
+
+            return `
+
+                <div class="receipt-print">
+
+                    <div class="header">
+
+                        <img src="../images/收據LOGO.png" alt="波波 聚 歐洲家居/波蘭陶食器" style="max-width: 220px; height: auto; margin: 0 auto 15px; display: block; border-radius: 4px;">
+
+                        <p>POPO CHEERS CO., LTD.</p>
+
+                        <p>統一編號：24708167</p>
+
+                        <p>地址：高雄市前鎮區永豐路9號1樓</p>
+
+                        <p>電話：07-717-0089</p>
+
+                    </div>
+
+                    
+                    
+                    <div class="line"></div>
+
+                    
+                    
+                    <div class="row">
+
+                        <span class="item-name">收據編號：${saleRecord.receiptNumber}</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">日期：${saleDate.toLocaleDateString('zh-TW')}</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">時間：${saleDate.toLocaleTimeString('zh-TW')}</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">收銀員：${saleRecord.cashier}</span>
+
+                    </div>
+
+                    
+                    
+                    <div class="line"></div>
+
+                    
+                    
+                    ${itemsHtml}
+
+                    
+                    
+                    <div class="row">
+
+                        <span class="item-name">小計</span>
+
+                        <span class="item-price">NT$${saleRecord.subtotal.toLocaleString()}</span>
+
+                    </div>
+
+                    
+                    
+                    ${saleRecord.member ? `
+
+                    <div class="line"></div>
+
+                    <div class="row">
+
+                        <span class="item-name">會員資訊</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">會員：${saleRecord.member.name}</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">會員編號：${saleRecord.member.id}</span>
+
+                    </div>
+
+                    <div class="line"></div>
+                    
+                    ` : ''}
+                    
+                    
+
+
+                    
+                    
+                    ${saleRecord.coupon ? `
+
+                    <div class="line"></div>
+
+                    <div class="row">
+
+                        <span class="item-name">優惠券資訊</span>
+
+                    </div>
+                    
+                    <div class="row">
+
+                        <span class="item-name">優惠券：${saleRecord.coupon.code} (${saleRecord.coupon.name})</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">折扣金額</span>
+
+                        <span class="item-price">-NT$${saleRecord.couponDiscount.toLocaleString()}</span>
+
+                    </div>
+
+                    <div class="line"></div>
+                    
+                    ` : ''}
+
+                    
+
+
+                    
+
+                    
+                    <div class="line"></div>
+
+                    
+                    
+                    <div class="row total">
+
+                        <span>總計</span>
+
+                        <span>NT$${saleRecord.total.toLocaleString()}</span>
+
+                    </div>
+
+                    
+                    
+                    <div class="row">
+
+                        <span class="item-name">付款方式</span>
+
+                        <span class="item-price">${saleRecord.paymentMethod}</span>
+
+                    </div>
+
+                    
+                    
+                    ${saleRecord.paymentMethod === '現金' ? `
+
+                    <div class="row">
+
+                        <span class="item-name">收到金額</span>
+
+                        <span class="item-price">NT$${saleRecord.receivedAmount.toLocaleString()}</span>
+
+                    </div>
+
+                    <div class="row">
+
+                        <span class="item-name">找零</span>
+
+                        <span class="item-price">NT$${saleRecord.change.toLocaleString()}</span>
+
+                    </div>
+
+                    ` : ''}
+
+                    
+                    
+                    <div class="line"></div>
+
+                    
+                    
+                    <div class="footer">
+
+                        <p>謝謝光臨！</p>
+
+                        <p>歡迎再次蒞臨</p>
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+
+
+
+        // 顯示銷售記錄
+
+        async function showSalesHistory() {
+            // 重新載入銷售和退貨記錄
+            await loadSalesHistoryFromSupabase();
+            await loadRefundHistoryFromSupabase();
+
+            if (salesHistory.length === 0 && refundHistory.length === 0) {
+                alert('目前沒有交易記錄');
+                return;
+            }
+
+            let historyHtml = '<h3>交易記錄</h3><table border="1" cellpadding="5" cellspacing="0">';
+            historyHtml += '<tr><th>單據號</th><th>類型</th><th>日期</th><th>金額</th><th>狀態</th><th>操作</th></tr>';
+            
+            // 合併銷售和退貨記錄，按日期排序
+            let allRecords = [];
+            
+            // 添加銷售記錄
+            for (const record of salesHistory.slice(0, 20)) {
+                // 檢查該銷售記錄是否有退貨（添加錯誤處理）
+                let hasRefund = false;
+                let refundCount = 0;
+                
+                try {
+                    const existingRefunds = await checkRefundStatus(record.id);
+                    hasRefund = existingRefunds && existingRefunds.length > 0;
+                    refundCount = hasRefund ? existingRefunds.length : 0;
+                } catch (refundError) {
+                    console.error(`檢查銷售記錄 ${record.receiptNumber} 退貨狀態時發生錯誤:`, refundError);
+                    // 不影響主要流程，設為未退貨
+                    hasRefund = false;
+                    refundCount = 0;
+                }
+                
+                allRecords.push({
+                    ...record,
+                    type: '銷售',
+                    recordType: 'sale',
+                    displayNumber: record.receiptNumber,
+                    displayDate: record.date,
+                    displayAmount: record.total,
+                    displayStatus: hasRefund ? '已退貨' : '完成',
+                    hasRefund: hasRefund,
+                    refundCount: refundCount
+                });
+            }
+            
+            // 添加退貨記錄
+            refundHistory.slice(0, 20).forEach(record => {
+                allRecords.push({
+                    ...record,
+                    type: '退貨',
+                    recordType: 'refund',
+                    displayNumber: record.refundNumber,
+                    displayDate: record.refundDate,
+                    displayAmount: record.refundAmount,
+                    displayStatus: '完成'
+                });
+            });
+            
+            // 按日期排序（最新的在前）
+            allRecords.sort((a, b) => new Date(b.displayDate) - new Date(a.displayDate));
+            
+            // 顯示記錄
+            allRecords.slice(0, 30).forEach(record => {
+                const date = new Date(record.displayDate).toLocaleDateString('zh-TW');
+                const amountColor = record.type === '退貨' ? 'color: #d32f2f;' : '';
+                const typeColor = record.type === '退貨' ? 'background-color: #ffebee;' : 'background-color: #e8f5e8;';
+                
+                // 為已退貨的銷售記錄添加特殊樣式
+                let rowStyle = '';
+                let statusStyle = '';
+                let statusText = record.displayStatus;
+                
+                if (record.type === '銷售' && record.hasRefund) {
+                    rowStyle = 'background-color: #fff3cd; border-left: 4px solid #ffc107;';
+                    statusStyle = 'color: #856404; font-weight: bold;';
+                    statusText = `已退貨 (${record.refundCount}筆)`;
+                } else if (record.type === '退貨') {
+                    statusStyle = 'color: #d32f2f; font-weight: bold;';
+                }
+                
+                historyHtml += `<tr style="${rowStyle}">
+                    <td>${record.displayNumber}</td>
+                    <td style="${typeColor}">${record.type}</td>
+                    <td>${date}</td>
+                    <td style="${amountColor}">NT$${record.displayAmount.toLocaleString()}</td>
+                    <td style="${statusStyle}">${statusText}</td>
+                    <td><button onclick="window.opener.showTransactionDetail('${record.recordType}', '${record.displayNumber}')">查看</button></td>
+                </tr>`;
+            });
+            
+            historyHtml += '</table>';
+            
+            const historyWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+            historyWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>交易記錄</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th { background-color: #f0f0f0; padding: 8px; text-align: left; }
+                        td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+                                button { background-color: #17225e; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #1a2a6e; }
+                        .refund-row { background-color: #ffebee; }
+                        .sale-row { background-color: #e8f5e8; }
+                    </style>
+                </head>
+                <body>
+                    ${historyHtml}
+                    <div style="margin-top: 20px;">
+                        <button onclick="window.close()">關閉</button>
+                    </div>
+                </body>
+                </html>
+            `);
+            historyWindow.document.close();
+        }
+
+
+
+        // 查看交易詳情（銷售或退貨）
+        async function showTransactionDetail(recordType, recordNumber) {
+            if (recordType === 'sale') {
+                await showReceiptDetail(recordNumber);
+            } else if (recordType === 'refund') {
+                await showRefundDetail(recordNumber);
+            }
+        }
+
+        // 查看退貨詳情
+        async function showRefundDetail(refundNumber) {
+            // 重新載入退貨記錄以確保資料最新
+            await loadRefundHistoryFromSupabase();
+
+            const record = refundHistory.find(refund => refund.refundNumber === refundNumber);
+
+            if (record) {
+                // 載入詳細資料
+                const refundId = record.id;
+                
+                // 解析退貨商品明細
+                try {
+                    if (record.refund_items) {
+                        record.items = JSON.parse(record.refund_items);
+                    } else {
+                        record.items = [];
+                    }
+                } catch (error) {
+                    console.error('解析退貨商品明細失敗:', error);
+                    record.items = [];
+                }
+
+                // 載入會員資料
+                if (record.member_id) {
+                    record.member = await loadMemberData(record.member_id);
+                }
+
+                // 生成退貨單
+                generateRefundReceipt(record);
+
+            } else {
+                alert('找不到對應的退貨記錄');
+            }
+        }
+
+        // 查看收據詳情
+
+        async function showReceiptDetail(receiptNumber) {
+            try {
+                // 重新載入銷售記錄以確保資料最新
+                await loadSalesHistoryFromSupabase();
+
+                // 將 receiptNumber 轉換為數字進行比較
+                const receiptNumberInt = parseInt(receiptNumber);
+                console.log('查找收據號碼:', receiptNumber, '轉換為:', receiptNumberInt);
+                console.log('可用的銷售記錄:', salesHistory.map(sale => sale.receiptNumber));
+
+                // 使用更靈活的比較邏輯
+                const record = salesHistory.find(sale => 
+                    sale.receiptNumber === receiptNumberInt || 
+                    sale.receiptNumber === parseInt(receiptNumber) ||
+                    sale.receiptNumber.toString() === receiptNumber.toString()
+                );
+
+            if (record) {
+                    console.log('找到銷售記錄:', record);
+                    // 載入詳細資料
+                    const saleId = record.id || record.receiptNumber;
+                    
+                    // 載入銷售項目
+                    const items = await loadSalesItems(saleId);
+                    record.items = items;
+
+                    // 載入會員資料
+                    if (record.member_id) {
+                        record.member = await loadMemberData(record.member_id);
+                    }
+
+                    // 載入優惠券資料
+                    if (record.coupon_id) {
+                        record.coupon = await loadCouponData(record.coupon_id);
+                    }
+
+                    // 檢查是否有退貨記錄（添加錯誤處理）
+                    try {
+                        const existingRefunds = await checkRefundStatus(record.id);
+                        if (existingRefunds && existingRefunds.length > 0) {
+                            record.hasRefund = true;
+                            record.refunds = existingRefunds;
+                        }
+                    } catch (refundError) {
+                        console.error('檢查退貨狀態時發生錯誤:', refundError);
+                        // 不影響主要流程，繼續顯示銷售收據
+                        record.hasRefund = false;
+                        record.refunds = [];
+                    }
+
+                showReceipt(record);
+
+                } else {
+                    console.error('找不到銷售記錄，詳細資訊:');
+                    console.error('查找的收據號碼:', receiptNumber, '類型:', typeof receiptNumber);
+                    console.error('轉換後的號碼:', receiptNumberInt, '類型:', typeof receiptNumberInt);
+                    console.error('所有可用的收據號碼:', salesHistory.map(sale => ({ 
+                        receiptNumber: sale.receiptNumber, 
+                        type: typeof sale.receiptNumber 
+                    })));
+                    
+                    // 嘗試備用查找方法
+                    const backupRecord = salesHistory.find(sale => 
+                        sale.receiptNumber.toString() === receiptNumber.toString()
+                    );
+                    
+                    if (backupRecord) {
+                        console.log('使用備用方法找到記錄:', backupRecord);
+                        // 遞歸調用，但使用正確的數字格式
+                        await showReceiptDetail(backupRecord.receiptNumber.toString());
+                        return;
+                    }
+                    
+                    alert('找不到對應的銷售記錄');
+                }
+            } catch (error) {
+                console.error('顯示收據詳情時發生錯誤:', error);
+                alert('顯示收據詳情時發生錯誤，請重試');
+            }
+        }
+
+
+
+        // 今日銷售統計
+
+        function getTodayStatistics() {
+
+            const today = new Date().toDateString();
+
+            const todaySales = salesHistory.filter(sale => 
+
+                new Date(sale.date).toDateString() === today
+
+            );
+
+            
+            
+            const todayTotal = todaySales.reduce((sum, sale) => sum + sale.total, 0);
+
+            const todayCount = todaySales.length;
+
+            
+            
+            return {
+
+                count: todayCount,
+
+                total: todayTotal,
+
+                sales: todaySales
+
+            };
+
+        }
+
+
+
+        // 清空購物車（改進版）
+
+        function clearCart() {
+
+            if (cart.length > 0) {
+
+                if (confirm('確定要清空購物車嗎？')) {
+
+                    cart = [];
+
+                    updateCartDisplay();
+
+                    updateCartItemCount();
+                    alert('購物車已清空');
+
+                }
+
+            } else {
+
+                alert('購物車已經是空的');
+
+            }
+
+        }
+
+
+
+        // 更新購物車商品數量顯示
+
+        function updateCartItemCount() {
+
+            const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+            const cartItemCountElement = document.getElementById('cartItemCount');
+            if (cartItemCountElement) {
+                cartItemCountElement.textContent = `共 ${itemCount} 項商品`;
+            }
+
+        }
+
+
+
+        // 重寫更新購物車顯示功能
+
+        function updateCartDisplay() {
+
+            const cartContainer = document.getElementById('cartItems');
+            if (!cartContainer) return;
+
+
+
+            if (cart.length === 0) {
+
+                cartContainer.innerHTML = `
+
+                    <div class="text-center text-gray-500 py-8">
+
+                        <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+
+                        <p>購物車是空的</p>
+
+                        <p class="text-sm">掃描商品條碼或選擇熱銷商品開始銷售</p>
+
+                    </div>
+
+                `;
+
+                updateTotals();
+
+                updateCartItemCount();
+
+                return;
+
+            }
+
+
+
+            cartContainer.innerHTML = cart.map((item, index) => {
+                const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+                const discountAmount = hasDiscount ? item.originalPrice - item.price : 0;
+                const discountPercentage = hasDiscount ? Math.round((discountAmount / item.originalPrice) * 100) : 0;
+                
+                return `
+                    <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg ${hasDiscount ? 'bg-green-50 border-green-200' : ''}">
+                    <img src="${item.image}" alt="${item.name}" class="w-16 h-16 rounded-lg object-cover">
+
+                    <div class="flex-1">
+
+                        <h4 class="font-semibold text-gray-800">${item.name}</h4>
+
+                        <p class="text-sm text-[#17225e] font-medium">規格：${item.variant}</p>
+
+                        <p class="text-sm text-gray-600">條碼：${item.barcode}</p>
+
+                        <p class="text-sm text-gray-500">商品編號：${item.id}</p>
+
+                        <p class="text-sm ${item.stock <= 10 ? 'text-red-500' : 'text-gray-500'}">
+
+                            庫存：${item.stock} 件${item.stock <= 10 ? '（低庫存）' : ''}
+
+                            </p>
+                            ${hasDiscount ? `
+                            <div class="mt-2 p-2 bg-green-100 rounded-lg">
+                                <p class="text-sm text-green-800 font-medium">
+                                    <i class="fas fa-tag mr-1"></i>折扣 ${discountPercentage}% (-NT$${discountAmount.toLocaleString()})
+                        </p>
+
+                    </div>
+                            ` : ''}
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+
+                        <button class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200" onclick="changeQuantity(${index}, -1)">
+
+                            <i class="fas fa-minus text-sm"></i>
+
+                        </button>
+
+                        <span class="font-semibold w-8 text-center">${item.quantity}</span>
+
+                        <button class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200" onclick="changeQuantity(${index}, 1)">
+
+                            <i class="fas fa-plus text-sm"></i>
+
+                        </button>
+
+                    </div>
+
+                    <div class="text-right">
+
+                            ${hasDiscount ? `
+                            <p class="text-sm text-gray-500 line-through">原價：NT$${item.originalPrice.toLocaleString()}</p>
+                            <p class="text-sm text-green-600 font-medium">折扣價：NT$${item.price.toLocaleString()}</p>
+                            ` : `
+                        <p class="text-sm text-gray-600">單價：NT$${item.price.toLocaleString()}</p>
+
+                            `}
+                        <p class="font-bold text-orange-600">NT$${item.total.toLocaleString()}</p>
+
+                    </div>
+
+                    <button class="text-red-500 hover:text-red-700 p-2" onclick="removeFromCart(${index})">
+
+                        <i class="fas fa-trash"></i>
+
+                    </button>
+
+                </div>
+
+                `;
+            }).join('');
+
+
+            updateTotals();
+
+            updateCartItemCount();
+
+        }
+
+
+
+
+
+
+
+        // 檢查當前員工
+
+        function checkCurrentEmployee() {
+
+            const savedEmployee = localStorage.getItem('currentEmployee');
+
+            if (savedEmployee) {
+
+                const employee = JSON.parse(savedEmployee);
+
+                document.getElementById('currentCashier').textContent = employee.name;
+
+                return employee;
+
+            }
+
+            return null;
+
+        }
+
+        // 獲取當前員工姓名
+
+        function getCurrentEmployeeName() {
+
+            const employee = checkCurrentEmployee();
+
+            return employee ? employee.name : '未登入';
+
+        }
+
+        // 獲取當前員工ID
+
+        function getCurrentEmployeeId() {
+
+            const employee = checkCurrentEmployee();
+
+            return employee ? employee.id : null;
+
+        }
+
+
+
+        // 頁面初始化
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            updateCartDisplay();
+
+            updateCartItemCount();
+
+            updateMemberDisplay();
+
+            checkCurrentEmployee();
+
+            
+            
+            // 生成新訂單編號
+
+            const now = new Date();
+
+            const orderNum = now.getFullYear().toString() + 
+
+                           (now.getMonth() + 1).toString().padStart(2, '0') + 
+
+                           now.getDate().toString().padStart(2, '0') + 
+
+                           Math.floor(Math.random() * 100).toString().padStart(2, '0');
+
+            document.getElementById('orderNumber').textContent = orderNum;
+
+            
+
+
+
+            
+
+            
+
+        });
+
+
+
+        // 統一導航函數
+
+        function navigateToPage(page) {
+
+            try {
+
+                // 嘗試與父頁面通信切換iframe
+
+                if (window.parent && window.parent !== window) {
+
+                    window.parent.postMessage({
+
+                        type: 'navigate',
+
+                        page: page
+
+                    }, '*');
+
+                } else {
+
+                    // 如果不在iframe中，直接跳轉
+
+                    window.location.href = `${page}.html`;
+
+                }
+
+            } catch (error) {
+
+                // 備用方案：在新分頁中開啟
+
+                window.open(`${page}.html`, '_blank');
+
+            }
+
+        }
+
+
+
+        
+
+
+
+        // 回到主頁面
+
+        function goBackToMenu() {
+
+            window.location.href = '../index.html';
+
+        }
+
+        // 測試結帳上傳功能
+        async function testCheckoutUpload() {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        alert('Supabase 初始化失敗');
+                        return;
+                    }
+                }
+
+                console.log('開始測試結帳上傳功能...');
+
+                // 模擬購物車資料
+                const testCart = [
+                    {
+                        name: '測試商品1',
+                        variant: '紅色',
+                        barcode: 'TEST001',
+                        price: 100,
+                        quantity: 2,
+                        total: 200,
+                        discountAmount: 0,
+                        discountPercentage: 0
+                    },
+                    {
+                        name: '測試商品2',
+                        variant: '藍色',
+                        barcode: 'TEST002',
+                        price: 150,
+                        quantity: 1,
+                        total: 150,
+                        discountAmount: 0,
+                        discountPercentage: 0
+                    }
+                ];
+
+                // 生成唯一收據號碼
+                const uniqueReceiptNumber = await generateUniqueReceiptNumber();
+                if (!uniqueReceiptNumber) {
+                    alert('無法生成收據號碼，測試失敗');
+                    return;
+                }
+
+                // 創建測試銷售記錄
+                const testSaleRecord = {
+                    receiptNumber: uniqueReceiptNumber,
+                    date: new Date().toISOString(),
+                    items: testCart,
+                    subtotal: 350,
+                    memberDiscount: 0,
+                    couponDiscount: 0,
+                    tax: 0,
+                    total: 350,
+                    paymentMethod: '現金',
+                    receivedAmount: 400,
+                    change: 50,
+                    cashier: getCurrentEmployeeName(),
+                    member: null,
+                    coupon: null
+                };
+
+                console.log('測試銷售記錄:', testSaleRecord);
+
+                // 上傳測試記錄
+                const success = await uploadSalesRecordToSupabase(testSaleRecord);
+                
+                if (success) {
+                    alert(`測試結帳上傳成功！\n收據號碼：${uniqueReceiptNumber}\n總金額：NT$${testSaleRecord.total}\n請檢查 Supabase 資料庫確認記錄已建立。`);
+                    
+                    // 重新載入銷售記錄
+                    await loadSalesHistoryFromSupabase();
+                    console.log('銷售記錄已重新載入');
+                } else {
+                    alert('測試結帳上傳失敗，請檢查控制台錯誤訊息。');
+                }
+            } catch (error) {
+                console.error('測試結帳上傳時發生錯誤:', error);
+                alert(`測試結帳上傳時發生錯誤: ${error.message}`);
+            }
+        }
+
+        // 基本會員查詢測試
+        async function testBasicMemberQuery() {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        alert('Supabase 初始化失敗');
+                        return;
+                    }
+                }
+
+                console.log('開始測試會員查詢...');
+
+                // 測試查詢會員資料表
+                const { data: members, error } = await supabase
+                    .from('members')
+                    .select('*')
+                    .limit(5);
+
+                console.log('會員查詢結果:', members, error);
+
+                if (error) {
+                    console.error('會員查詢錯誤:', error);
+                    alert(`會員查詢測試失敗: ${error.message}\n\n錯誤詳情: ${JSON.stringify(error, null, 2)}`);
+                } else {
+                    if (members && members.length > 0) {
+                        let memberList = '找到以下會員：\n\n';
+                        members.forEach((member, index) => {
+                            memberList += `${index + 1}. ID: ${member.id} (類型: ${typeof member.id})\n   姓名: ${member.name}\n   電話: ${member.phone}\n   電子郵件: ${member.email || '無'}\n   地址: ${member.address || '無'}\n\n`;
+                        });
+                        alert(memberList);
+                    } else {
+                        alert('會員資料表中沒有資料，請先在會員管理頁面新增會員。');
+                    }
+                }
+            } catch (error) {
+                console.error('測試會員查詢時發生錯誤:', error);
+                alert(`測試會員查詢時發生錯誤: ${error.message}\n\n錯誤詳情: ${JSON.stringify(error, null, 2)}`);
+            }
+        }
+
+    </script>
+
+</body>
+
+</html> 

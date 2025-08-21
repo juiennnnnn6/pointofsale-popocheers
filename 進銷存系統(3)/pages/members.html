@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../employee-auth.js"></script>
+    <script src="auth-check.js"></script>
+    <script src="../database.js"></script>
+    <script>
+        // 簡單的認證檢查測試
+        console.log('=== members.html 腳本載入測試 ===');
+        console.log('employee-auth.js 是否載入:', typeof EmployeeAuth !== 'undefined');
+        console.log('auth-check.js 是否載入:', typeof checkAuthentication !== 'undefined');
+        console.log('database.js 是否載入:', typeof BusinessAPI !== 'undefined');
+    </script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .member-card {
+            transition: all 0.3s ease;
+        }
+        .member-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .modal {
+            backdrop-filter: blur(5px);
+        }
+        .member-avatar {
+            background: linear-gradient(135deg, #17225e 0%, #1a2a6e 100%);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">會員管理</h1>
+                <p class="text-gray-600">新增、編輯和管理會員資料</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="showAddMemberModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-user-plus mr-2"></i>新增會員
+                </button>
+                <button onclick="exportMembers()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-file-export mr-2"></i>匯出會員
+                </button>
+                <button onclick="showImportModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-file-import mr-2"></i>匯入會員
+                </button>
+                <button onclick="showBatchDeleteModal()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-colors">
+                    <i class="fas fa-trash mr-2"></i>批量刪除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 會員統計卡片 -->
+    <!-- 搜索和篩選區 -->
+    <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+            <!-- 總會員數 -->
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users text-[#17225e]"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">總會員數</p>
+                        <p class="text-2xl font-bold text-[#17225e]" id="totalMembers">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="搜索會員姓名、電話或郵箱..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="performSearch()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-search mr-2"></i>搜索
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleViewMode('grid')" id="gridViewBtn" class="bg-[#17225e] text-white px-3 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button onclick="toggleViewMode('list')" id="listViewBtn" class="bg-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 會員列表 - 卡片視圖 -->
+    <div id="gridView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+        <!-- 會員卡片將由JavaScript動態生成 -->
+    </div>
+
+    <!-- 會員列表 - 表格視圖 -->
+    <div id="listView" class="apple-card rounded-xl shadow-lg overflow-hidden" style="display: none;">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">會員</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">聯絡資訊</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">地址</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">備註</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="memberTableBody">
+                    <!-- 會員列表將由JavaScript動態生成 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 新增會員模態框 -->
+    <div id="addMemberModal" class="fixed inset-0 bg-black bg-opacity-50 modal hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">新增會員</h2>
+                        <button onclick="hideAddMemberModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="addMemberForm" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                                <input type="text" id="memberName" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">電話 *</label>
+                                <input type="tel" id="memberPhone" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">郵箱</label>
+                                <input type="email" id="memberEmail" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
+                                <input type="text" id="memberAddress" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">備註</label>
+                            <textarea id="memberNotes" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"
+                                      placeholder="請輸入會員備註資訊..."></textarea>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" onclick="hideAddMemberModal()" 
+                                    class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button type="submit" 
+                                    class="bg-[#17225e] text-white px-4 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                                <i class="fas fa-save mr-2"></i>儲存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯會員模態框 -->
+    <div id="editMemberModal" class="fixed inset-0 bg-black bg-opacity-50 modal hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">編輯會員</h2>
+                        <button onclick="hideEditMemberModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="editMemberForm" class="space-y-4">
+                        <input type="hidden" id="editMemberId">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                                <input type="text" id="editMemberName" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">電話 *</label>
+                                <input type="tel" id="editMemberPhone" required 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">郵箱</label>
+                                <input type="email" id="editMemberEmail" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
+                                <input type="text" id="editMemberAddress" 
+                                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">備註</label>
+                            <textarea id="editMemberNotes" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"
+                                      placeholder="請輸入會員備註資訊..."></textarea>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" onclick="hideEditMemberModal()" 
+                                    class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                                取消
+                            </button>
+                            <button type="submit" 
+                                    class="bg-[#17225e] text-white px-4 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                                <i class="fas fa-save mr-2"></i>更新
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索結果彈窗 -->
+    <div id="searchResultModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800" id="searchResultTitle">搜索結果</h3>
+                <button onclick="closeSearchResultModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="searchResultContent">
+                <!-- 搜索結果將在這裡顯示 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除確認模態框 -->
+    <div id="deleteConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 modal hidden z-[60] flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                    確認刪除
+                </h3>
+                <button onclick="closeDeleteConfirmModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div id="deleteConfirmContent">
+                    <!-- 刪除確認內容將在這裡顯示 -->
+                </div>
+                
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-info-circle text-red-500 mt-1 mr-3"></i>
+                        <div class="text-sm text-red-700">
+                            <p class="font-semibold mb-1">注意事項：</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>此操作無法復原</li>
+                                <li>相關的訂單記錄將保留</li>
+                                <li>建議先備份重要資料</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeDeleteConfirmModal()" 
+                            class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                        取消
+                    </button>
+                    <button id="confirmDeleteBtn" 
+                            class="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash mr-2"></i>確認刪除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量刪除模態框 -->
+    <div id="batchDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-users-cog text-red-500 mr-3"></i>
+                    批量刪除會員
+                </h3>
+                <button onclick="closeBatchDeleteModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- 選擇控制 -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <button onclick="selectAllMembers()" class="text-[#17225e] hover:text-[#1a2a6e] text-sm">
+                            <i class="fas fa-check-square mr-1"></i>全選
+                        </button>
+                        <button onclick="deselectAllMembers()" class="text-gray-600 hover:text-gray-800 text-sm">
+                            <i class="fas fa-square mr-1"></i>取消全選
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        已選擇 <span id="selectedCount">0</span> 個會員
+                    </div>
+                </div>
+
+                <!-- 選中的會員列表 -->
+                <div id="selectedMembersList" class="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                    <p class="text-gray-500 text-center">請選擇要刪除的會員</p>
+                </div>
+
+                <!-- 警告信息 -->
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-triangle text-red-500 mt-1 mr-3"></i>
+                        <div class="text-sm text-red-700">
+                            <p class="font-semibold mb-1">重要警告：</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>批量刪除操作無法復原</li>
+                                <li>將永久刪除選中的所有會員資料</li>
+                                <li>建議先匯出備份再進行操作</li>
+                                <li>相關的訂單記錄將保留</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeBatchDeleteModal()" 
+                            class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                        取消
+                    </button>
+                    <button id="batchDeleteBtn" onclick="confirmBatchDelete()" 
+                            class="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors" disabled>
+                        <i class="fas fa-trash mr-2"></i>刪除選中會員
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 匯入會員模態框 -->
+    <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800">匯入會員資料</h3>
+                <button onclick="closeImportModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- 文件上傳區域 -->
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-file-csv text-4xl text-gray-400"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2">選擇 CSV 文件</h4>
+                    <p class="text-gray-600 mb-4">支援的格式：會員編號,姓名,電話,郵箱,地址,備註,註冊日期</p>
+                    <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleFileSelect(event)">
+                    <button onclick="document.getElementById('csvFileInput').click()" 
+                            class="bg-[#17225e] text-white px-6 py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        <i class="fas fa-upload mr-2"></i>選擇文件
+                    </button>
+                </div>
+
+                <!-- 文件預覽區域 -->
+                <div id="filePreview" class="hidden">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-4">文件預覽</h4>
+                    <div class="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                        <div id="previewContent"></div>
+                    </div>
+                </div>
+
+                <!-- 匯入選項 -->
+                <div id="importOptions" class="hidden">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-4">匯入選項</h4>
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="skipHeader" checked class="mr-3">
+                            <label for="skipHeader" class="text-gray-700">跳過標題行</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="updateExisting" class="mr-3">
+                            <label for="updateExisting" class="text-gray-700">更新現有會員（如果會員編號相同）</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="generateNewIds" class="mr-3">
+                            <label for="generateNewIds" class="text-gray-700">為新會員自動生成編號</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 匯入結果 -->
+                <div id="importResults" class="hidden">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-4">匯入結果</h4>
+                    <div id="importResultsContent" class="bg-gray-50 rounded-lg p-4"></div>
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeImportModal()" 
+                            class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                        取消
+                    </button>
+                    <button id="importButton" onclick="importMembers()" 
+                            class="bg-[#17225e] text-white px-6 py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors hidden">
+                        <i class="fas fa-download mr-2"></i>開始匯入
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 會員數據
+        let membersData = [];
+
+        // 載入會員資料
+        async function loadMembersData() {
+            try {
+                // 等待資料庫初始化
+                await DatabaseManager.initialize();
+                
+                if (DatabaseManager.isConnected()) {
+                    // 從 Supabase 載入資料
+                    const data = await BusinessAPI.getMembers();
+                    if (data) {
+                        membersData = data;
+                        console.log('從 Supabase 載入會員資料:', membersData);
+                    } else {
+                        console.log('無法從 Supabase 載入資料，使用本地資料');
+                        loadLocalMembersData();
+                    }
+                } else {
+                    console.log('資料庫未連接，使用本地資料');
+                    loadLocalMembersData();
+                }
+            } catch (error) {
+                console.error('載入會員資料失敗:', error);
+                loadLocalMembersData();
+            }
+        }
+
+        // 載入本地會員資料（備用）
+        function loadLocalMembersData() {
+            const savedMembers = localStorage.getItem('membersData');
+            if (savedMembers) {
+                membersData = JSON.parse(savedMembers);
+            } else {
+                // 預設會員資料
+                membersData = [
+                    {
+                        id: '1',
+                        name: '王小明',
+                        phone: '0912-345-678',
+                        email: 'wang@example.com',
+                        address: '台北市信義區信義路五段7號',
+                        notes: 'VIP客戶，喜歡咖啡',
+                        created_at: '2023-03-15T00:00:00.000Z'
+                    },
+                    {
+                        id: '2',
+                        name: '李美華',
+                        phone: '0987-654-321',
+                        email: 'li@example.com',
+                        address: '新北市板橋區中山路一段161號',
+                        notes: '常客，偏好甜點',
+                        created_at: '2022-08-10T00:00:00.000Z'
+                    }
+                ];
+                localStorage.setItem('membersData', JSON.stringify(membersData));
+            }
+        }
+
+        // 保存會員資料
+        function saveMembersData() {
+            localStorage.setItem('membersData', JSON.stringify(membersData));
+        }
+
+        let currentViewMode = 'grid';
+        let filteredMembers = [...membersData];
+
+        // 頁面初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 進行權限檢查
+            const isAuthenticated = await checkAuthentication();
+            if (!isAuthenticated) {
+                return; // 如果未通過認證，函數會自動重定向
+            }
+            
+            await loadMembersData();
+            renderMembers();
+            updateStatistics();
+            setupEventListeners();
+        });
+
+        // 設置事件監聽器
+        function setupEventListeners() {
+            // 搜索功能 - 支援按 Enter 鍵搜索
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+            
+            // 表單提交
+            document.getElementById('addMemberForm').addEventListener('submit', handleAddMember);
+            document.getElementById('editMemberForm').addEventListener('submit', handleEditMember);
+            
+            // 匯入選項變更時更新預覽
+            document.getElementById('skipHeader').addEventListener('change', function() {
+                const file = document.getElementById('csvFileInput').files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const lines = e.target.result.split('\n');
+                        showFilePreview(lines);
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                }
+            });
+
+            // 監聽選擇框變更
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('member-checkbox')) {
+                    updateBatchDeleteButton();
+                    updateSelectedMembersList();
+                }
+            });
+
+            // 使用事件委託處理刪除和編輯按鈕
+            document.addEventListener('click', function(e) {
+                const button = e.target.closest('button[data-action]');
+                if (!button) return;
+                
+                const action = button.getAttribute('data-action');
+                const memberId = button.getAttribute('data-member-id');
+                
+                if (!memberId) return;
+                
+                console.log('按鈕點擊:', action, memberId);
+                
+                if (action === 'delete') {
+                    e.preventDefault();
+                    showDeleteConfirm(memberId);
+                } else if (action === 'edit') {
+                    e.preventDefault();
+                    editMember(memberId);
+                } else if (action === 'delete-from-search') {
+                    e.preventDefault();
+                    deleteMemberFromSearch(memberId);
+                } else if (action === 'edit-from-search') {
+                    e.preventDefault();
+                    editMemberFromSearch(memberId);
+                }
+            });
+        }
+
+        // 執行搜索
+        function performSearch() {
+            filterMembers();
+        }
+
+        // 篩選會員
+        function filterMembers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                // 如果搜索欄位為空，顯示所有會員
+                filteredMembers = [...membersData];
+                renderMembers();
+                return;
+            }
+
+            // 搜索會員
+            const searchResults = membersData.filter(member => {
+                const matchesSearch = member.name.toLowerCase().includes(searchTerm) ||
+                                    member.phone.includes(searchTerm) ||
+                                    (member.email && member.email.toLowerCase().includes(searchTerm));
+
+                return matchesSearch;
+            });
+
+            // 顯示搜索結果彈窗
+            showSearchResults(searchResults, searchTerm);
+        }
+
+        // 顯示搜索結果
+        function showSearchResults(results, searchTerm) {
+            const modal = document.getElementById('searchResultModal');
+            const title = document.getElementById('searchResultTitle');
+            const content = document.getElementById('searchResultContent');
+
+            title.textContent = `搜索結果: "${searchTerm}"`;
+
+            if (results.length === 0) {
+                // 沒有搜索到結果
+                content.innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fas fa-search text-gray-400 text-4xl mb-4"></i>
+                        <h4 class="text-lg font-semibold text-gray-600 mb-2">無此資料</h4>
+                        <p class="text-gray-500">沒有找到符合 "${searchTerm}" 的會員資料</p>
+                    </div>
+                `;
+            } else {
+                // 顯示搜索結果
+                content.innerHTML = `
+                    <div class="mb-4">
+                        <p class="text-gray-600">找到 ${results.length} 筆符合的會員資料：</p>
+                    </div>
+                    <div class="space-y-4">
+                        ${results.map(member => `
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center">
+                                        <div class="member-avatar w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                                            ${member.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h4 class="text-lg font-semibold text-gray-800">${member.name}</h4>
+                                            <p class="text-sm text-gray-600">會員編號: ${member.id}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button data-action="edit-from-search" data-member-id="${member.id}" class="text-[#17225e] hover:text-[#1a2a6e]">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button data-action="delete-from-search" data-member-id="${member.id}" class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p class="text-gray-600"><i class="fas fa-phone mr-2"></i><strong>電話：</strong>${member.phone}</p>
+                                        <p class="text-gray-600"><i class="fas fa-envelope mr-2"></i><strong>郵箱：</strong>${member.email || '未設定'}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i><strong>地址：</strong>${member.address || '未設定'}</p>
+                                        <p class="text-gray-600"><i class="fas fa-calendar mr-2"></i><strong>註冊日期：</strong>${member.created_at ? new Date(member.created_at).toLocaleDateString() : '未知'}</p>
+                                    </div>
+                                </div>
+                                ${member.notes ? `
+                                    <div class="mt-3 pt-3 border-t border-gray-200">
+                                        <p class="text-gray-600"><i class="fas fa-sticky-note mr-2"></i><strong>備註：</strong>${member.notes}</p>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // 關閉搜索結果彈窗
+        function closeSearchResultModal() {
+            document.getElementById('searchResultModal').classList.add('hidden');
+        }
+
+        // 從搜索結果編輯會員
+        async function editMemberFromSearch(memberId) {
+            closeSearchResultModal();
+            editMember(memberId);
+        }
+
+        // 從搜索結果刪除會員
+        async function deleteMemberFromSearch(memberId) {
+            closeSearchResultModal();
+            showDeleteConfirm(memberId);
+        }
+
+        // 清除篩選
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            filteredMembers = [...membersData];
+            renderMembers();
+        }
+
+        // 切換視圖模式
+        function toggleViewMode(mode) {
+            currentViewMode = mode;
+            
+            const gridView = document.getElementById('gridView');
+            const listView = document.getElementById('listView');
+            const gridBtn = document.getElementById('gridViewBtn');
+            const listBtn = document.getElementById('listViewBtn');
+
+            if (mode === 'grid') {
+                gridView.style.display = 'grid';
+                listView.style.display = 'none';
+                gridBtn.classList.add('bg-emerald-500', 'text-white');
+                gridBtn.classList.remove('bg-gray-300', 'text-gray-700');
+                listBtn.classList.add('bg-gray-300', 'text-gray-700');
+                listBtn.classList.remove('bg-emerald-500', 'text-white');
+            } else {
+                gridView.style.display = 'none';
+                listView.style.display = 'block';
+                listBtn.classList.add('bg-emerald-500', 'text-white');
+                listBtn.classList.remove('bg-gray-300', 'text-gray-700');
+                gridBtn.classList.add('bg-gray-300', 'text-gray-700');
+                gridBtn.classList.remove('bg-emerald-500', 'text-white');
+            }
+            
+            renderMembers();
+        }
+
+        // 渲染會員列表
+        function renderMembers() {
+            if (currentViewMode === 'grid') {
+                renderGridView();
+            } else {
+                renderListView();
+            }
+        }
+
+        // 渲染卡片視圖
+        function renderGridView() {
+            const container = document.getElementById('gridView');
+            container.innerHTML = '';
+
+            filteredMembers.forEach(member => {
+                const memberCard = createMemberCard(member);
+                container.appendChild(memberCard);
+            });
+        }
+
+        // 創建會員卡片
+        function createMemberCard(member) {
+            const card = document.createElement('div');
+            card.className = 'apple-card rounded-xl p-6 member-card shadow-lg';
+            
+            card.innerHTML = `
+                <div class="flex items-center mb-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="member-${member.id}" class="mr-3 member-checkbox" 
+                               onchange="updateBatchDeleteButton()">
+                    <div class="member-avatar w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
+                        ${member.name.charAt(0)}
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-800">${member.name}</h3>
+                        <p class="text-sm text-gray-600">${member.id}</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-2 mb-4">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-phone w-4 mr-2"></i>
+                        ${member.phone}
+                    </div>
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-envelope w-4 mr-2"></i>
+                        ${member.email || '未設定'}
+                    </div>
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-map-marker-alt w-4 mr-2"></i>
+                        ${member.address || '未設定'}
+                    </div>
+                </div>
+                
+                ${member.notes ? `
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 mb-1">備註</p>
+                    <p class="text-sm text-gray-800 bg-gray-50 p-2 rounded">${member.notes}</p>
+                </div>
+                ` : ''}
+                
+                <div class="flex space-x-2">
+                    <button data-action="edit" data-member-id="${member.id}" 
+                            class="flex-1 bg-[#17225e] text-white text-sm py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        <i class="fas fa-edit mr-1"></i>編輯
+                    </button>
+                    <button data-action="delete" data-member-id="${member.id}" 
+                            class="flex-1 bg-red-500 text-white text-sm py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash mr-1"></i>刪除
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // 渲染表格視圖
+        function renderListView() {
+            const tbody = document.getElementById('memberTableBody');
+            tbody.innerHTML = '';
+
+            filteredMembers.forEach(member => {
+                const row = createMemberRow(member);
+                tbody.appendChild(row);
+            });
+        }
+
+        // 創建會員表格行
+        function createMemberRow(member) {
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-200 hover:bg-gray-50';
+            
+            row.innerHTML = `
+                <td class="py-3 px-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="member-${member.id}" class="mr-3 member-checkbox" 
+                               onchange="updateBatchDeleteButton()">
+                        <div class="member-avatar w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                            ${member.name.charAt(0)}
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">${member.name}</div>
+                            <div class="text-sm text-gray-600">${member.id}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="text-sm">
+                        <div>${member.phone}</div>
+                        <div class="text-gray-600">${member.email || '未設定'}</div>
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="text-sm text-gray-600">${member.address || '未設定'}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="text-sm text-gray-600">${member.notes || '無備註'}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex space-x-2">
+                        <button data-action="edit" data-member-id="${member.id}" 
+                                class="text-[#17225e] hover:text-[#1a2a6e]">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button data-action="delete" data-member-id="${member.id}" 
+                                class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            return row;
+        }
+
+        // 更新統計數據
+        function updateStatistics() {
+            const totalMembers = membersData.length;
+            const activeMembers = membersData.length; // 簡化統計
+            
+            // 計算本月新會員
+            const thisMonth = new Date().getMonth();
+            const thisYear = new Date().getFullYear();
+            const newMembers = membersData.filter(m => {
+                if (!m.created_at) return false;
+                const createdDate = new Date(m.created_at);
+                return createdDate.getMonth() === thisMonth && createdDate.getFullYear() === thisYear;
+            }).length;
+
+            document.getElementById('totalMembers').textContent = totalMembers.toLocaleString();
+            document.getElementById('activeMembers').textContent = activeMembers.toLocaleString();
+            document.getElementById('newMembers').textContent = newMembers.toLocaleString();
+        }
+
+        // 顯示新增會員模態框
+        function showAddMemberModal() {
+            document.getElementById('addMemberModal').classList.remove('hidden');
+        }
+
+        // 隱藏新增會員模態框
+        function hideAddMemberModal() {
+            document.getElementById('addMemberModal').classList.add('hidden');
+            document.getElementById('addMemberForm').reset();
+        }
+
+        // 生成等差數列ID的函數
+        async function generateSequentialId() {
+            try {
+                // 如果資料庫已連接，從Supabase獲取最後一筆會員的ID
+                if (DatabaseManager.isConnected()) {
+                    const allMembers = await BusinessAPI.getMembers();
+                    if (allMembers && allMembers.length > 0) {
+                        // 找出最大的數字ID
+                        const numericIds = allMembers
+                            .map(member => {
+                                // 如果ID是純數字，直接轉換；否則提取數字部分
+                                const idStr = member.id.toString();
+                                if (/^\d+$/.test(idStr)) {
+                                    return parseInt(idStr);
+                                } else {
+                                    const match = idStr.match(/\d+/);
+                                    return match ? parseInt(match[0]) : 0;
+                                }
+                            })
+                            .filter(id => id > 0);
+                        
+                        if (numericIds.length > 0) {
+                            const maxId = Math.max(...numericIds);
+                            const nextId = maxId + 1;
+                            console.log('從Supabase獲取最大ID:', maxId, '，生成下一個ID:', nextId);
+                            return nextId.toString();
+                        }
+                    }
+                }
+                
+                // 如果無法從Supabase獲取資料，使用本地資料
+                if (membersData.length > 0) {
+                    const numericIds = membersData
+                        .map(member => {
+                            // 如果ID是純數字，直接轉換；否則提取數字部分
+                            const idStr = member.id.toString();
+                            if (/^\d+$/.test(idStr)) {
+                                return parseInt(idStr);
+                            } else {
+                                const match = idStr.match(/\d+/);
+                                return match ? parseInt(match[0]) : 0;
+                            }
+                        })
+                        .filter(id => id > 0);
+                    
+                    if (numericIds.length > 0) {
+                        const maxId = Math.max(...numericIds);
+                        const nextId = maxId + 1;
+                        console.log('從本地資料獲取最大ID:', maxId, '，生成下一個ID:', nextId);
+                        return nextId.toString();
+                    }
+                }
+                
+                // 如果沒有任何會員資料，從1開始
+                console.log('沒有現有會員資料，從ID 1開始');
+                return '1';
+                
+            } catch (error) {
+                console.error('生成ID時發生錯誤:', error);
+                // 錯誤時使用本地資料的最大ID + 1
+                if (membersData.length > 0) {
+                    const numericIds = membersData
+                        .map(member => {
+                            // 如果ID是純數字，直接轉換；否則提取數字部分
+                            const idStr = member.id.toString();
+                            if (/^\d+$/.test(idStr)) {
+                                return parseInt(idStr);
+                            } else {
+                                const match = idStr.match(/\d+/);
+                                return match ? parseInt(match[0]) : 0;
+                            }
+                        })
+                        .filter(id => id > 0);
+                    
+                    if (numericIds.length > 0) {
+                        const maxId = Math.max(...numericIds);
+                        return (maxId + 1).toString();
+                    }
+                }
+                return '1';
+            }
+        }
+
+        // 處理新增會員
+        async function handleAddMember(e) {
+            e.preventDefault();
+            
+            // 生成等差數列ID
+            const sequentialId = await generateSequentialId();
+            
+            const newMember = {
+                id: sequentialId,
+                name: document.getElementById('memberName').value,
+                phone: document.getElementById('memberPhone').value,
+                email: document.getElementById('memberEmail').value,
+                address: document.getElementById('memberAddress').value,
+                notes: document.getElementById('memberNotes').value
+            };
+
+            try {
+                let result = null;
+                
+                // 嘗試儲存到 Supabase
+                if (DatabaseManager.isConnected()) {
+                    console.log('嘗試儲存到 Supabase，使用等差數列ID:', sequentialId);
+                    result = await BusinessAPI.addMember(newMember);
+                    
+                    if (result) {
+                        console.log('成功儲存到 Supabase，使用等差數列ID:', result);
+                        // 重新載入資料
+                        await loadMembersData();
+                    } else {
+                        console.log('Supabase 儲存失敗，使用本地儲存');
+                        // 如果 Supabase 失敗，使用本地儲存
+                        newMember.created_at = new Date().toISOString();
+                        membersData.push(newMember);
+                        saveMembersData();
+                    }
+                } else {
+                    console.log('資料庫未連接，使用本地儲存');
+                    newMember.created_at = new Date().toISOString();
+                    membersData.push(newMember);
+                    saveMembersData();
+                }
+                
+                filteredMembers = [...membersData];
+                renderMembers();
+                updateStatistics();
+                hideAddMemberModal();
+                
+                showNotification('會員新增成功！', 'success');
+                
+            } catch (error) {
+                console.error('新增會員失敗:', error);
+                showNotification('新增會員失敗，請稍後再試', 'error');
+            }
+        }
+
+        // 編輯會員
+        function editMember(memberId) {
+            const member = membersData.find(m => m.id === memberId);
+            if (!member) return;
+
+            // 填充編輯表單
+            document.getElementById('editMemberId').value = member.id;
+            document.getElementById('editMemberName').value = member.name;
+            document.getElementById('editMemberPhone').value = member.phone;
+            document.getElementById('editMemberEmail').value = member.email || '';
+            document.getElementById('editMemberAddress').value = member.address || '';
+            document.getElementById('editMemberNotes').value = member.notes || '';
+
+            // 顯示編輯模態框
+            document.getElementById('editMemberModal').classList.remove('hidden');
+        }
+
+        // 隱藏編輯會員模態框
+        function hideEditMemberModal() {
+            document.getElementById('editMemberModal').classList.add('hidden');
+            document.getElementById('editMemberForm').reset();
+        }
+
+        // 處理編輯會員
+        async function handleEditMember(e) {
+            e.preventDefault();
+            
+            const memberId = document.getElementById('editMemberId').value;
+            const memberIndex = membersData.findIndex(m => m.id === memberId);
+            
+            if (memberIndex === -1) return;
+
+            const updatedMember = {
+                name: document.getElementById('editMemberName').value,
+                phone: document.getElementById('editMemberPhone').value,
+                email: document.getElementById('editMemberEmail').value,
+                address: document.getElementById('editMemberAddress').value,
+                notes: document.getElementById('editMemberNotes').value
+            };
+
+            try {
+                // 嘗試更新到 Supabase
+                if (DatabaseManager.isConnected()) {
+                    const result = await BusinessAPI.updateMember(memberId, updatedMember);
+                    if (result) {
+                        // 重新載入資料
+                        await loadMembersData();
+                    } else {
+                        // 如果 Supabase 失敗，使用本地更新
+                        membersData[memberIndex] = { ...membersData[memberIndex], ...updatedMember };
+                        saveMembersData();
+                    }
+                } else {
+                    // 本地更新
+                    membersData[memberIndex] = { ...membersData[memberIndex], ...updatedMember };
+                    saveMembersData();
+                }
+                
+                filteredMembers = [...membersData];
+                renderMembers();
+                updateStatistics();
+                hideEditMemberModal();
+                
+                showNotification('會員資料更新成功！', 'success');
+                
+            } catch (error) {
+                console.error('更新會員失敗:', error);
+                showNotification('更新會員失敗，請稍後再試', 'error');
+            }
+        }
+
+        // 顯示刪除確認
+        function showDeleteConfirm(memberId) {
+            console.log('showDeleteConfirm 被調用，memberId:', memberId, '類型:', typeof memberId);
+            console.log('當前會員數據:', membersData);
+            
+            // 嘗試不同類型的匹配
+            let member = membersData.find(m => m.id === memberId);
+            
+            if (!member) {
+                // 嘗試字符串匹配
+                member = membersData.find(m => m.id.toString() === memberId.toString());
+            }
+            
+            if (!member) {
+                // 嘗試數字匹配
+                const numericId = parseInt(memberId);
+                if (!isNaN(numericId)) {
+                    member = membersData.find(m => parseInt(m.id) === numericId);
+                }
+            }
+            
+            if (!member) {
+                console.error('找不到會員:', memberId);
+                console.log('所有會員ID:', membersData.map(m => ({ id: m.id, type: typeof m.id })));
+                return;
+            }
+            
+            console.log('找到會員:', member);
+
+            const modal = document.getElementById('deleteConfirmModal');
+            const content = document.getElementById('deleteConfirmContent');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            
+            if (!modal) {
+                console.error('找不到 deleteConfirmModal 元素');
+                return;
+            }
+            
+            if (!content) {
+                console.error('找不到 deleteConfirmContent 元素');
+                return;
+            }
+            
+            if (!confirmBtn) {
+                console.error('找不到 confirmDeleteBtn 元素');
+                return;
+            }
+            
+            console.log('所有元素都找到了，準備顯示模態框');
+            
+            content.innerHTML = `
+                <div class="space-y-3">
+                    <p class="text-gray-700">確定要刪除以下會員嗎？</p>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <div class="member-avatar w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                                ${member.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">${member.name}</h4>
+                                <p class="text-sm text-gray-600">會員編號: ${member.id}</p>
+                                <p class="text-sm text-gray-600">電話: ${member.phone}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 設置確認按鈕事件
+            confirmBtn.onclick = () => performDelete(member.id);
+            
+            console.log('準備移除 hidden 類');
+            modal.classList.remove('hidden');
+            console.log('模態框應該已經顯示');
+        }
+
+        // 關閉刪除確認模態框
+        function closeDeleteConfirmModal() {
+            document.getElementById('deleteConfirmModal').classList.add('hidden');
+        }
+
+        // 執行刪除操作
+        async function performDelete(memberId) {
+            console.log('performDelete 被調用，memberId:', memberId, '類型:', typeof memberId);
+            
+            // 嘗試不同類型的匹配
+            let member = membersData.find(m => m.id === memberId);
+            
+            if (!member) {
+                // 嘗試字符串匹配
+                member = membersData.find(m => m.id.toString() === memberId.toString());
+            }
+            
+            if (!member) {
+                // 嘗試數字匹配
+                const numericId = parseInt(memberId);
+                if (!isNaN(numericId)) {
+                    member = membersData.find(m => parseInt(m.id) === numericId);
+                }
+            }
+            
+            if (!member) {
+                console.error('找不到要刪除的會員:', memberId);
+                console.log('所有會員ID:', membersData.map(m => ({ id: m.id, type: typeof m.id })));
+                showNotification('找不到要刪除的會員', 'error');
+                return;
+            }
+
+            try {
+                console.log('開始刪除會員:', memberId, member);
+                
+                // 先嘗試本地刪除，確保用戶體驗
+                const originalMembersData = [...membersData];
+                membersData = membersData.filter(m => m.id !== member.id);
+                saveMembersData();
+                
+                // 更新界面
+                filteredMembers = [...membersData];
+                renderMembers();
+                updateStatistics();
+                
+                // 嘗試從 Supabase 刪除（如果連接可用）
+                    if (DatabaseManager.isConnected()) {
+                    console.log('嘗試從 Supabase 刪除會員:', member.id);
+                    const success = await BusinessAPI.deleteMember(member.id);
+                    
+                    if (!success) {
+                        console.warn('Supabase 刪除失敗，但本地已刪除');
+                        showNotification('會員已從本地刪除，但雲端同步失敗', 'warning');
+                        } else {
+                        console.log('Supabase 刪除成功');
+                        showNotification('會員刪除成功！', 'success');
+                        }
+                    } else {
+                    console.log('資料庫未連接，僅本地刪除');
+                    showNotification('會員刪除成功！（僅本地）', 'success');
+                }
+                
+                closeDeleteConfirmModal();
+                
+            } catch (error) {
+                console.error('刪除會員時發生錯誤:', error);
+                
+                // 如果發生錯誤，恢復原始數據
+                membersData = originalMembersData;
+                        saveMembersData();
+                filteredMembers = [...membersData];
+                renderMembers();
+                updateStatistics();
+                
+                showNotification('刪除會員失敗，請稍後再試', 'error');
+            }
+        }
+
+        // 顯示批量刪除模態框
+        function showBatchDeleteModal() {
+            document.getElementById('batchDeleteModal').classList.remove('hidden');
+            updateSelectedMembersList();
+        }
+
+        // 關閉批量刪除模態框
+        function closeBatchDeleteModal() {
+            document.getElementById('batchDeleteModal').classList.add('hidden');
+            deselectAllMembers();
+        }
+
+        // 全選會員
+        function selectAllMembers() {
+            const checkboxes = document.querySelectorAll('.member-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateBatchDeleteButton();
+            updateSelectedMembersList();
+        }
+
+        // 取消全選
+        function deselectAllMembers() {
+            const checkboxes = document.querySelectorAll('.member-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBatchDeleteButton();
+            updateSelectedMembersList();
+        }
+
+        // 更新批量刪除按鈕狀態
+        function updateBatchDeleteButton() {
+            const selectedCheckboxes = document.querySelectorAll('.member-checkbox:checked');
+            const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            const count = selectedCheckboxes.length;
+            selectedCount.textContent = count;
+            
+            batchDeleteBtn.disabled = count === 0;
+            if (count === 0) {
+                batchDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                batchDeleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // 更新選中會員列表
+        function updateSelectedMembersList() {
+            const selectedCheckboxes = document.querySelectorAll('.member-checkbox:checked');
+            const listContainer = document.getElementById('selectedMembersList');
+            
+            if (selectedCheckboxes.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 text-center">請選擇要刪除的會員</p>';
+                return;
+            }
+
+            const selectedMembers = Array.from(selectedCheckboxes).map(checkbox => {
+                const memberId = checkbox.id.replace('member-', '');
+                
+                // 使用與單個刪除相同的匹配邏輯
+                let member = membersData.find(m => m.id === memberId);
+                
+                if (!member) {
+                    // 嘗試字符串匹配
+                    member = membersData.find(m => m.id.toString() === memberId.toString());
+                }
+                
+                if (!member) {
+                    // 嘗試數字匹配
+                    const numericId = parseInt(memberId);
+                    if (!isNaN(numericId)) {
+                        member = membersData.find(m => parseInt(m.id) === numericId);
+                    }
+                }
+                
+                return member;
+            }).filter(Boolean);
+
+            const membersHtml = selectedMembers.map(member => `
+                <div class="flex items-center justify-between p-3 bg-white rounded-lg mb-2">
+                    <div class="flex items-center">
+                        <div class="member-avatar w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs mr-3">
+                            ${member.name.charAt(0)}
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">${member.name}</div>
+                            <div class="text-sm text-gray-600">${member.phone}</div>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500">${member.id}</div>
+                </div>
+            `).join('');
+
+            listContainer.innerHTML = membersHtml;
+        }
+
+        // 確認批量刪除
+        async function confirmBatchDelete() {
+            const selectedCheckboxes = document.querySelectorAll('.member-checkbox:checked');
+            const selectedMembers = Array.from(selectedCheckboxes).map(checkbox => {
+                const memberId = checkbox.id.replace('member-', '');
+                
+                // 使用與單個刪除相同的匹配邏輯
+                let member = membersData.find(m => m.id === memberId);
+                
+                if (!member) {
+                    // 嘗試字符串匹配
+                    member = membersData.find(m => m.id.toString() === memberId.toString());
+                }
+                
+                if (!member) {
+                    // 嘗試數字匹配
+                    const numericId = parseInt(memberId);
+                    if (!isNaN(numericId)) {
+                        member = membersData.find(m => parseInt(m.id) === numericId);
+                    }
+                }
+                
+                return member;
+            }).filter(Boolean);
+
+            if (selectedMembers.length === 0) {
+                showNotification('請選擇要刪除的會員', 'error');
+                return;
+            }
+
+            console.log('選中的會員:', selectedMembers);
+
+            // 顯示最終確認
+            const content = document.getElementById('deleteConfirmContent');
+            content.innerHTML = `
+                <div class="space-y-3">
+                    <p class="text-gray-700">確定要刪除以下 <strong>${selectedMembers.length}</strong> 個會員嗎？</p>
+                    <div class="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+                        ${selectedMembers.map(member => `
+                            <div class="flex items-center py-1">
+                                <div class="member-avatar w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs mr-2">
+                                    ${member.name.charAt(0)}
+                                </div>
+                                <span class="text-sm text-gray-700">${member.name} (${member.id})</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // 設置確認按鈕事件
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            confirmBtn.onclick = () => performBatchDelete(selectedMembers);
+            
+            // 關閉批量刪除模態框，顯示確認模態框
+            closeBatchDeleteModal();
+            document.getElementById('deleteConfirmModal').classList.remove('hidden');
+        }
+
+        // 執行批量刪除
+        async function performBatchDelete(selectedMembers) {
+            try {
+                console.log('開始批量刪除會員:', selectedMembers.length, '個');
+                console.log('要刪除的會員:', selectedMembers);
+                
+                // 先進行本地刪除
+                const originalMembersData = [...membersData];
+                const memberIds = selectedMembers.map(m => m.id);
+                console.log('要刪除的會員ID:', memberIds);
+                
+                membersData = membersData.filter(m => !memberIds.includes(m.id));
+                saveMembersData();
+                
+                // 更新界面
+                    filteredMembers = [...membersData];
+                    renderMembers();
+                    updateStatistics();
+                    
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                // 嘗試從 Supabase 刪除
+                if (DatabaseManager.isConnected()) {
+                    for (const member of selectedMembers) {
+                        try {
+                            console.log('嘗試從 Supabase 刪除會員:', member.id, member.name);
+                            const success = await BusinessAPI.deleteMember(member.id);
+                            
+                            if (success) {
+                                successCount++;
+                                console.log('成功刪除會員:', member.name);
+                            } else {
+                                errorCount++;
+                                errors.push(`刪除會員 ${member.name} 失敗`);
+                                console.warn('刪除會員失敗:', member.name);
+                            }
+                } catch (error) {
+                            errorCount++;
+                            errors.push(`刪除會員 ${member.name} 時發生錯誤: ${error.message}`);
+                            console.error('刪除會員時發生錯誤:', member.name, error);
+                        }
+                    }
+                } else {
+                    console.log('資料庫未連接，僅本地刪除');
+                    successCount = selectedMembers.length;
+                }
+
+                closeDeleteConfirmModal();
+
+                if (errorCount === 0) {
+                    showNotification(`成功刪除 ${successCount} 個會員！`, 'success');
+                } else {
+                    showNotification(`刪除完成：成功 ${successCount} 個，失敗 ${errorCount} 個`, 'warning');
+                    console.error('批量刪除錯誤:', errors);
+                }
+                
+            } catch (error) {
+                console.error('批量刪除失敗:', error);
+                
+                // 如果發生錯誤，恢復原始數據
+                membersData = originalMembersData;
+                saveMembersData();
+                filteredMembers = [...membersData];
+                renderMembers();
+                updateStatistics();
+                
+                showNotification('批量刪除失敗，請稍後再試', 'error');
+            }
+        }
+
+        // 匯出會員
+        function exportMembers() {
+            const csvContent = [
+                ['會員編號', '姓名', '電話', '郵箱', '地址', '備註', '註冊日期'],
+                ...membersData.map(member => [
+                    member.id,
+                    member.name,
+                    member.phone,
+                    member.email || '',
+                    member.address || '',
+                    member.notes || '',
+                    member.created_at ? new Date(member.created_at).toLocaleDateString() : ''
+                ])
+            ].map(row => row.join(',')).join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `會員資料_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('會員資料匯出成功！', 'success');
+        }
+
+        // 顯示匯入模態框
+        function showImportModal() {
+            document.getElementById('importModal').classList.remove('hidden');
+            resetImportModal();
+        }
+
+        // 關閉匯入模態框
+        function closeImportModal() {
+            document.getElementById('importModal').classList.add('hidden');
+            resetImportModal();
+        }
+
+        // 重置匯入模態框
+        function resetImportModal() {
+            document.getElementById('csvFileInput').value = '';
+            document.getElementById('filePreview').classList.add('hidden');
+            document.getElementById('importOptions').classList.add('hidden');
+            document.getElementById('importResults').classList.add('hidden');
+            document.getElementById('importButton').classList.add('hidden');
+            document.getElementById('previewContent').innerHTML = '';
+            document.getElementById('importResultsContent').innerHTML = '';
+        }
+
+        // 處理文件選擇
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showNotification('請選擇 CSV 文件', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const csvContent = e.target.result;
+                    const lines = csvContent.split('\n');
+                    
+                    if (lines.length < 2) {
+                        showNotification('CSV 文件格式不正確，至少需要標題行和一行數據', 'error');
+                        return;
+                    }
+
+                    // 顯示預覽
+                    showFilePreview(lines);
+                    
+                    // 顯示匯入選項
+                    document.getElementById('importOptions').classList.remove('hidden');
+                    document.getElementById('importButton').classList.remove('hidden');
+                    
+                } catch (error) {
+                    console.error('讀取文件失敗:', error);
+                    showNotification('讀取文件失敗，請檢查文件格式', 'error');
+                }
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // 顯示文件預覽
+        function showFilePreview(lines) {
+            const previewContent = document.getElementById('previewContent');
+            const skipHeader = document.getElementById('skipHeader').checked;
+            
+            let previewLines = lines;
+            if (skipHeader && lines.length > 1) {
+                previewLines = lines.slice(1);
+            }
+            
+            const previewHtml = previewLines.slice(0, 5).map((line, index) => {
+                const columns = line.split(',').map(col => col.trim());
+                return `
+                    <div class="text-sm text-gray-700 mb-2">
+                        <span class="font-semibold">第 ${index + 1} 行：</span>
+                        ${columns.map(col => `<span class="bg-gray-200 px-2 py-1 rounded mr-2">${col || '(空)'}</span>`).join('')}
+                    </div>
+                `;
+            }).join('');
+            
+            previewContent.innerHTML = previewHtml;
+            document.getElementById('filePreview').classList.remove('hidden');
+        }
+
+        // 匯入會員
+        async function importMembers() {
+            const file = document.getElementById('csvFileInput').files[0];
+            if (!file) {
+                showNotification('請先選擇文件', 'error');
+                return;
+            }
+
+            const skipHeader = document.getElementById('skipHeader').checked;
+            const updateExisting = document.getElementById('updateExisting').checked;
+            const generateNewIds = document.getElementById('generateNewIds').checked;
+
+            try {
+                const csvContent = await readFileAsText(file);
+                const lines = csvContent.split('\n').filter(line => line.trim());
+                
+                if (skipHeader && lines.length > 0) {
+                    lines.shift(); // 移除標題行
+                }
+
+                if (lines.length === 0) {
+                    showNotification('沒有找到有效的數據行', 'error');
+                    return;
+                }
+
+                const importResults = await processImportData(lines, updateExisting, generateNewIds);
+                showImportResults(importResults);
+                
+            } catch (error) {
+                console.error('匯入失敗:', error);
+                showNotification('匯入失敗: ' + error.message, 'error');
+            }
+        }
+
+        // 讀取文件為文本
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = e => reject(new Error('讀取文件失敗'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        // 處理匯入數據
+        async function processImportData(lines, updateExisting, generateNewIds) {
+            const results = {
+                total: lines.length,
+                imported: 0,
+                updated: 0,
+                skipped: 0,
+                errors: []
+            };
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                try {
+                    const columns = line.split(',').map(col => col.trim());
+                    
+                    // 驗證必要欄位
+                    if (columns.length < 3) {
+                        results.errors.push(`第 ${i + 1} 行：數據欄位不足（需要至少會員編號、姓名、電話）`);
+                        results.skipped++;
+                        continue;
+                    }
+
+                    let [id, name, phone, email, address, notes, created_at] = columns;
+                    
+                    // 驗證必要欄位
+                    if (!name || !phone) {
+                        results.errors.push(`第 ${i + 1} 行：姓名和電話為必填欄位`);
+                        results.skipped++;
+                        continue;
+                    }
+
+                    // 檢查是否為新會員
+                    const existingMember = membersData.find(m => m.id === id);
+                    
+                    if (existingMember) {
+                        if (updateExisting) {
+                            // 更新現有會員
+                            const updatedMember = {
+                                ...existingMember,
+                                name,
+                                phone,
+                                email: email || existingMember.email,
+                                address: address || existingMember.address,
+                                notes: notes || existingMember.notes
+                            };
+
+                            if (DatabaseManager.isConnected()) {
+                                await BusinessAPI.updateMember(id, updatedMember);
+                            } else {
+                                const index = membersData.findIndex(m => m.id === id);
+                                membersData[index] = updatedMember;
+                                saveMembersData();
+                            }
+                            results.updated++;
+                        } else {
+                            results.errors.push(`第 ${i + 1} 行：會員編號 ${id} 已存在，跳過`);
+                            results.skipped++;
+                        }
+                    } else {
+                        // 新增會員
+                        if (generateNewIds && !id) {
+                            id = await generateSequentialId();
+                        }
+
+                        if (!id) {
+                            results.errors.push(`第 ${i + 1} 行：缺少會員編號且未啟用自動生成`);
+                            results.skipped++;
+                            continue;
+                        }
+
+                        const newMember = {
+                            id,
+                            name,
+                            phone,
+                            email: email || '',
+                            address: address || '',
+                            notes: notes || '',
+                            created_at: created_at ? new Date(created_at).toISOString() : new Date().toISOString()
+                        };
+
+                        if (DatabaseManager.isConnected()) {
+                            await BusinessAPI.addMember(newMember);
+                        } else {
+                            membersData.push(newMember);
+                            saveMembersData();
+                        }
+                        results.imported++;
+                    }
+                } catch (error) {
+                    results.errors.push(`第 ${i + 1} 行：處理失敗 - ${error.message}`);
+                    results.skipped++;
+                }
+            }
+
+            // 重新載入數據
+            await loadMembersData();
+            filteredMembers = [...membersData];
+            renderMembers();
+            updateStatistics();
+
+            return results;
+        }
+
+        // 顯示匯入結果
+        function showImportResults(results) {
+            const content = document.getElementById('importResultsContent');
+            
+            let html = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center p-3 bg-gray-100 rounded-lg">
+                                                          <div class="text-2xl font-bold text-[#17225e]">${results.total}</div>
+                              <div class="text-sm text-gray-700">總行數</div>
+                        </div>
+                        <div class="text-center p-3 bg-green-100 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">${results.imported}</div>
+                            <div class="text-sm text-green-700">新增</div>
+                        </div>
+                        <div class="text-center p-3 bg-yellow-100 rounded-lg">
+                            <div class="text-2xl font-bold text-yellow-600">${results.updated}</div>
+                            <div class="text-sm text-yellow-700">更新</div>
+                        </div>
+                        <div class="text-center p-3 bg-red-100 rounded-lg">
+                            <div class="text-2xl font-bold text-red-600">${results.skipped}</div>
+                            <div class="text-sm text-red-700">跳過</div>
+                        </div>
+                    </div>
+            `;
+
+            if (results.errors.length > 0) {
+                html += `
+                    <div class="mt-4">
+                        <h5 class="font-semibold text-red-600 mb-2">錯誤詳情：</h5>
+                        <div class="bg-red-50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                            ${results.errors.map(error => `<div class="text-sm text-red-700 mb-1">• ${error}</div>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            content.innerHTML = html;
+            
+            document.getElementById('importResults').classList.remove('hidden');
+            document.getElementById('importButton').classList.add('hidden');
+        }
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+
+
+
+        // 顯示通知
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-[#17225e]',
+                warning: 'bg-yellow-500'
+            };
+
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            // 動畫顯示
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 100);
+
+            // 自動隱藏
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

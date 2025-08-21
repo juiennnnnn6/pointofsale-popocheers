@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進貨作業</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../employee-auth.js"></script>
+    <script src="auth-check.js"></script>
+    <script src="../database.js"></script>
+
+    <script>
+        // 檢查掃描功能是否載入
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof window.quickScan !== 'function') {
+                    console.log('掃描功能未載入，提供手動輸入替代方案');
+                            window.quickScan = function(onSuccess, onError) {
+            const barcode = prompt('請輸入條碼號碼進行進貨登記');
+            if (barcode) {
+                onSuccess(barcode);
+            } else if (onError) {
+                onError(new Error('用戶取消輸入'));
+            }
+        };
+                    console.log('手動輸入功能已就緒');
+                }
+            }, 1000);
+        });
+    </script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .scan-display {
+            background: linear-gradient(45deg, #17225e, #1a2a6e);
+            position: relative;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">進貨作業</h1>
+                <p class="text-gray-600">匯入進貨資料或手動新增進貨記錄</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="navigateToPage('suppliers')" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-truck mr-2"></i>供應商管理
+                </button>
+                <button onclick="showImportModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-file-import mr-2"></i>匯入進貨
+                </button>
+                <button onclick="showAddPurchaseModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>新增進貨
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- 左側：匯入進貨區 -->
+        <div class="lg:col-span-1">
+            
+            <!-- 匯入進貨功能區 -->
+            <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-file-import mr-2 text-[#17225e]"></i>
+                    匯入進貨資料
+                </h3>
+                <div class="upload-area rounded-lg h-48 flex items-center justify-center text-gray-400 mb-4 border-2 border-dashed border-gray-300">
+                    <div class="text-center">
+                        <i class="fas fa-cloud-upload-alt text-4xl mb-3"></i>
+                        <p class="text-lg font-medium">拖放檔案至此處或點擊選擇</p>
+                        <p class="text-sm">支援 .csv, .xlsx 格式</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <input type="file" id="purchaseFileInput" accept=".csv,.xlsx,.xls" class="hidden">
+                    <button onclick="selectPurchaseFile()" class="w-full bg-[#17225e] text-white py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        <i class="fas fa-upload mr-2"></i>選擇檔案
+                    </button>
+                    <button onclick="downloadPurchaseTemplate()" class="w-full bg-[#17225e] text-white py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        <i class="fas fa-download mr-2"></i>下載模板
+                    </button>
+                </div>
+            </div>
+
+            <!-- 供應商選擇 -->
+            <div class="apple-card rounded-xl p-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">供應商資訊</h3>
+                <div class="space-y-4">
+                    <select id="supplierSelect" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="">選擇供應商</option>
+                    </select>
+                    <div id="supplierInfo" class="p-3 bg-gray-50 rounded-lg hidden">
+                                                  <p class="text-sm text-gray-700">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            <span id="supplierInfoText">請選擇供應商查看詳細資訊</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：商品選擇和進貨清單 -->
+        <div class="xl:col-span-2">
+            
+            <!-- 掃描結果/商品選擇 -->
+            <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">商品資訊</h3>
+                
+                <!-- 手動輸入條碼 -->
+                <div class="mb-4">
+                    <div class="flex space-x-2">
+                        <input type="text" id="manualBarcodeInput" placeholder="輸入條碼或商品名稱" 
+                               class="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                        <button id="searchProductBtn" class="bg-[#17225e] text-white px-6 py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                            <i class="fas fa-search mr-2"></i>查詢
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 掃描到的商品 -->
+                <div id="productDisplay" class="border border-gray-200 rounded-lg p-4 mb-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-barcode text-4xl mb-2"></i>
+                        <p>請掃描或輸入條碼查詢商品</p>
+                    </div>
+                </div>
+
+                <!-- 進貨資訊輸入 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">進貨數量</label>
+                        <input type="number" value="10" min="1" 
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">進貨單價</label>
+                        <input type="number" value="2400" min="0" 
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="addToPurchaseList()" class="w-full bg-[#17225e] text-white py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                            <i class="fas fa-plus mr-2"></i>加入清單
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 進貨清單 -->
+            <div class="apple-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">進貨清單</h3>
+                    <span id="itemCount" class="text-sm text-gray-600">共 0 項商品</span>
+                </div>
+
+                <div id="purchaseListContainer" class="space-y-4">
+                    
+                    <!-- 進貨清單為空時的提示 -->
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                        <p>進貨清單為空</p>
+                        <p class="text-sm">請先掃描商品或匯入進貨資料</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 商品資料
+        let productsData = [];
+
+        // 供應商資料
+        let suppliersData = [];
+
+        // 當前掃描到的商品
+        let currentScannedProduct = null;
+
+        // 進貨清單
+        let purchaseList = [];
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 載入商品和供應商資料
+            await Promise.all([
+                loadProductsData(),
+                loadSuppliersData()
+            ]);
+            
+            // 初始化進貨清單顯示
+            updatePurchaseListDisplay();
+            
+            const manualInput = document.getElementById('manualBarcodeInput');
+            const searchBtn = document.getElementById('searchProductBtn');
+
+            // 手動查詢按鈕
+            searchBtn.addEventListener('click', function() {
+                const barcode = manualInput.value.trim();
+                if (barcode) {
+                    searchProduct(barcode);
+                    manualInput.value = '';
+                }
+            });
+
+            // 手動輸入框回車事件
+            manualInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchBtn.click();
+                }
+            });
+
+            // 供應商選擇事件
+            const supplierSelect = document.getElementById('supplierSelect');
+            supplierSelect.addEventListener('change', function() {
+                const selectedSupplierId = this.value;
+                if (selectedSupplierId) {
+                    showSupplierInfo(selectedSupplierId);
+                } else {
+                    hideSupplierInfo();
+                }
+            });
+        });
+
+
+
+        // 載入商品資料
+        async function loadProductsData() {
+            try {
+                // 確保資料庫已初始化
+                await DatabaseManager.initialize();
+                
+                // 從Supabase獲取商品資料
+                const products = await BusinessAPI.getProducts();
+                
+                if (products) {
+                    productsData = products;
+                    console.log('成功載入商品資料:', productsData.length, '筆');
+                } else {
+                    productsData = [];
+                    console.log('沒有找到商品資料或載入失敗');
+                }
+            } catch (error) {
+                console.error('載入商品資料失敗:', error);
+                productsData = [];
+                showNotification('載入商品資料失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 載入供應商資料
+        async function loadSuppliersData() {
+            try {
+                // 確保資料庫已初始化
+                await DatabaseManager.initialize();
+                
+                // 從Supabase獲取供應商資料
+                const suppliers = await BusinessAPI.getSuppliers();
+                
+                if (suppliers) {
+                    suppliersData = suppliers;
+                    console.log('成功載入供應商資料:', suppliersData.length, '筆');
+                    populateSupplierSelect();
+                } else {
+                    suppliersData = [];
+                    console.log('沒有找到供應商資料或載入失敗');
+                }
+            } catch (error) {
+                console.error('載入供應商資料失敗:', error);
+                suppliersData = [];
+                showNotification('載入供應商資料失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 填充供應商選擇下拉選單
+        function populateSupplierSelect() {
+            const supplierSelect = document.getElementById('supplierSelect');
+            
+            // 清空現有選項（保留預設選項）
+            supplierSelect.innerHTML = '<option value="">選擇供應商</option>';
+            
+            // 添加供應商選項
+            suppliersData.forEach(supplier => {
+                const option = document.createElement('option');
+                option.value = supplier.id;
+                option.textContent = supplier.name;
+                supplierSelect.appendChild(option);
+            });
+        }
+
+        // 顯示供應商資訊
+        function showSupplierInfo(supplierId) {
+            const supplier = suppliersData.find(s => s.id === supplierId);
+            if (!supplier) return;
+
+            const supplierInfo = document.getElementById('supplierInfo');
+            const supplierInfoText = document.getElementById('supplierInfoText');
+            
+            const infoHtml = `
+                供應商：${supplier.name}<br>
+                聯絡人：${supplier.contact_person || '未設定'}<br>
+                電話：${supplier.phone || '未設定'}<br>
+                電子郵件：${supplier.email || '未設定'}<br>
+                地址：${supplier.address || '未設定'}
+                ${supplier.notes ? `<br>備註：${supplier.notes}` : ''}
+            `;
+            
+            supplierInfoText.innerHTML = infoHtml;
+            supplierInfo.classList.remove('hidden');
+        }
+
+        // 隱藏供應商資訊
+        function hideSupplierInfo() {
+            const supplierInfo = document.getElementById('supplierInfo');
+            supplierInfo.classList.add('hidden');
+        }
+
+        // 顯示通知
+        function showNotification(message, type = 'info') {
+            const alertClass = {
+                'success': 'bg-gray-100 border-[#17225e] text-gray-700',
+                'error': 'bg-red-100 border-red-500 text-red-700',
+                'warning': 'bg-gray-100 border-gray-500 text-gray-700',
+                'info': 'bg-gray-100 border-[#17225e] text-gray-700'
+            }[type];
+            
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 border-l-4 p-4 rounded shadow-lg ${alertClass}`;
+            notification.innerHTML = `
+                <div class="flex">
+                    <div class="flex-1">${message}</div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // 查詢商品（支援多商品小項）
+        function searchProduct(barcode) {
+            console.log('查詢商品條碼:', barcode);
+            
+            if (!barcode || barcode.trim() === '') {
+                showNotification('請輸入條碼或商品名稱', 'error');
+                return;
+            }
+            
+            if (!productsData || productsData.length === 0) {
+                showNotification('商品資料尚未載入，請稍後再試', 'error');
+                return;
+            }
+            
+            // 從真實資料庫查找商品
+            const products = productsData.filter(product => 
+                (product.barcode && product.barcode.toString() === barcode.toString()) || 
+                (product.id && product.id.toString() === barcode.toString()) ||
+                (product.name && product.name.toLowerCase().includes(barcode.toLowerCase()))
+            );
+            
+            if (products && products.length > 0) {
+                if (products.length === 1) {
+                    // 只有一個商品，直接選擇
+                    currentScannedProduct = { ...products[0], barcode: products[0].barcode || barcode };
+                    displayScannedProduct();
+                    showNotification(`找到商品: ${products[0].name}`, 'success');
+                } else {
+                    // 多個商品，彈出選擇視窗
+                    showProductSelectionForPurchase(products, barcode);
+                }
+            } else {
+                currentScannedProduct = null;
+                showNotification(`找不到對應商品: ${barcode}`, 'error');
+                clearProductDisplay();
+            }
+        }
+
+        // 顯示商品選擇視窗（進貨專用）
+        function showProductSelectionForPurchase(products, barcode) {
+            const variants = products.map((product, index) => {
+                const stockStatus = product.stock > 0 ? `庫存 ${product.stock} 件` : '缺貨';
+                const category = product.category || '未分類';
+                return `${index + 1}. ${product.name} (${category}) - 庫存 ${product.stock} 件`;
+            }).join('\n');
+            
+            const choice = prompt(
+                `找到多個商品，請選擇要進貨的商品：\n\n${variants}\n\n請輸入序號 (1-${products.length})：`
+            );
+            
+            if (choice) {
+                const selectedIndex = parseInt(choice) - 1;
+                if (selectedIndex >= 0 && selectedIndex < products.length) {
+                    currentScannedProduct = { ...products[selectedIndex], barcode: products[selectedIndex].barcode || barcode };
+                    displayScannedProduct();
+                    showNotification(`已選擇商品: ${products[selectedIndex].name}`, 'success');
+                } else {
+                    showNotification('無效的選擇序號', 'error');
+                }
+            }
+        }
+
+        // 顯示掃描到的商品
+        function displayScannedProduct() {
+            if (!currentScannedProduct) return;
+
+            const productInfoHtml = `
+                <div class="flex items-center space-x-4">
+                    <img src="${currentScannedProduct.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center'}" 
+                         alt="${currentScannedProduct.name}" class="w-20 h-20 rounded-lg object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-800">${currentScannedProduct.name}</h4>
+                        <p class="text-sm text-[#17225e] font-medium">分類：${currentScannedProduct.category || '未分類'}</p>
+                        <p class="text-sm text-gray-600">編號：${currentScannedProduct.id}</p>
+                        <p class="text-sm text-gray-600">條碼：${currentScannedProduct.barcode || '無條碼'}</p>
+                        <p class="text-sm text-gray-600">目前庫存：${currentScannedProduct.stock || 0} 件</p>
+                        <p class="text-xs text-gray-500">${currentScannedProduct.description || ''}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600">建議售價</p>
+                        <p class="font-bold text-[#17225e]">NT$${(currentScannedProduct.price || 0).toLocaleString()}</p>
+                    </div>
+                </div>
+            `;
+
+            // 更新商品資訊區域
+            const productDisplay = document.querySelector('#productDisplay');
+            if (productDisplay) {
+                productDisplay.innerHTML = productInfoHtml;
+            } else {
+                console.error('找不到商品顯示區域');
+            }
+        }
+
+        // 清空商品顯示
+        function clearProductDisplay() {
+            const productDisplay = document.querySelector('#productDisplay');
+            if (productDisplay) {
+                productDisplay.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-barcode text-4xl mb-2"></i>
+                        <p>請掃描或輸入條碼查詢商品</p>
+                    </div>
+                `;
+            } else {
+                console.error('找不到商品顯示區域');
+            }
+        }
+
+
+
+        // 加入進貨清單
+        function addToPurchaseList() {
+            if (!currentScannedProduct) {
+                showNotification('請先掃描商品', 'error');
+                return;
+            }
+
+            const quantityInput = document.querySelector('input[type="number"][min="1"]');
+            const unitPriceInput = document.querySelector('input[type="number"][min="0"]');
+            
+            const quantity = quantityInput.value;
+            const unitPrice = unitPriceInput.value;
+
+            if (!quantity || !unitPrice || quantity <= 0 || unitPrice <= 0) {
+                showNotification('請輸入有效的數量和進價', 'error');
+                return;
+            }
+
+            const purchaseItem = {
+                ...currentScannedProduct,
+                quantity: parseInt(quantity),
+                unitPrice: parseInt(unitPrice),
+                total: parseInt(quantity) * parseInt(unitPrice),
+                purchaseDate: new Date().toISOString().split('T')[0]
+            };
+
+            // 檢查是否已存在相同商品
+            const existingIndex = purchaseList.findIndex(item => item.id === purchaseItem.id);
+            if (existingIndex >= 0) {
+                // 更新數量
+                purchaseList[existingIndex].quantity += purchaseItem.quantity;
+                purchaseList[existingIndex].total = purchaseList[existingIndex].quantity * purchaseList[existingIndex].unitPrice;
+            } else {
+                // 新增商品
+                purchaseList.push(purchaseItem);
+            }
+
+            // 更新界面顯示
+            updatePurchaseListDisplay();
+            
+            // 清空當前商品
+            currentScannedProduct = null;
+            clearProductDisplay();
+            
+            // 重置輸入框
+            quantityInput.value = '1';
+            unitPriceInput.value = '';
+            
+            showNotification('商品已加入進貨清單', 'success');
+        }
+
+        // 更新進貨清單顯示
+        function updatePurchaseListDisplay() {
+            const purchaseListContainer = document.querySelector('#purchaseListContainer');
+            if (!purchaseListContainer) {
+                console.error('找不到進貨清單容器');
+                return;
+            }
+
+            if (purchaseList.length === 0) {
+                purchaseListContainer.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                        <p>進貨清單為空</p>
+                        <p class="text-sm">請先掃描商品或匯入進貨資料</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let purchaseListHtml = '';
+            let totalAmount = 0;
+
+            purchaseList.forEach((item, index) => {
+                totalAmount += item.total;
+                purchaseListHtml += `
+                    <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
+                        <img src="${item.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop&crop=center'}" 
+                             alt="${item.name}" class="w-16 h-16 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">${item.name}</h4>
+                            <p class="text-sm text-gray-600">分類：${item.category || '未分類'}</p>
+                            <p class="text-sm text-gray-600">編號：${item.id}</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">數量</p>
+                            <p class="font-semibold">${item.quantity} 件</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">單價</p>
+                            <p class="font-semibold">NT$${item.unitPrice.toLocaleString()}</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600">小計</p>
+                            <p class="font-bold text-[#17225e]">NT$${item.total.toLocaleString()}</p>
+                        </div>
+                        <button onclick="removeFromPurchaseList(${index})" class="text-red-500 hover:text-red-700 p-2">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            });
+
+            // 添加總計
+            purchaseListHtml += `
+                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                    <span class="text-lg font-semibold text-gray-800">總計</span>
+                    <span class="text-xl font-bold text-[#17225e]">NT$${totalAmount.toLocaleString()}</span>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="confirmPurchase()" class="flex-1 bg-[#17225e] text-white py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        <i class="fas fa-check mr-2"></i>確認進貨
+                    </button>
+                    <button onclick="clearPurchaseList()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-trash mr-2"></i>清空清單
+                    </button>
+                </div>
+            `;
+
+            purchaseListContainer.innerHTML = purchaseListHtml;
+
+            // 更新商品數量顯示
+            const itemCountElement = document.querySelector('#itemCount');
+            if (itemCountElement) {
+                itemCountElement.textContent = `共 ${purchaseList.length} 項商品`;
+            }
+        }
+
+        // 從進貨清單移除商品
+        function removeFromPurchaseList(index) {
+            if (index >= 0 && index < purchaseList.length) {
+                purchaseList.splice(index, 1);
+                updatePurchaseListDisplay();
+                showNotification('商品已從進貨清單移除', 'info');
+            }
+        }
+
+        // 清空進貨清單
+        function clearPurchaseList() {
+            if (confirm('確定要清空進貨清單嗎？')) {
+                purchaseList = [];
+                updatePurchaseListDisplay();
+                showNotification('進貨清單已清空', 'info');
+            }
+        }
+
+        // 確認進貨
+        async function confirmPurchase() {
+            if (purchaseList.length === 0) {
+                showNotification('進貨清單為空', 'error');
+                return;
+            }
+
+            const selectedSupplierId = document.getElementById('supplierSelect').value;
+            if (!selectedSupplierId) {
+                showNotification('請選擇供應商', 'error');
+                return;
+            }
+
+            if (!confirm('確定要確認進貨嗎？此操作將更新商品庫存。')) {
+                return;
+            }
+
+            try {
+                // 顯示載入中
+                showNotification('正在處理進貨...', 'info');
+
+                // 逐一處理每個進貨項目
+                for (const item of purchaseList) {
+                    try {
+                        // 新增進貨記錄
+                        const purchaseData = {
+                            product_id: item.id,
+                            product_name: item.name,
+                            quantity: item.quantity,
+                            unit_price: item.unitPrice,
+                            total_cost: item.total,
+                            supplier_id: selectedSupplierId,
+                            purchase_date: item.purchaseDate,
+                            notes: `進貨：${item.name} x ${item.quantity}`
+                        };
+
+                        await BusinessAPI.addPurchaseRecord(purchaseData);
+
+                        // 更新商品庫存
+                        const updatedStock = (item.stock || 0) + item.quantity;
+                        await BusinessAPI.updateProduct(item.id, {
+                            stock: updatedStock,
+                            cost: item.unitPrice // 更新成本價
+                        });
+
+                        console.log(`成功處理商品: ${item.name}`);
+                    } catch (itemError) {
+                        console.error(`處理商品 ${item.name} 時發生錯誤:`, itemError);
+                        showNotification(`處理商品 ${item.name} 時發生錯誤`, 'error');
+                        return;
+                    }
+                }
+
+                // 清空進貨清單
+                purchaseList = [];
+                updatePurchaseListDisplay();
+
+                // 重新載入商品資料以更新庫存
+                await loadProductsData();
+
+                showNotification('進貨完成！庫存已更新', 'success');
+            } catch (error) {
+                console.error('進貨處理失敗:', error);
+                showNotification('進貨處理失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 選擇進貨檔案
+        function selectPurchaseFile() {
+            document.getElementById('purchaseFileInput').click();
+        }
+
+        // 處理進貨檔案上傳
+        document.getElementById('purchaseFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processPurchaseFile(file);
+            }
+        });
+
+        // 處理進貨檔案
+        function processPurchaseFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const lines = content.split('\n');
+                    const headers = lines[0].split(',');
+                    
+                    let importedPurchases = [];
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            const values = lines[i].split(',');
+                            const purchase = {
+                                barcode: values[0] || '',
+                                productName: values[1] || '',
+                                variant: values[2] || '',
+                                quantity: parseInt(values[3]) || 0,
+                                unitPrice: parseFloat(values[4]) || 0,
+                                supplier: values[5] || '',
+                                date: values[6] || new Date().toISOString().split('T')[0]
+                            };
+                            importedPurchases.push(purchase);
+                        }
+                    }
+                    
+                    if (importedPurchases.length > 0) {
+                        // 將匯入的進貨資料加入清單
+                        purchaseList = purchaseList.concat(importedPurchases);
+                        updatePurchaseListDisplay();
+                        alert(`成功匯入 ${importedPurchases.length} 筆進貨資料`);
+                    } else {
+                        alert('檔案中沒有有效的進貨資料');
+                    }
+                } catch (error) {
+                    alert('檔案格式錯誤，請檢查檔案內容');
+                    console.error('檔案處理錯誤:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 下載進貨模板
+        function downloadPurchaseTemplate() {
+            const template = `條碼,商品名稱,規格,數量,單價,供應商,日期
+1234567890123,波蘭陶瓷杯,經典款,10,150,波蘭陶瓷供應商,2024-01-15
+9876543210987,德國不鏽鋼廚具,基礎3件組,5,2200,德國廚具供應商,2024-01-15`;
+            
+            const blob = new Blob([template], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '進貨模板.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // 顯示匯入模態框
+        function showImportModal() {
+            // 這裡可以實現匯入模態框的顯示邏輯
+            alert('請使用上方的檔案上傳功能匯入進貨資料');
+        }
+
+        // 顯示新增進貨模態框
+        function showAddPurchaseModal() {
+            // 這裡可以實現新增進貨模態框的顯示邏輯
+            alert('請使用上方的掃描功能新增進貨商品');
+        }
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+    </script>
+</body>
+</html> 

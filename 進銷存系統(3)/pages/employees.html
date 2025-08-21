@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>員工管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../employee-auth.js"></script>
+    <script src="auth-check.js"></script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">員工管理</h1>
+                <p class="text-gray-600">管理員工資料、權限和登入狀態</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="showAddEmployeeModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-plus mr-2"></i>新增員工
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 員工統計卡片 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="apple-card rounded-xl p-4 text-center">
+            <i class="fas fa-users text-2xl text-[#17225e] mb-2"></i>
+            <h3 class="text-lg font-semibold text-gray-800" id="totalEmployees">0</h3>
+            <p class="text-sm text-gray-600">總員工數</p>
+        </div>
+        <div class="apple-card rounded-xl p-4 text-center">
+                            <i class="fas fa-user-check text-2xl text-[#17225e] mb-2"></i>
+            <h3 class="text-lg font-semibold text-gray-800" id="activeEmployees">0</h3>
+            <p class="text-sm text-gray-600">在職員工</p>
+        </div>
+        <div class="apple-card rounded-xl p-4 text-center">
+                            <i class="fas fa-user-clock text-2xl text-[#17225e] mb-2"></i>
+            <h3 class="text-lg font-semibold text-gray-800" id="onlineEmployees">0</h3>
+            <p class="text-sm text-gray-600">線上員工</p>
+        </div>
+        <div class="apple-card rounded-xl p-4 text-center">
+                            <i class="fas fa-user-tie text-2xl text-[#17225e] mb-2"></i>
+            <h3 class="text-lg font-semibold text-gray-800" id="managerCount">0</h3>
+            <p class="text-sm text-gray-600">管理職位</p>
+        </div>
+    </div>
+
+    <!-- 員工列表 -->
+    <div class="apple-card rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800">員工列表</h2>
+            <div class="flex space-x-2">
+                <input type="text" id="searchEmployee" placeholder="搜尋員工..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]">
+                <select id="filterRole" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]">
+                    <option value="">所有職位</option>
+                    <option value="管理員">管理員</option>
+                    <option value="店長">店長</option>
+                    <option value="收銀員">收銀員</option>
+                    <option value="倉管">倉管</option>
+                    <option value="銷售員">銷售員</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">員工編號</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">姓名</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">職位</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">電話</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">狀態</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">登入狀態</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">權限</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="employeesTableBody">
+                    <!-- 員工資料將動態載入 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 新增/編輯員工彈出視窗 -->
+    <div id="employeeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800" id="modalTitle">新增員工</h3>
+                <button onclick="closeEmployeeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="employeeForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">員工編號 *</label>
+                    <input type="text" id="employeeId" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                    <input type="text" id="employeeName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">職位 *</label>
+                    <select id="employeeRole" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]" onchange="updatePermissionsByRole()">
+                        <option value="">請選擇職位</option>
+                        <option value="管理員">管理員 (系統最高權限)</option>
+                        <option value="店長">店長 (營運管理權限)</option>
+                        <option value="收銀員">收銀員 (基本權限)</option>
+                        <option value="倉管">倉管 (商品管理權限)</option>
+                        <option value="銷售員">銷售員 (銷售權限)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">權限設定</label>
+                    <div id="permissionsContainer" class="space-y-2 text-sm text-gray-600">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permSales" class="mr-2">
+                            <label for="permSales">銷售作業</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permProducts" class="mr-2">
+                            <label for="permProducts">商品管理</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permPurchase" class="mr-2">
+                            <label for="permPurchase">進貨作業</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permMembers" class="mr-2">
+                            <label for="permMembers">會員管理</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permReports" class="mr-2">
+                            <label for="permReports">報表中心</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permEmployees" class="mr-2">
+                            <label for="permEmployees">員工管理</label>
+                        </div>
+                    </div>
+                    <p id="roleDescription" class="text-xs text-gray-500 mt-2"></p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">電話</label>
+                    <input type="tel" id="employeePhone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]">
+                </div>
+                
+
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>
+                    <select id="employeeStatus" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]">
+                        <option value="active">在職</option>
+                        <option value="inactive">離職</option>
+                        <option value="suspended">停職</option>
+                    </select>
+                </div>
+            </form>
+            
+            <div class="mt-6 flex space-x-3">
+                <button onclick="closeEmployeeModal()" class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                    取消
+                </button>
+                <button onclick="saveEmployee()" class="flex-1 px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    儲存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 預設員工資料
+        const defaultEmployees = [
+            {
+                id: 'EMP001',
+                name: '管理員',
+                role: '管理員',
+                phone: '0900-000-000',
+                status: 'active',
+                lastLogin: null,
+                isOnline: false,
+                permissions: ['all']
+            },
+            {
+                id: 'EMP002',
+                name: '店長',
+                role: '店長',
+                phone: '0987-654-321',
+                status: 'active',
+                lastLogin: null,
+                isOnline: false,
+                permissions: ['sales', 'products', 'purchase', 'members', 'reports']
+            },
+            {
+                id: 'EMP003',
+                name: '收銀員',
+                role: '收銀員',
+                phone: '0912-345-678',
+                status: 'active',
+                lastLogin: null,
+                isOnline: false,
+                permissions: ['sales', 'members']
+            },
+            {
+                id: 'EMP004',
+                name: '倉管',
+                role: '倉管',
+                phone: '0923-456-789',
+                status: 'active',
+                lastLogin: null,
+                isOnline: false,
+                permissions: ['products', 'purchase', 'reports']
+            }
+        ];
+
+        // 當前員工資料
+        let employees = [...defaultEmployees];
+        let editingEmployeeId = null;
+
+        // 載入員工資料
+        async function loadEmployees() {
+            try {
+                // 從 Supabase 載入員工資料
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+                
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .order('employee_id');
+                
+                console.log('Supabase 查詢結果:', { data, error });
+                
+                if (error) {
+                    console.error('載入員工資料失敗:', error);
+                    // 如果載入失敗，使用預設資料
+                    employees = defaultEmployees;
+                    console.log('使用預設員工資料:', employees);
+                } else {
+                    console.log('從 Supabase 載入到員工資料:', data);
+                    if (data && data.length > 0) {
+                        // 轉換 Supabase 資料格式為本地格式
+                        employees = data.map(emp => {
+                            let permissions = [];
+                            try {
+                                if (emp.permissions) {
+                                    if (typeof emp.permissions === 'string') {
+                                        permissions = JSON.parse(emp.permissions);
+                                    } else if (Array.isArray(emp.permissions)) {
+                                        permissions = emp.permissions;
+                                    }
+                                }
+                            } catch (parseError) {
+                                console.error('解析權限失敗:', parseError, '原始資料:', emp.permissions);
+                                permissions = [];
+                            }
+                            
+                            return {
+                                id: emp.employee_id || emp.username || emp.id,
+                                name: emp.name,
+                                role: emp.position || emp.role || '員工',
+                                phone: '', // Supabase 表沒有 phone 欄位
+                                email: '', // Supabase 表沒有 email 欄位
+                                status: 'active',
+                                lastLogin: emp.last_login || null,
+                                isOnline: false,
+                                permissions: permissions
+                            };
+                        });
+                        console.log('轉換後的員工資料:', employees);
+                    } else {
+                        console.log('Supabase 中沒有員工資料，使用預設資料');
+                        employees = defaultEmployees;
+                    }
+                }
+                
+                updateEmployeeDisplay();
+                updateStatistics();
+                
+            } catch (error) {
+                console.error('載入員工資料失敗:', error);
+                // 使用預設資料
+                employees = defaultEmployees;
+                updateEmployeeDisplay();
+                updateStatistics();
+            }
+        }
+
+        // 測試函數：檢查 Supabase 中的實際資料
+        async function testSupabaseData() {
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .order('employee_id');
+                
+                console.log('=== Supabase 實際資料檢查 ===');
+                console.log('查詢結果:', { data, error });
+                console.log('資料數量:', data ? data.length : 0);
+                if (data) {
+                    data.forEach((emp, index) => {
+                        console.log(`員工 ${index + 1}:`, emp);
+                    });
+                }
+                console.log('========================');
+                
+                return { data, error };
+            } catch (error) {
+                console.error('測試 Supabase 資料失敗:', error);
+                return { data: null, error };
+            }
+        }
+
+        // 手動觸發顯示更新（用於測試）
+        function forceUpdateDisplay() {
+            console.log('=== 手動觸發顯示更新 ===');
+            console.log('當前員工陣列:', employees);
+            updateEmployeeDisplay();
+            updateStatistics();
+        }
+
+        // 更新員工顯示
+        function updateEmployeeDisplay() {
+            const tbody = document.getElementById('employeesTableBody');
+            const searchTerm = document.getElementById('searchEmployee').value.toLowerCase();
+            const filterRole = document.getElementById('filterRole').value;
+
+            console.log('=== 更新員工顯示診斷 ===');
+            console.log('當前員工陣列:', employees);
+            console.log('員工陣列長度:', employees.length);
+            console.log('搜尋關鍵字:', searchTerm);
+            console.log('職位篩選:', filterRole);
+
+            let filteredEmployees = employees.filter(emp => {
+                const matchesSearch = emp.name.toLowerCase().includes(searchTerm) || 
+                                    emp.id.toLowerCase().includes(searchTerm);
+                const matchesRole = !filterRole || emp.role === filterRole;
+                const shouldInclude = matchesSearch && matchesRole;
+                
+                console.log(`員工 ${emp.id} (${emp.name}):`, {
+                    matchesSearch,
+                    matchesRole,
+                    shouldInclude,
+                    empRole: emp.role,
+                    filterRole: filterRole
+                });
+                
+                return shouldInclude;
+            });
+
+            console.log('篩選後的員工:', filteredEmployees);
+            console.log('篩選後數量:', filteredEmployees.length);
+
+            tbody.innerHTML = filteredEmployees.map(emp => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4 font-mono text-[#17225e]">${emp.id}</td>
+                    <td class="py-3 px-4 font-semibold">${emp.name}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                            emp.role === '管理員' ? 'bg-gray-100 text-[#17225e]' :
+                emp.role === '店長' ? 'bg-gray-100 text-[#17225e]' :
+                emp.role === '收銀員' ? 'bg-gray-100 text-[#17225e]' :
+                emp.role === '倉管' ? 'bg-gray-100 text-[#17225e]' :
+                'bg-gray-100 text-gray-800'
+                        }">${emp.role}</span>
+                    </td>
+                    <td class="py-3 px-4 text-gray-600">${emp.phone || '-'}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                            emp.status === 'active' ? 'bg-gray-100 text-[#17225e]' :
+                emp.status === 'inactive' ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
+                        }">${emp.status === 'active' ? '在職' : emp.status === 'inactive' ? '離職' : '停職'}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                            emp.isOnline ? 'bg-gray-100 text-[#17225e]' : 'bg-gray-100 text-gray-800'
+                        }">${emp.isOnline ? '線上' : '離線'}</span>
+                    </td>
+                    <td class="py-3 px-4 text-xs text-gray-600">
+                        ${emp.permissions ? emp.permissions.join(', ') : '無'}
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex space-x-2">
+                            <button onclick="editEmployee('${emp.id}')" class="text-[#17225e] hover:text-[#1a2a6e]">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteEmployee('${emp.id}')" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            console.log('=== 顯示更新完成 ===');
+        }
+
+        // 更新統計資料
+        function updateStatistics() {
+            document.getElementById('totalEmployees').textContent = employees.length;
+            document.getElementById('activeEmployees').textContent = employees.filter(emp => emp.status === 'active').length;
+            document.getElementById('onlineEmployees').textContent = employees.filter(emp => emp.isOnline).length;
+            document.getElementById('managerCount').textContent = employees.filter(emp => emp.role === '店長' || emp.role === '管理員').length;
+        }
+
+        // 顯示新增員工視窗
+        function showAddEmployeeModal() {
+            editingEmployeeId = null;
+            document.getElementById('modalTitle').textContent = '新增員工';
+            document.getElementById('employeeForm').reset();
+            document.getElementById('employeeModal').classList.remove('hidden');
+        }
+
+        // 關閉員工視窗
+        function closeEmployeeModal() {
+            document.getElementById('employeeModal').classList.add('hidden');
+            editingEmployeeId = null;
+        }
+
+        // 編輯員工
+        function editEmployee(employeeId) {
+            const employee = employees.find(emp => emp.id === employeeId);
+            if (!employee) return;
+
+            editingEmployeeId = employeeId;
+            document.getElementById('modalTitle').textContent = '編輯員工';
+            
+            document.getElementById('employeeId').value = employee.id;
+            document.getElementById('employeeName').value = employee.name;
+            document.getElementById('employeeRole').value = employee.role;
+            document.getElementById('employeePhone').value = employee.phone || '';
+
+            document.getElementById('employeeStatus').value = employee.status;
+            
+            // 先觸發職位權限更新
+            updatePermissionsByRole();
+            
+            // 然後根據實際權限覆蓋預設設定
+            const permissions = employee.permissions || [];
+            document.getElementById('permSales').checked = permissions.includes('sales') || permissions.includes('all');
+            document.getElementById('permProducts').checked = permissions.includes('products') || permissions.includes('all');
+            document.getElementById('permPurchase').checked = permissions.includes('purchase') || permissions.includes('all');
+            document.getElementById('permMembers').checked = permissions.includes('members') || permissions.includes('all');
+            document.getElementById('permReports').checked = permissions.includes('reports') || permissions.includes('all');
+            document.getElementById('permEmployees').checked = permissions.includes('employees') || permissions.includes('all');
+            
+            document.getElementById('employeeModal').classList.remove('hidden');
+        }
+
+        // 儲存員工
+        async function saveEmployee() {
+            const form = document.getElementById('employeeForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // 收集權限設定
+            const permissions = [];
+            if (document.getElementById('permSales').checked) permissions.push('sales');
+            if (document.getElementById('permProducts').checked) permissions.push('products');
+            if (document.getElementById('permPurchase').checked) permissions.push('purchase');
+            if (document.getElementById('permMembers').checked) permissions.push('members');
+            if (document.getElementById('permReports').checked) permissions.push('reports');
+            if (document.getElementById('permEmployees').checked) permissions.push('employees');
+
+            // 如果所有權限都勾選，設為all
+            if (permissions.length >= 6) {
+                permissions.length = 0;
+                permissions.push('all');
+            }
+
+            const employeeData = {
+                id: document.getElementById('employeeId').value,
+                name: document.getElementById('employeeName').value,
+                role: document.getElementById('employeeRole').value,
+                phone: document.getElementById('employeePhone').value,
+                status: document.getElementById('employeeStatus').value,
+                lastLogin: null,
+                isOnline: false,
+                permissions: permissions
+            };
+
+            try {
+                // 同步到 Supabase
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+
+                const supabaseData = {
+                    employee_id: employeeData.id,
+                    name: employeeData.name,
+                    position: employeeData.role,
+                    permissions: JSON.stringify(employeeData.permissions)
+                };
+
+                if (editingEmployeeId) {
+                    // 編輯現有員工
+                    const { error } = await supabase
+                        .from('employees')
+                        .update(supabaseData)
+                        .eq('employee_id', editingEmployeeId);
+                    
+                    if (error) throw error;
+                } else {
+                    // 新增員工
+                    const { error } = await supabase
+                        .from('employees')
+                        .insert([supabaseData]);
+                    
+                    if (error) throw error;
+                }
+
+                // 重新載入員工資料
+                console.log('儲存成功，開始重新載入員工資料...');
+                await loadEmployees();
+                console.log('重新載入完成，當前員工數量:', employees.length);
+                closeEmployeeModal();
+                
+                alert(editingEmployeeId ? '員工資料已更新！' : '員工已新增！');
+                
+            } catch (error) {
+                console.error('儲存員工資料失敗:', error);
+                alert(`儲存失敗：${error.message}`);
+            }
+        }
+
+        // 刪除員工
+        async function deleteEmployee(employeeId) {
+            if (!confirm('確定要刪除此員工嗎？')) return;
+            
+            try {
+                // 從 Supabase 刪除員工
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+
+                const { error } = await supabase
+                    .from('employees')
+                    .delete()
+                    .eq('employee_id', employeeId);
+                
+                if (error) throw error;
+
+                // 重新載入員工資料
+                await loadEmployees();
+                
+                alert('員工已刪除！');
+                
+            } catch (error) {
+                console.error('刪除員工失敗:', error);
+                alert(`刪除失敗：${error.message}`);
+            }
+        }
+
+        // 回到主選單
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+
+        // 根據職位更新權限設定
+        function updatePermissionsByRole() {
+            const role = document.getElementById('employeeRole').value;
+            const roleDescription = document.getElementById('roleDescription');
+            
+            // 重置所有權限選項
+            document.getElementById('permSales').checked = false;
+            document.getElementById('permProducts').checked = false;
+            document.getElementById('permPurchase').checked = false;
+            document.getElementById('permMembers').checked = false;
+            document.getElementById('permReports').checked = false;
+            document.getElementById('permEmployees').checked = false;
+            
+            // 根據職位設定預設權限
+            switch(role) {
+                case '管理員':
+                    // 管理員擁有所有權限
+                    document.getElementById('permSales').checked = true;
+                    document.getElementById('permProducts').checked = true;
+                    document.getElementById('permPurchase').checked = true;
+                    document.getElementById('permMembers').checked = true;
+                    document.getElementById('permReports').checked = true;
+                    document.getElementById('permEmployees').checked = true;
+                    roleDescription.textContent = '管理員擁有系統所有功能權限，包括員工管理、系統設定等最高權限';
+                    break;
+                    
+                case '店長':
+                    // 店長擁有營運相關權限，但不包括員工管理
+                    document.getElementById('permSales').checked = true;
+                    document.getElementById('permProducts').checked = true;
+                    document.getElementById('permPurchase').checked = true;
+                    document.getElementById('permMembers').checked = true;
+                    document.getElementById('permReports').checked = true;
+                    document.getElementById('permEmployees').checked = false;
+                    roleDescription.textContent = '店長負責日常營運管理，包括銷售、商品、進貨、會員和報表，但不包括員工管理';
+                    break;
+                    
+                case '收銀員':
+                    // 收銀員主要負責銷售和會員管理
+                    document.getElementById('permSales').checked = true;
+                    document.getElementById('permMembers').checked = true;
+                    roleDescription.textContent = '收銀員主要負責銷售作業和會員管理，可查看基本報表';
+                    break;
+                    
+                case '倉管':
+                    // 倉管負責商品和進貨管理
+                    document.getElementById('permProducts').checked = true;
+                    document.getElementById('permPurchase').checked = true;
+                    document.getElementById('permReports').checked = true;
+                    roleDescription.textContent = '倉管負責商品管理、進貨作業和庫存報表查看';
+                    break;
+                    
+                case '銷售員':
+                    // 銷售員主要負責銷售
+                    document.getElementById('permSales').checked = true;
+                    document.getElementById('permMembers').checked = true;
+                    roleDescription.textContent = '銷售員主要負責銷售作業和會員服務';
+                    break;
+                    
+                default:
+                    roleDescription.textContent = '請選擇職位以查看對應權限說明';
+            }
+        }
+
+        // 事件監聽器
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadEmployees();
+            await testSupabaseData(); // 添加測試函數調用
+            
+            // 搜尋功能
+            document.getElementById('searchEmployee').addEventListener('input', updateEmployeeDisplay);
+            document.getElementById('filterRole').addEventListener('change', updateEmployeeDisplay);
+        });
+    </script>
+</body>
+</html> 
