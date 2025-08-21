@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
+    <script src="../database.js"></script>
     <style>
         .apple-card {
             background: rgba(255, 255, 255, 0.95);
@@ -23,26 +24,26 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
     
     <!-- 頂部操作區 -->
     <div class="mb-6">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">
-                    <i class="fas fa-truck text-blue-500 mr-3"></i>
+                    <i class="fas fa-truck text-[#17225e] mr-3"></i>
                     供應商管理
                 </h1>
                 <p class="text-gray-600">管理供應商資料和合作關係</p>
             </div>
             <div class="flex space-x-3">
-                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-th-large mr-2"></i>回選單
                 </button>
-                <button onclick="showAddSupplierModal()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                <button onclick="showAddSupplierModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-plus mr-2"></i>新增供應商
                 </button>
-                <button onclick="showImportModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
+                <button onclick="showImportModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-file-import mr-2"></i>匯入供應商
                 </button>
             </div>
@@ -50,11 +51,11 @@
     </div>
 
     <!-- 統計卡片 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div class="apple-card rounded-xl p-6 shadow-lg">
             <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-lg">
-                    <i class="fas fa-truck text-blue-600 text-xl"></i>
+                <div class="p-3 bg-gray-100 rounded-lg">
+                                          <i class="fas fa-truck text-[#17225e] text-xl"></i>
                 </div>
                 <div class="ml-4">
                     <p class="text-sm text-gray-600">總供應商</p>
@@ -65,32 +66,8 @@
         
         <div class="apple-card rounded-xl p-6 shadow-lg">
             <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-lg">
-                    <i class="fas fa-handshake text-green-600 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">活躍供應商</p>
-                    <p class="text-2xl font-bold text-gray-800" id="activeSuppliers">0</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="apple-card rounded-xl p-6 shadow-lg">
-            <div class="flex items-center">
-                <div class="p-3 bg-yellow-100 rounded-lg">
-                    <i class="fas fa-globe text-yellow-600 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">歐洲供應商</p>
-                    <p class="text-2xl font-bold text-gray-800" id="europeanSuppliers">0</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="apple-card rounded-xl p-6 shadow-lg">
-            <div class="flex items-center">
-                <div class="p-3 bg-purple-100 rounded-lg">
-                    <i class="fas fa-chart-line text-purple-600 text-xl"></i>
+                            <div class="p-3 bg-gray-100 rounded-lg">
+                <i class="fas fa-chart-line text-[#17225e] text-xl"></i>
                 </div>
                 <div class="ml-4">
                     <p class="text-sm text-gray-600">本月進貨</p>
@@ -100,27 +77,15 @@
         </div>
     </div>
 
-    <!-- 搜尋和篩選 -->
+    <!-- 搜尋 -->
     <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="md:col-span-2">
-                <input type="text" id="searchInput" placeholder="搜尋供應商名稱、聯絡人..." 
-                       class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            </div>
-            <div>
-                <select id="statusFilter" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">所有狀態</option>
-                    <option value="active">活躍</option>
-                    <option value="inactive">停用</option>
-                </select>
-            </div>
-            <div>
-                <select id="regionFilter" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">所有地區</option>
-                    <option value="europe">歐洲</option>
-                    <option value="asia">亞洲</option>
-                    <option value="local">本地</option>
-                </select>
+        <div class="grid grid-cols-1 gap-4">
+            <div class="flex space-x-2">
+                <input type="text" id="searchInput" placeholder="搜尋供應商名稱、聯絡人、電話、電子郵件、地址..." 
+                       class="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                <button onclick="performSearch()" class="px-6 py-3 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-search mr-2"></i>搜尋
+                </button>
             </div>
         </div>
     </div>
@@ -128,12 +93,12 @@
     <!-- 供應商列表 -->
     <div class="apple-card rounded-xl p-6 shadow-lg">
         <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-gray-800">供應商列表</h3>
+            <h3 class="text-lg font-semibold text-gray-800">所有供應商 (${suppliersData.length} 筆)</h3>
             <div class="flex items-center space-x-2">
                 <button class="p-2 text-gray-500 hover:text-gray-700" onclick="toggleView('grid')">
                     <i class="fas fa-th"></i>
                 </button>
-                <button class="p-2 text-blue-500 hover:text-blue-700" onclick="toggleView('list')">
+                <button class="p-2 text-[#17225e] hover:text-[#1a2a6e]" onclick="toggleView('list')">
                     <i class="fas fa-list"></i>
                 </button>
             </div>
@@ -165,12 +130,12 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">供應商名稱 *</label>
                         <input type="text" id="supplierName" required 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">聯絡人</label>
                         <input type="text" id="contactPerson" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                     </div>
                 </div>
                 
@@ -178,52 +143,27 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">電話</label>
                         <input type="tel" id="supplierPhone" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">電子郵件</label>
                         <input type="email" id="supplierEmail" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                     </div>
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
                     <textarea id="supplierAddress" rows="2" 
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"></textarea>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">地區</label>
-                        <select id="supplierRegion" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="europe">歐洲</option>
-                            <option value="asia">亞洲</option>
-                            <option value="local">本地</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">主要商品類別</label>
-                        <select id="supplierCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="ceramics">陶瓷器皿</option>
-                            <option value="glassware">玻璃器皿</option>
-                            <option value="kitchenware">廚具</option>
-                            <option value="decorative">裝飾品</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>
-                        <select id="supplierStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="active">活躍</option>
-                            <option value="inactive">停用</option>
-                        </select>
-                    </div>
-                </div>
+
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">備註</label>
                     <textarea id="supplierNotes" rows="3" 
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"></textarea>
                 </div>
                 
                 <div class="flex justify-end space-x-3 pt-4">
@@ -232,11 +172,27 @@
                         取消
                     </button>
                     <button type="submit" 
-                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            class="px-6 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                         儲存
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 搜尋結果彈窗 -->
+    <div id="searchResultModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800" id="searchResultTitle">搜尋結果</h3>
+                <button onclick="closeSearchResultModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="searchResultContent">
+                <!-- 搜尋結果將在這裡顯示 -->
+            </div>
         </div>
     </div>
 
@@ -245,81 +201,36 @@
         let suppliersData = [];
 
         // 載入供應商資料
-        function loadSuppliersData() {
-            const savedSuppliers = localStorage.getItem('suppliersData');
-            if (savedSuppliers) {
-                suppliersData = JSON.parse(savedSuppliers);
-            } else {
-                // 預設供應商資料
-                suppliersData = [
-                    {
-                        id: 'S001',
-                        name: '歐洲瓷器供應商',
-                        contactPerson: 'Hans Mueller',
-                        phone: '+49 30 12345678',
-                        email: 'hans.mueller@european-ceramics.de',
-                        address: 'Berlin, Germany',
-                        region: 'europe',
-                        category: 'ceramics',
-                        status: 'active',
-                        notes: '專業歐洲骨瓷供應商',
-                        joinDate: '2023-01-15'
-                    },
-                    {
-                        id: 'S002',
-                        name: '波蘭陶器供應商',
-                        contactPerson: 'Anna Kowalski',
-                        phone: '+48 22 87654321',
-                        email: 'anna.kowalski@polish-pottery.pl',
-                        address: 'Warsaw, Poland',
-                        region: 'europe',
-                        category: 'ceramics',
-                        status: 'active',
-                        notes: '傳統波蘭手工陶器',
-                        joinDate: '2023-03-20'
-                    },
-                    {
-                        id: 'S003',
-                        name: '德國廚具供應商',
-                        contactPerson: 'Klaus Weber',
-                        phone: '+49 89 98765432',
-                        email: 'klaus.weber@german-kitchen.de',
-                        address: 'Munich, Germany',
-                        region: 'europe',
-                        category: 'kitchenware',
-                        status: 'active',
-                        notes: '高品質德國不鏽鋼廚具',
-                        joinDate: '2023-02-10'
-                    },
-                    {
-                        id: 'S004',
-                        name: '奧地利水晶供應商',
-                        contactPerson: 'Maria Schmidt',
-                        phone: '+43 1 23456789',
-                        email: 'maria.schmidt@austrian-crystal.at',
-                        address: 'Vienna, Austria',
-                        region: 'europe',
-                        category: 'glassware',
-                        status: 'active',
-                        notes: '施華洛世奇水晶製品',
-                        joinDate: '2023-01-05'
-                    }
-                ];
-                localStorage.setItem('suppliersData', JSON.stringify(suppliersData));
+        async function loadSuppliersData() {
+            try {
+                // 確保資料庫已初始化
+                await DatabaseManager.initialize();
+                
+                // 從Supabase獲取供應商資料
+                const suppliers = await BusinessAPI.getSuppliers();
+                
+                if (suppliers) {
+                    suppliersData = suppliers;
+                    console.log('成功載入供應商資料:', suppliersData.length, '筆');
+                } else {
+                    suppliersData = [];
+                    console.log('沒有找到供應商資料或載入失敗');
+                }
+            } catch (error) {
+                console.error('載入供應商資料失敗:', error);
+                suppliersData = [];
+                showNotification('載入供應商資料失敗，請檢查資料庫連接', 'error');
             }
-        }
-
-        // 保存供應商資料
-        function saveSuppliersData() {
-            localStorage.setItem('suppliersData', JSON.stringify(suppliersData));
         }
 
         let currentViewMode = 'grid';
         let filteredSuppliers = [...suppliersData];
 
         // 頁面初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSuppliersData();
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadSuppliersData();
+            // 初始化時顯示所有供應商
+            filteredSuppliers = [...suppliersData];
             renderSuppliers();
             updateStatistics();
             setupEventListeners();
@@ -327,10 +238,17 @@
 
         // 設置事件監聽器
         function setupEventListeners() {
-            document.getElementById('searchInput').addEventListener('input', filterSuppliers);
-            document.getElementById('statusFilter').addEventListener('change', filterSuppliers);
-            document.getElementById('regionFilter').addEventListener('change', filterSuppliers);
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
             document.getElementById('supplierForm').addEventListener('submit', handleAddSupplier);
+        }
+
+        // 執行搜尋
+        function performSearch() {
+            filterSuppliers();
         }
 
         // 回到主選單
@@ -348,35 +266,69 @@
         // 關閉供應商模態框
         function closeSupplierModal() {
             document.getElementById('addSupplierModal').classList.add('hidden');
+            // 清除編輯狀態
+            delete document.getElementById('supplierForm').dataset.editingId;
         }
 
-        // 處理新增供應商
-        function handleAddSupplier(e) {
+        // 處理新增/編輯供應商
+        async function handleAddSupplier(e) {
             e.preventDefault();
             
-            const newSupplier = {
-                id: 'S' + String(suppliersData.length + 1).padStart(3, '0'),
-                name: document.getElementById('supplierName').value,
-                contactPerson: document.getElementById('contactPerson').value,
-                phone: document.getElementById('supplierPhone').value,
-                email: document.getElementById('supplierEmail').value,
-                address: document.getElementById('supplierAddress').value,
-                region: document.getElementById('supplierRegion').value,
-                category: document.getElementById('supplierCategory').value,
-                status: document.getElementById('supplierStatus').value,
-                notes: document.getElementById('supplierNotes').value,
-                joinDate: new Date().toISOString().split('T')[0]
-            };
+            try {
+                const supplierData = {
+                    name: document.getElementById('supplierName').value,
+                    contact_person: document.getElementById('contactPerson').value,
+                    phone: document.getElementById('supplierPhone').value,
+                    email: document.getElementById('supplierEmail').value,
+                    address: document.getElementById('supplierAddress').value,
+                    notes: document.getElementById('supplierNotes').value
+                };
 
-            suppliersData.push(newSupplier);
-            saveSuppliersData();
-            filteredSuppliers = [...suppliersData];
-            
-            renderSuppliers();
-            updateStatistics();
-            closeSupplierModal();
-            
-            showNotification('供應商新增成功！', 'success');
+                // 驗證必填欄位
+                if (!supplierData.name.trim()) {
+                    showNotification('請輸入供應商名稱', 'error');
+                    return;
+                }
+
+                const editingId = document.getElementById('supplierForm').dataset.editingId;
+                
+                if (editingId) {
+                    // 編輯模式
+                    const updatedSupplier = await BusinessAPI.updateSupplier(editingId, supplierData);
+                    
+                    if (updatedSupplier) {
+                        await loadSuppliersData();
+                        filteredSuppliers = [...suppliersData];
+                        
+                        renderSuppliers();
+                        updateStatistics();
+                        closeSupplierModal();
+                        
+                        showNotification('供應商更新成功！', 'success');
+                    } else {
+                        showNotification('更新供應商失敗，請檢查資料庫連接', 'error');
+                    }
+                } else {
+                    // 新增模式
+                    const newSupplier = await BusinessAPI.addSupplier(supplierData);
+                    
+                    if (newSupplier) {
+                        await loadSuppliersData();
+                        filteredSuppliers = [...suppliersData];
+                        
+                        renderSuppliers();
+                        updateStatistics();
+                        closeSupplierModal();
+                        
+                        showNotification('供應商新增成功！', 'success');
+                    } else {
+                        showNotification('新增供應商失敗，請檢查資料庫連接', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('處理供應商資料時發生錯誤:', error);
+                showNotification('操作失敗: ' + error.message, 'error');
+            }
         }
 
         // 編輯供應商
@@ -385,53 +337,136 @@
             if (!supplier) return;
 
             document.getElementById('modalTitle').textContent = '編輯供應商';
-            document.getElementById('supplierName').value = supplier.name;
-            document.getElementById('contactPerson').value = supplier.contactPerson;
-            document.getElementById('supplierPhone').value = supplier.phone;
-            document.getElementById('supplierEmail').value = supplier.email;
-            document.getElementById('supplierAddress').value = supplier.address;
-            document.getElementById('supplierRegion').value = supplier.region;
-            document.getElementById('supplierCategory').value = supplier.category;
-            document.getElementById('supplierStatus').value = supplier.status;
-            document.getElementById('supplierNotes').value = supplier.notes;
+            document.getElementById('supplierName').value = supplier.name || '';
+            document.getElementById('contactPerson').value = supplier.contact_person || '';
+            document.getElementById('supplierPhone').value = supplier.phone || '';
+            document.getElementById('supplierEmail').value = supplier.email || '';
+            document.getElementById('supplierAddress').value = supplier.address || '';
+            document.getElementById('supplierNotes').value = supplier.notes || '';
 
+            // 儲存當前編輯的供應商ID
+            document.getElementById('supplierForm').dataset.editingId = supplierId;
             document.getElementById('addSupplierModal').classList.remove('hidden');
         }
 
         // 刪除供應商
-        function deleteSupplier(supplierId) {
+        async function deleteSupplier(supplierId) {
             const supplier = suppliersData.find(s => s.id === supplierId);
             if (!supplier) return;
 
             if (confirm(`確定要刪除供應商 "${supplier.name}" 嗎？此操作無法復原。`)) {
-                suppliersData = suppliersData.filter(s => s.id !== supplierId);
-                saveSuppliersData();
-                filteredSuppliers = [...suppliersData];
-                
-                renderSuppliers();
-                updateStatistics();
-                
-                showNotification('供應商刪除成功！', 'success');
+                try {
+                    const success = await BusinessAPI.deleteSupplier(supplierId);
+                    
+                    if (success) {
+                        await loadSuppliersData();
+                        filteredSuppliers = [...suppliersData];
+                        
+                        renderSuppliers();
+                        updateStatistics();
+                        
+                        showNotification('供應商刪除成功！', 'success');
+                    } else {
+                        showNotification('刪除供應商失敗，請檢查資料庫連接', 'error');
+                    }
+                } catch (error) {
+                    console.error('刪除供應商時發生錯誤:', error);
+                    showNotification('刪除供應商失敗: ' + error.message, 'error');
+                }
             }
         }
 
-        // 篩選供應商
+        // 搜尋供應商
         function filterSuppliers() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            const regionFilter = document.getElementById('regionFilter').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                // 如果搜尋欄位為空，顯示所有供應商
+                filteredSuppliers = [...suppliersData];
+                renderSuppliers();
+                return;
+            }
 
-            filteredSuppliers = suppliersData.filter(supplier => {
+            // 搜尋供應商
+            const searchResults = suppliersData.filter(supplier => {
                 const matchesSearch = supplier.name.toLowerCase().includes(searchTerm) ||
-                                    supplier.contactPerson.toLowerCase().includes(searchTerm);
-                const matchesStatus = !statusFilter || supplier.status === statusFilter;
-                const matchesRegion = !regionFilter || supplier.region === regionFilter;
+                                    (supplier.contact_person && supplier.contact_person.toLowerCase().includes(searchTerm)) ||
+                                    (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm)) ||
+                                    (supplier.email && supplier.email.toLowerCase().includes(searchTerm)) ||
+                                    (supplier.address && supplier.address.toLowerCase().includes(searchTerm));
 
-                return matchesSearch && matchesStatus && matchesRegion;
+                return matchesSearch;
             });
 
-            renderSuppliers();
+                    // 顯示搜尋結果彈窗
+        showSearchResults(searchResults, searchTerm);
+    }
+
+    // 顯示搜尋結果
+    function showSearchResults(results, searchTerm) {
+        const modal = document.getElementById('searchResultModal');
+        const title = document.getElementById('searchResultTitle');
+        const content = document.getElementById('searchResultContent');
+
+        title.textContent = `搜尋結果: "${searchTerm}"`;
+
+        if (results.length === 0) {
+            // 沒有搜尋到結果
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-search text-gray-400 text-4xl mb-4"></i>
+                    <h4 class="text-lg font-semibold text-gray-600 mb-2">無此資料</h4>
+                    <p class="text-gray-500">沒有找到符合 "${searchTerm}" 的供應商資料</p>
+                </div>
+            `;
+        } else {
+            // 顯示搜尋結果
+            content.innerHTML = `
+                <div class="mb-4">
+                    <p class="text-gray-600">找到 ${results.length} 筆符合的供應商資料：</p>
+                </div>
+                <div class="space-y-4">
+                    ${results.map(supplier => `
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-lg font-semibold text-gray-800">${supplier.name}</h4>
+                                <div class="flex space-x-2">
+                                    <button onclick="editSupplier('${supplier.id}')" class="text-[#17225e] hover:text-[#1a2a6e]">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deleteSupplier('${supplier.id}')" class="text-red-500 hover:text-red-700">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p class="text-gray-600"><i class="fas fa-user mr-2"></i><strong>聯絡人：</strong>${supplier.contact_person || '未設定'}</p>
+                                    <p class="text-gray-600"><i class="fas fa-phone mr-2"></i><strong>電話：</strong>${supplier.phone || '未設定'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600"><i class="fas fa-envelope mr-2"></i><strong>電子郵件：</strong>${supplier.email || '未設定'}</p>
+                                    <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i><strong>地址：</strong>${supplier.address || '未設定'}</p>
+                                </div>
+                            </div>
+                            ${supplier.notes ? `
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <p class="text-gray-600"><i class="fas fa-sticky-note mr-2"></i><strong>備註：</strong>${supplier.notes}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
+
+        modal.classList.remove('hidden');
+    }
+
+    // 關閉搜尋結果彈窗
+    function closeSearchResultModal() {
+        document.getElementById('searchResultModal').classList.add('hidden');
+    }
 
         // 切換檢視模式
         function toggleView(mode) {
@@ -443,6 +478,12 @@
         function renderSuppliers() {
             const gridView = document.getElementById('gridView');
             const listView = document.getElementById('listView');
+            
+            // 更新標題顯示供應商數量
+            const titleElement = document.querySelector('.apple-card h3');
+            if (titleElement) {
+                titleElement.textContent = `所有供應商 (${suppliersData.length} 筆)`;
+            }
 
             if (currentViewMode === 'grid') {
                 gridView.style.display = 'grid';
@@ -452,20 +493,16 @@
                     <div class="supplier-card bg-white rounded-lg p-6 shadow-md">
                         <div class="flex items-center justify-between mb-4">
                             <h4 class="font-semibold text-gray-800">${supplier.name}</h4>
-                            <span class="px-2 py-1 text-xs rounded-full ${supplier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                                ${supplier.status === 'active' ? '活躍' : '停用'}
-                            </span>
                         </div>
                         <div class="space-y-2 text-sm text-gray-600">
-                            <p><i class="fas fa-user mr-2"></i>${supplier.contactPerson || '未設定'}</p>
+                            <p><i class="fas fa-user mr-2"></i>${supplier.contact_person || '未設定'}</p>
                             <p><i class="fas fa-phone mr-2"></i>${supplier.phone || '未設定'}</p>
                             <p><i class="fas fa-envelope mr-2"></i>${supplier.email || '未設定'}</p>
                             <p><i class="fas fa-map-marker-alt mr-2"></i>${supplier.address || '未設定'}</p>
                         </div>
-                        <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
-                            <span class="text-xs text-gray-500">${getCategoryText(supplier.category)}</span>
+                        <div class="flex justify-end items-center mt-4 pt-4 border-t border-gray-200">
                             <div class="flex space-x-2">
-                                <button onclick="editSupplier('${supplier.id}')" class="text-blue-500 hover:text-blue-700">
+                                <button onclick="editSupplier('${supplier.id}')" class="text-[#17225e] hover:text-[#1a2a6e]">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button onclick="deleteSupplier('${supplier.id}')" class="text-red-500 hover:text-red-700">
@@ -484,13 +521,10 @@
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
                                 <h4 class="font-semibold text-gray-800">${supplier.name}</h4>
-                                <p class="text-sm text-gray-600">${supplier.contactPerson || '未設定聯絡人'} • ${supplier.phone || '未設定電話'}</p>
+                                <p class="text-sm text-gray-600">${supplier.contact_person || '未設定聯絡人'} • ${supplier.phone || '未設定電話'}</p>
                             </div>
                             <div class="flex items-center space-x-4">
-                                <span class="px-2 py-1 text-xs rounded-full ${supplier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                                    ${supplier.status === 'active' ? '活躍' : '停用'}
-                                </span>
-                                <button onclick="editSupplier('${supplier.id}')" class="text-blue-500 hover:text-blue-700">
+                                <button onclick="editSupplier('${supplier.id}')" class="text-[#17225e] hover:text-[#1a2a6e]">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button onclick="deleteSupplier('${supplier.id}')" class="text-red-500 hover:text-red-700">
@@ -506,29 +540,18 @@
         // 更新統計
         function updateStatistics() {
             document.getElementById('totalSuppliers').textContent = suppliersData.length;
-            document.getElementById('activeSuppliers').textContent = suppliersData.filter(s => s.status === 'active').length;
-            document.getElementById('europeanSuppliers').textContent = suppliersData.filter(s => s.region === 'europe').length;
-            document.getElementById('monthlyPurchases').textContent = '12'; // 模擬數據
+            document.getElementById('monthlyPurchases').textContent = '0'; // 暫時設為0
         }
 
-        // 獲取分類文字
-        function getCategoryText(category) {
-            const categories = {
-                'ceramics': '陶瓷器皿',
-                'glassware': '玻璃器皿',
-                'kitchenware': '廚具',
-                'decorative': '裝飾品'
-            };
-            return categories[category] || category;
-        }
+
 
         // 顯示通知
         function showNotification(message, type = 'info') {
             const alertClass = {
-                'success': 'bg-green-100 border-green-500 text-green-700',
+                'success': 'bg-gray-100 border-[#17225e] text-gray-700',
                 'error': 'bg-red-100 border-red-500 text-red-700',
-                'warning': 'bg-yellow-100 border-yellow-500 text-yellow-700',
-                'info': 'bg-blue-100 border-blue-500 text-blue-700'
+                'warning': 'bg-gray-100 border-gray-500 text-gray-700',
+                'info': 'bg-gray-100 border-[#17225e] text-gray-700'
             }[type];
             
             const notification = document.createElement('div');

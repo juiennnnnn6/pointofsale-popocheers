@@ -387,15 +387,21 @@ window.EmployeeAuth = EmployeeAuth;
 
 // 自動初始化認證系統
 document.addEventListener('DOMContentLoaded', async function() {
-    // 等待資料庫初始化
-    await DatabaseManager.initialize();
-    
-    // 初始化認證系統
-    const isLoggedIn = await EmployeeAuth.initialize();
-    
-    // 觸發登入狀態變更事件
-    const event = new CustomEvent('authStateChanged', { 
-        detail: { isLoggedIn, employee: EmployeeAuth.getCurrentEmployee() } 
-    });
-    document.dispatchEvent(event);
+    try {
+        // 檢查 DatabaseManager 是否存在
+        if (typeof DatabaseManager !== 'undefined' && DatabaseManager.initialize) {
+            await DatabaseManager.initialize();
+        }
+        
+        // 初始化認證系統
+        const isLoggedIn = await EmployeeAuth.initialize();
+        
+        // 觸發登入狀態變更事件
+        const event = new CustomEvent('authStateChanged', { 
+            detail: { isLoggedIn, employee: EmployeeAuth.getCurrentEmployee() } 
+        });
+        document.dispatchEvent(event);
+    } catch (error) {
+        console.error('認證系統自動初始化失敗:', error);
+    }
 }); 

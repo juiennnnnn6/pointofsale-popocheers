@@ -3,14 +3,21 @@
 
 // Supabase 配置
 const SUPABASE_URL = 'https://cgwhckykrlphnibmuvhz.supabase.co'; // 需要替換為您的Supabase URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODgzLCJleHAiOjIwNjg2NzY1ODN9.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'; // 需要替換為您的Supabase Anon Key
+const SUPABASE_ANON_KEY = 'sb_publishable_ThaibxLrJdwUixK594BZYw_ad8axjFN'; // 需要替換為您的Supabase Anon Key
 
 // 初始化 Supabase 客戶端
-let supabase;
+let supabase = null;
+const PRODUCT_IMAGE_BUCKET = 'product-images';
 
 // 初始化資料庫連接
 async function initDatabase() {
     try {
+        // 如果已經初始化過，直接返回
+        if (supabase) {
+            console.log('資料庫已經初始化');
+            return true;
+        }
+        
         // 動態載入 Supabase 客戶端
         const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
         supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -52,6 +59,9 @@ class DatabaseAPI {
     // 新增資料
     static async insertData(tableName, data) {
         try {
+            console.log(`準備插入資料到 ${tableName}:`, data);
+            
+            // 如果資料包含ID，使用指定的ID；否則讓Supabase自動生成
             const { data: result, error } = await supabase
                 .from(tableName)
                 .insert([data])
@@ -59,9 +69,11 @@ class DatabaseAPI {
             
             if (error) {
                 console.error(`新增${tableName}資料失敗:`, error);
+                console.error('錯誤詳情:', error.message, error.details, error.hint);
                 return null;
             }
             
+            console.log(`成功插入資料到 ${tableName}:`, result);
             return result[0];
         } catch (error) {
             console.error(`新增${tableName}資料時發生錯誤:`, error);
@@ -93,6 +105,14 @@ class DatabaseAPI {
     // 刪除資料
     static async deleteData(tableName, id) {
         try {
+            // 檢查 Supabase 是否已初始化
+            if (!supabase) {
+                console.warn('Supabase 未初始化，無法刪除資料');
+                return false;
+            }
+            
+            console.log(`嘗試刪除 ${tableName} 中的記錄，ID: ${id}`);
+            
             const { error } = await supabase
                 .from(tableName)
                 .delete()
@@ -103,6 +123,7 @@ class DatabaseAPI {
                 return false;
             }
             
+            console.log(`成功刪除 ${tableName} 中的記錄，ID: ${id}`);
             return true;
         } catch (error) {
             console.error(`刪除${tableName}資料時發生錯誤:`, error);
@@ -140,11 +161,21 @@ class BusinessAPI {
     }
     
     static async addProduct(productData) {
-        return await DatabaseAPI.insertData('products', {
-            ...productData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+        console.log('BusinessAPI.addProduct 被調用，資料:', productData);
+        // 嘗試帶 image_url 新增；若後端無該欄位，移除後重試
+        let result = await DatabaseAPI.insertData('products', productData);
+        if (!result && Object.prototype.hasOwnProperty.call(productData, 'image_url')) {
+            try {
+                const fallbackData = { ...productData };
+                delete fallbackData.image_url;
+                console.warn('products 表可能沒有 image_url 欄位，嘗試不帶 image_url 重新新增');
+                result = await DatabaseAPI.insertData('products', fallbackData);
+            } catch (e) {
+                console.error('fallback 新增商品失敗:', e);
+            }
+        }
+        console.log('BusinessAPI.addProduct 結果:', result);
+        return result;
     }
     
     static async updateProduct(id, productData) {
@@ -157,240 +188,39 @@ class BusinessAPI {
     static async deleteProduct(id) {
         return await DatabaseAPI.deleteData('products', id);
     }
-    
-    // 初始化商品資料 - 為每個分類增加3樣商品
-    static async initializeProducts() {
-        console.log('開始初始化商品資料...');
-        
-        // 商品資料欄位格式說明：
-        // {
-        //   name: '商品名稱',           // 必填，字串
-        //   barcode: '條碼',           // 必填，字串，唯一
-        //   category: '分類名稱',       // 必填，字串
-        //   price: 價格,               // 必填，數字
-        //   cost: 成本價,              // 選填，數字
-        //   stock: 庫存數量,           // 必填，數字
-        //   min_stock: 最低庫存,       // 選填，數字
-        //   description: '商品描述',   // 選填，字串
-        //   image_url: '圖片URL',      // 選填，字串
-        //   is_active: true,          // 選填，布林值，預設true
-        //   supplier_id: 供應商ID,     // 選填，數字
-        //   created_at: 建立時間,      // 自動產生
-        //   updated_at: 更新時間       // 自動產生
-        // }
-        
-        const products = [
-            // 餐具系列 (3樣商品)
-            {
-                name: '波蘭手工陶瓷餐盤組',
-                barcode: 'PLATE001',
-                category: '餐具系列',
-                price: 1200,
-                cost: 800,
-                stock: 50,
-                min_stock: 10,
-                description: '精緻手工陶瓷餐盤，適合日常用餐使用',
-                image_url: 'https://example.com/plate1.jpg',
-                is_active: true
-            },
-            {
-                name: '歐洲風格咖啡杯組',
-                barcode: 'CUP001',
-                category: '餐具系列',
-                price: 850,
-                cost: 550,
-                stock: 30,
-                min_stock: 5,
-                description: '優雅咖啡杯組，適合下午茶時光',
-                image_url: 'https://example.com/cup1.jpg',
-                is_active: true
-            },
-            {
-                name: '手工陶瓷湯碗',
-                barcode: 'BOWL001',
-                category: '餐具系列',
-                price: 680,
-                cost: 420,
-                stock: 40,
-                min_stock: 8,
-                description: '溫暖手感的陶瓷湯碗，保溫效果好',
-                image_url: 'https://example.com/bowl1.jpg',
-                is_active: true
-            },
-            
-            // 酒具系列 (3樣商品)
-            {
-                name: '波蘭手工花瓶大號',
-                barcode: 'VASE001',
-                category: '酒具系列',
-                price: 1800,
-                cost: 1200,
-                stock: 20,
-                min_stock: 3,
-                description: '大型手工花瓶，適合客廳裝飾',
-                image_url: 'https://example.com/vase1.jpg',
-                is_active: true
-            },
-            {
-                name: '歐式復古小花瓶',
-                barcode: 'VASE002',
-                category: '酒具系列',
-                price: 950,
-                cost: 650,
-                stock: 25,
-                min_stock: 5,
-                description: '復古風格小花瓶，適合書桌擺設',
-                image_url: 'https://example.com/vase2.jpg',
-                is_active: true
-            },
-            {
-                name: '手工陶瓷花瓶套組',
-                barcode: 'VASE003',
-                category: '酒具系列',
-                price: 2200,
-                cost: 1500,
-                stock: 15,
-                min_stock: 2,
-                description: '三件式花瓶套組，不同尺寸搭配',
-                image_url: 'https://example.com/vase3.jpg',
-                is_active: true
-            },
-            
-            // 擺飾系列 (3樣商品)
-            {
-                name: '波蘭手工陶瓷擺飾',
-                barcode: 'DECOR001',
-                category: '擺飾系列',
-                price: 750,
-                cost: 480,
-                stock: 35,
-                min_stock: 7,
-                description: '精緻手工擺飾，增添居家美感',
-                image_url: 'https://example.com/decor1.jpg',
-                is_active: true
-            },
-            {
-                name: '歐式陶瓷燭台',
-                barcode: 'DECOR002',
-                category: '擺飾系列',
-                price: 1200,
-                cost: 780,
-                stock: 18,
-                min_stock: 4,
-                description: '優雅燭台設計，營造浪漫氛圍',
-                image_url: 'https://example.com/decor2.jpg',
-                is_active: true
-            },
-            {
-                name: '手工陶瓷相框',
-                barcode: 'DECOR003',
-                category: '擺飾系列',
-                price: 650,
-                cost: 420,
-                stock: 28,
-                min_stock: 6,
-                description: '溫馨陶瓷相框，珍藏美好回憶',
-                image_url: 'https://example.com/decor3.jpg',
-                is_active: true
-            },
-            
-            // 茶具系列 (3樣商品)
-            {
-                name: '波蘭手工陶瓷鍋具',
-                barcode: 'KITCHEN001',
-                category: '茶具系列',
-                price: 2800,
-                cost: 1800,
-                stock: 12,
-                min_stock: 2,
-                description: '高品質陶瓷鍋具，健康烹飪首選',
-                image_url: 'https://example.com/kitchen1.jpg',
-                is_active: true
-            },
-            {
-                name: '歐式陶瓷調味罐組',
-                barcode: 'KITCHEN002',
-                category: '茶具系列',
-                price: 980,
-                cost: 620,
-                stock: 22,
-                min_stock: 5,
-                description: '實用調味罐組，廚房收納好幫手',
-                image_url: 'https://example.com/kitchen2.jpg',
-                is_active: true
-            },
-            {
-                name: '手工陶瓷茶具組',
-                barcode: 'KITCHEN003',
-                category: '茶具系列',
-                price: 1600,
-                cost: 1000,
-                stock: 16,
-                min_stock: 3,
-                description: '精緻茶具組，享受品茶時光',
-                image_url: 'https://example.com/kitchen3.jpg',
-                is_active: true
-            },
-            
-            // 廚具系列 (3樣商品)
-            {
-                name: '波蘭手工陶瓷牙刷架',
-                barcode: 'BATH001',
-                category: '廚具系列',
-                price: 450,
-                cost: 280,
-                stock: 45,
-                min_stock: 10,
-                description: '實用牙刷架，保持浴室整潔',
-                image_url: 'https://example.com/bath1.jpg',
-                is_active: true
-            },
-            {
-                name: '歐式陶瓷肥皂盒',
-                barcode: 'BATH002',
-                category: '廚具系列',
-                price: 380,
-                cost: 240,
-                stock: 38,
-                min_stock: 8,
-                description: '優雅肥皂盒，浴室裝飾好物',
-                image_url: 'https://example.com/bath2.jpg',
-                is_active: true
-            },
-            {
-                name: '手工陶瓷毛巾架',
-                barcode: 'BATH003',
-                category: '廚具系列',
-                price: 720,
-                cost: 460,
-                stock: 25,
-                min_stock: 5,
-                description: '實用毛巾架，浴室收納必備',
-                image_url: 'https://example.com/bath3.jpg',
-                is_active: true
-            }
-        ];
-        
+
+    // 圖片上傳到 Supabase Storage，回傳公開 URL
+    static async uploadProductImage(file) {
         try {
-            // 檢查是否已有商品資料
-            const existingProducts = await this.getProducts();
-            if (existingProducts && existingProducts.length > 0) {
-                console.log('商品資料已存在，跳過初始化');
-                return existingProducts;
+            if (!supabase) {
+                const ok = await initDatabase();
+                if (!ok) throw new Error('資料庫未初始化');
             }
+            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+            const path = `products/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
             
-            // 批量新增商品
-            const result = await DatabaseAPI.batchInsert('products', products);
+            // 直接嘗試上傳，如果 bucket 不存在會自動報錯
+            console.log('嘗試上傳圖片到 bucket:', PRODUCT_IMAGE_BUCKET);
             
-            if (result) {
-                console.log(`成功新增 ${result.length} 樣商品`);
-                return result;
-            } else {
-                console.error('新增商品失敗');
+            const { data, error } = await supabase
+                .storage
+                .from(PRODUCT_IMAGE_BUCKET)
+                .upload(path, file, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: file.type || 'image/jpeg'
+                });
+            if (error) {
+                console.error('上傳圖片失敗:', error);
                 return null;
             }
+            const { data: pub } = supabase
+                .storage
+                .from(PRODUCT_IMAGE_BUCKET)
+                .getPublicUrl(data.path);
+            return pub?.publicUrl || null;
         } catch (error) {
-            console.error('初始化商品資料時發生錯誤:', error);
+            console.error('uploadProductImage 發生錯誤:', error);
             return null;
         }
     }
@@ -401,22 +231,138 @@ class BusinessAPI {
     }
     
     static async addCategory(categoryData) {
-        return await DatabaseAPI.insertData('categories', {
-            ...categoryData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+        // 優先傳送 name 與 description（常見欄位）。
+        // 若後端不存在 description 欄位，後端會回 400；如發生可再通知我們加回容錯。
+        const payload = {
+            name: categoryData.name,
+            ...(categoryData.description ? { description: categoryData.description } : {})
+        };
+        return await DatabaseAPI.insertData('categories', payload);
     }
     
     static async updateCategory(id, categoryData) {
-        return await DatabaseAPI.updateData('categories', id, {
-            ...categoryData,
-            updated_at: new Date().toISOString()
-        });
+        // 更新時傳送 name 與 description（如提供）。
+        const payload = {
+            name: categoryData.name,
+            ...(categoryData.description ? { description: categoryData.description } : {})
+        };
+        return await DatabaseAPI.updateData('categories', id, payload);
     }
     
     static async deleteCategory(id) {
         return await DatabaseAPI.deleteData('categories', id);
+    }
+
+    // 進貨管理
+    static async getPurchaseHistory() {
+        try {
+            return await DatabaseAPI.getData('purchase_history');
+        } catch (error) {
+            console.warn('purchase_history 表不存在，返回空數組:', error.message);
+            return [];
+        }
+    }
+    
+    static async getPurchaseHistoryByProduct(productId) {
+        try {
+            const { data, error } = await supabase
+                .from('purchase_history')
+                .select('*')
+                .eq('product_id', productId);
+            
+            if (error) {
+                console.error('獲取商品進貨記錄失敗:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('獲取商品進貨記錄時發生錯誤:', error);
+            return [];
+        }
+    }
+    
+    static async getPurchaseHistoryByDateRange(startDate, endDate) {
+        try {
+            const { data, error } = await supabase
+                .from('purchase_history')
+                .select('*')
+                .gte('purchase_date', startDate)
+                .lte('purchase_date', endDate);
+            
+            if (error) {
+                console.error('獲取日期範圍進貨記錄失敗:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('獲取日期範圍進貨記錄時發生錯誤:', error);
+            return [];
+        }
+    }
+    
+    static async addPurchaseRecord(purchaseData) {
+        return await DatabaseAPI.insertData('purchase_history', {
+            ...purchaseData,
+            purchase_date: purchaseData.purchase_date || new Date().toISOString(),
+            created_at: new Date().toISOString()
+        });
+    }
+    
+    static async updatePurchaseRecord(id, purchaseData) {
+        return await DatabaseAPI.updateData('purchase_history', id, {
+            ...purchaseData,
+            updated_at: new Date().toISOString()
+        });
+    }
+    
+    static async deletePurchaseRecord(id) {
+        return await DatabaseAPI.deleteData('purchase_history', id);
+    }
+    
+    // 退貨管理
+    static async getRefunds() {
+        return await DatabaseAPI.getData('refunds');
+    }
+    
+    static async getRefundsByDateRange(startDate, endDate) {
+        try {
+            const { data, error } = await supabase
+                .from('refunds')
+                .select('*')
+                .gte('refund_date', startDate)
+                .lte('refund_date', endDate);
+            
+            if (error) {
+                console.error('獲取日期範圍退貨記錄失敗:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('獲取日期範圍退貨記錄時發生錯誤:', error);
+            return [];
+        }
+    }
+    
+    static async addRefund(refundData) {
+        return await DatabaseAPI.insertData('refunds', {
+            ...refundData,
+            refund_date: refundData.refund_date || new Date().toISOString(),
+            created_at: new Date().toISOString()
+        });
+    }
+    
+    static async updateRefund(id, refundData) {
+        return await DatabaseAPI.updateData('refunds', id, {
+            ...refundData,
+            updated_at: new Date().toISOString()
+        });
+    }
+    
+    static async deleteRefund(id) {
+        return await DatabaseAPI.deleteData('refunds', id);
     }
     
     // 會員管理
@@ -564,7 +510,8 @@ class DatabaseManager {
     
     // 初始化資料庫
     static async initialize() {
-        if (this.isInitialized) {
+        if (this.isInitialized && supabase) {
+            console.log('資料庫管理器已經初始化');
             return true;
         }
         
@@ -598,10 +545,9 @@ class DatabaseManager {
 window.DatabaseAPI = DatabaseAPI;
 window.BusinessAPI = BusinessAPI;
 window.DatabaseManager = DatabaseManager;
+window.supabase = supabase; // 暴露 supabase 客戶端到全域
 
 // 自動初始化
 document.addEventListener('DOMContentLoaded', async function() {
     await DatabaseManager.initialize();
-    // 初始化商品資料
-    await BusinessAPI.initializeProducts();
 }); 
