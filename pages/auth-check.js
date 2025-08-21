@@ -25,53 +25,165 @@ async function waitForAuth() {
 async function checkAuthentication() {
     console.log('=== checkAuthentication 開始 ===');
     
-    await waitForAuth();
-    console.log('waitForAuth 完成');
-    
-    const isLoggedIn = EmployeeAuth.isLoggedIn();
-    console.log('EmployeeAuth.isLoggedIn() 結果:', isLoggedIn);
-    
-    if (!isLoggedIn) {
-        console.log('未登入，準備重定向');
-        // 未登入，重定向到主頁面
-        alert('請先登入系統！');
-        window.location.href = '../index.html';
-        return false;
+    // 首先檢查 localStorage 中的登入狀態（index.html 的登入系統）
+    const savedEmployee = localStorage.getItem('currentEmployee');
+    if (savedEmployee) {
+        try {
+            const currentEmployee = JSON.parse(savedEmployee);
+            console.log('從 localStorage 獲取到員工資訊:', currentEmployee);
+            
+            // 將員工資訊設定到全域變數，供其他函數使用
+            window.currentEmployee = currentEmployee;
+            
+            console.log('認證成功，當前員工:', currentEmployee);
+            console.log('=== checkAuthentication 完成 ===');
+            return true;
+        } catch (error) {
+            console.error('解析員工資訊失敗:', error);
+        }
     }
     
-    console.log('認證成功，當前員工:', EmployeeAuth.getCurrentEmployee());
-    console.log('=== checkAuthentication 完成 ===');
-    return true;
+    // 如果 localStorage 中沒有，嘗試使用 EmployeeAuth 系統
+    try {
+        await waitForAuth();
+        console.log('waitForAuth 完成');
+        
+        const isLoggedIn = EmployeeAuth.isLoggedIn();
+        console.log('EmployeeAuth.isLoggedIn() 結果:', isLoggedIn);
+        
+        if (isLoggedIn) {
+            const employee = EmployeeAuth.getCurrentEmployee();
+            window.currentEmployee = employee;
+            console.log('認證成功，當前員工:', employee);
+            console.log('=== checkAuthentication 完成 ===');
+            return true;
+        }
+    } catch (error) {
+        console.error('EmployeeAuth 檢查失敗:', error);
+    }
+    
+    console.log('未登入，準備重定向');
+    // 未登入，重定向到主頁面
+    alert('請先登入系統！');
+    window.location.href = '../index.html';
+    return false;
 }
 
 // 檢查用戶權限
 async function checkPermission(requiredRoles) {
-    await waitForAuth();
+    console.log('=== checkPermission 開始 ===');
+    console.log('需要權限:', requiredRoles);
     
-    if (!EmployeeAuth.isLoggedIn()) {
+    // 首先檢查 localStorage 中的登入狀態
+    const savedEmployee = localStorage.getItem('currentEmployee');
+    if (savedEmployee) {
+        try {
+            const currentEmployee = JSON.parse(savedEmployee);
+            console.log('當前員工:', currentEmployee);
+            
+            // 使用 index.html 的權限檢查邏輯
+            const hasAccess = hasPermission(currentEmployee, requiredRoles);
+            console.log('權限檢查結果:', hasAccess);
+            
+            if (hasAccess) {
+                console.log('權限檢查通過');
+                return true;
+            } else {
+                const employee = currentEmployee;
+                alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${employee.role}`);
+                return false;
+            }
+        } catch (error) {
+            console.error('解析員工資訊失敗:', error);
+        }
+    }
+    
+    // 如果 localStorage 中沒有，嘗試使用 EmployeeAuth 系統
+    try {
+        await waitForAuth();
+        
+        if (!EmployeeAuth.isLoggedIn()) {
+            alert('請先登入系統！');
+            window.location.href = '../index.html';
+            return false;
+        }
+
+        // 檢查權限
+        if (EmployeeAuth.hasPermission(requiredRoles)) {
+            return true;
+        } else {
+            const employee = EmployeeAuth.getCurrentEmployee();
+            alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${employee.position}`);
+            return false;
+        }
+    } catch (error) {
+        console.error('EmployeeAuth 權限檢查失敗:', error);
         alert('請先登入系統！');
         window.location.href = '../index.html';
         return false;
     }
+}
 
-    // 檢查權限
-    if (EmployeeAuth.hasPermission(requiredRoles)) {
+// 權限檢查函數（複製自 index.html）
+function hasPermission(employee, requiredPermissions) {
+    console.log('權限檢查:', {
+        employee: employee,
+        requiredPermissions: requiredPermissions,
+        employeePermissions: employee?.permissions
+    });
+    
+    // 如果沒有權限要求（空陣列），表示所有人都可以訪問
+    if (!requiredPermissions || requiredPermissions.length === 0) {
+        console.log('無權限要求，所有人可訪問');
         return true;
-    } else {
-        const employee = EmployeeAuth.getCurrentEmployee();
-        alert(`權限不足！\n\n此功能需要以下權限：${requiredRoles.join(' 或 ')}\n\n您的權限：${employee.position}`);
+    }
+    
+    if (!employee || !employee.permissions) {
+        console.log('員工或權限不存在');
         return false;
     }
+
+    // 如果員工有 'all' 權限，直接返回 true
+    if (employee.permissions.includes('all')) {
+        console.log('員工擁有 all 權限，允許訪問');
+        return true;
+    }
+
+    // 檢查是否包含所需的任何一個權限
+    const hasRequiredPermission = requiredPermissions.some(permission => 
+        employee.permissions.includes(permission)
+    );
+    
+    console.log('權限檢查結果:', hasRequiredPermission);
+    return hasRequiredPermission;
 }
 
 // 獲取當前登入員工資訊
 async function getCurrentEmployee() {
-    await waitForAuth();
+    // 首先檢查 localStorage 中的登入狀態
+    const savedEmployee = localStorage.getItem('currentEmployee');
+    if (savedEmployee) {
+        try {
+            const currentEmployee = JSON.parse(savedEmployee);
+            console.log('從 localStorage 獲取到員工資訊:', currentEmployee);
+            return currentEmployee;
+        } catch (error) {
+            console.error('解析員工資訊失敗:', error);
+        }
+    }
     
-    if (!EmployeeAuth.isLoggedIn()) {
+    // 如果 localStorage 中沒有，嘗試使用 EmployeeAuth 系統
+    try {
+        await waitForAuth();
+        
+        if (!EmployeeAuth.isLoggedIn()) {
+            return null;
+        }
+        return EmployeeAuth.getCurrentEmployee();
+    } catch (error) {
+        console.error('EmployeeAuth 獲取員工資訊失敗:', error);
         return null;
     }
-    return EmployeeAuth.getCurrentEmployee();
 }
 
 // 顯示員工資訊

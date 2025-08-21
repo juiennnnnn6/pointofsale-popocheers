@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
+    <script src="../database.js"></script>
 
     <script>
         // 簡單的認證檢查測試
@@ -15,23 +16,7 @@
         console.log('employee-auth.js 是否載入:', typeof EmployeeAuth !== 'undefined');
         console.log('auth-check.js 是否載入:', typeof checkAuthentication !== 'undefined');
         
-        // 檢查掃描功能是否載入
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                if (typeof window.quickScan !== 'function') {
-                    console.log('掃描功能未載入，提供手動輸入替代方案');
-                    window.quickScan = function(onSuccess, onError) {
-                        const barcode = prompt('請輸入條碼號碼進行商品查詢');
-                        if (barcode) {
-                            onSuccess(barcode);
-                        } else if (onError) {
-                            onError(new Error('用戶取消輸入'));
-                        }
-                    };
-                    console.log('手動輸入功能已就緒');
-                }
-            }, 1000);
-        });
+
     </script>
     <style>
         .apple-card {
@@ -66,7 +51,7 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-green-50 to-blue-100 min-h-screen p-4">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
     
     <!-- 頂部操作區 -->
     <div class="mb-6">
@@ -76,28 +61,26 @@
                 <p class="text-gray-600" id="pageSubtitle">選擇商品分類查看商品和庫存狀態</p>
             </div>
             <div class="flex space-x-3">
-                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-th-large mr-2"></i>回選單
                 </button>
-                <button onclick="navigateToPage('members')" class="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-600 transition-colors">
+                <button onclick="navigateToPage('members')" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-users mr-2"></i>會員管理
                 </button>
                 <button id="backToCategories" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors" style="display: none;">
                     <i class="fas fa-arrow-left mr-2"></i>返回分類
                 </button>
-                <button id="addProductBtn" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors" onclick="showAddProductModal()">
+                <button id="addProductBtn" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-plus mr-2"></i>新增商品
                 </button>
-                <button id="scanAddProductBtn" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
-                    <i class="fas fa-barcode mr-2"></i>掃碼新增
-                </button>
-                <button onclick="goToImportExport()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
+
+                <button onclick="goToImportExport()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-file-import mr-2"></i>匯出/入
                 </button>
-                <button onclick="showStockTakingModal()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors">
+                <button onclick="showStockTakingModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors">
                     <i class="fas fa-clipboard-check mr-2"></i>盤點作業
                 </button>
-                <button onclick="showCategoryManagement()" class="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-600 transition-colors">
+                <button onclick="showCategoryManagement()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-tags mr-2"></i>分類管理
                 </button>
             </div>
@@ -108,25 +91,25 @@
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="apple-card rounded-xl p-4 shadow-lg">
             <div class="text-center">
-                <p class="text-2xl font-bold text-blue-600" id="totalProducts">156</p>
+                <p class="text-2xl font-bold text-[#17225e]" id="totalProducts">156</p>
                 <p class="text-sm text-gray-600">總商品數</p>
             </div>
         </div>
         <div class="apple-card rounded-xl p-4 shadow-lg">
             <div class="text-center">
-                <p class="text-2xl font-bold text-green-600" id="inStockProducts">142</p>
+                <p class="text-2xl font-bold text-[#17225e]" id="inStockProducts">142</p>
                 <p class="text-sm text-gray-600">有庫存</p>
             </div>
         </div>
         <div class="apple-card rounded-xl p-4 shadow-lg">
             <div class="text-center">
-                <p class="text-2xl font-bold text-orange-600" id="lowStockProducts">8</p>
+                <p class="text-2xl font-bold text-[#17225e]" id="lowStockProducts">8</p>
                 <p class="text-sm text-gray-600">低庫存</p>
             </div>
         </div>
         <div class="apple-card rounded-xl p-4 shadow-lg">
             <div class="text-center">
-                <p class="text-2xl font-bold text-purple-600" id="totalValue">NT$485,230</p>
+                <p class="text-2xl font-bold text-[#17225e]" id="totalValue">NT$485,230</p>
                 <p class="text-sm text-gray-600">庫存總值</p>
             </div>
         </div>
@@ -137,109 +120,8 @@
         <div class="apple-card rounded-xl p-6 shadow-lg">
             <h3 class="text-lg font-semibold text-gray-800 mb-6">商品分類</h3>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                
-                <!-- 餐具系列 -->
-                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="tableware">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-utensils text-2xl text-blue-600"></i>
-                    </div>
-                    <h4 class="font-semibold text-gray-800 mb-2">餐具系列</h4>
-                    <p class="text-sm text-gray-600 mb-3">歐式骨瓷、法式餐具套裝</p>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">商品數量</span>
-                        <span class="font-semibold text-blue-600">5 件</span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-1">
-                        <span class="text-gray-500">庫存價值</span>
-                        <span class="font-semibold text-green-600">NT$38,890</span>
-                    </div>
-                </div>
-
-                <!-- 酒具系列 -->
-                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="glassware">
-                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-wine-glass text-2xl text-purple-600"></i>
-                    </div>
-                    <h4 class="font-semibold text-gray-800 mb-2">酒具系列</h4>
-                    <p class="text-sm text-gray-600 mb-3">施華洛世奇水晶酒杯</p>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">商品數量</span>
-                        <span class="font-semibold text-blue-600">2 件</span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-1">
-                        <span class="text-gray-500">庫存價值</span>
-                        <span class="font-semibold text-green-600">NT$81,300</span>
-                    </div>
-                </div>
-
-                <!-- 擺飾系列 -->
-                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="decorative">
-                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-seedling text-2xl text-green-600"></i>
-                    </div>
-                    <h4 class="font-semibold text-gray-800 mb-2">擺飾系列</h4>
-                    <p class="text-sm text-gray-600 mb-3">北歐風陶瓷花瓶</p>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">商品數量</span>
-                        <span class="font-semibold text-blue-600">3 件</span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-1">
-                        <span class="text-gray-500">庫存價值</span>
-                        <span class="font-semibold text-green-600">NT$42,740</span>
-                    </div>
-                </div>
-
-                <!-- 茶具系列 -->
-                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="teaware">
-                    <div class="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-coffee text-2xl text-pink-600"></i>
-                    </div>
-                    <h4 class="font-semibold text-gray-800 mb-2">茶具系列</h4>
-                    <p class="text-sm text-gray-600 mb-3">英式骨瓷茶杯組</p>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">商品數量</span>
-                        <span class="font-semibold text-blue-600">1 件</span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-1">
-                        <span class="text-gray-500">庫存價值</span>
-                        <span class="font-semibold text-red-600">NT$0</span>
-                    </div>
-                </div>
-
-                <!-- 廚具系列 -->
-                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="kitchenware">
-                    <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-blender text-2xl text-yellow-600"></i>
-                    </div>
-                    <h4 class="font-semibold text-gray-800 mb-2">廚具系列</h4>
-                    <p class="text-sm text-gray-600 mb-3">德國不鏽鋼廚具</p>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">商品數量</span>
-                        <span class="font-semibold text-blue-600">1 件</span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-1">
-                        <span class="text-gray-500">庫存價值</span>
-                        <span class="font-semibold text-green-600">NT$26,400</span>
-                    </div>
-                </div>
-
-                <!-- 其他分類 -->
-                <div class="category-card apple-card rounded-xl p-6 shadow-md text-center" data-category="others">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-ellipsis-h text-2xl text-gray-600"></i>
-                    </div>
-                    <h4 class="font-semibold text-gray-800 mb-2">其他商品</h4>
-                    <p class="text-sm text-gray-600 mb-3">未分類商品</p>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">商品數量</span>
-                        <span class="font-semibold text-blue-600">0 件</span>
-                    </div>
-                    <div class="flex justify-between text-sm mt-1">
-                        <span class="text-gray-500">庫存價值</span>
-                        <span class="font-semibold text-green-600">NT$0</span>
-                    </div>
-                </div>
+            <div id="categoriesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- 分類卡片將在這裡動態生成 -->
             </div>
         </div>
     </div>
@@ -248,7 +130,7 @@
     <div id="productsView" class="products-view">
         <!-- 搜尋和篩選區 -->
         <div class="apple-card rounded-xl p-6 mb-6 shadow-lg">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div class="lg:col-span-2">
                     <div class="relative">
                         <input type="text" id="searchInput" placeholder="搜尋商品名稱、條碼..." onkeyup="searchProducts()"
@@ -264,16 +146,6 @@
                         <option value="out">缺貨</option>
                     </select>
                 </div>
-                <div>
-                    <select id="sortSelect" onchange="sortProducts()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                        <option value="">預設排序</option>
-                        <option value="price-desc">價格（高到低）</option>
-                        <option value="price-asc">價格（低到高）</option>
-                        <option value="stock-desc">庫存量（高到低）</option>
-                        <option value="stock-asc">庫存量（低到高）</option>
-                        <option value="name-asc">商品名稱（A-Z）</option>
-                    </select>
-                </div>
             </div>
         </div>
 
@@ -287,7 +159,7 @@
                         <button class="p-2 text-gray-500 hover:text-gray-700" onclick="toggleView('grid')">
                             <i class="fas fa-th"></i>
                         </button>
-                        <button class="p-2 text-blue-500 hover:text-blue-700" onclick="toggleView('list')">
+                        <button class="p-2 text-[#17225e] hover:text-[#1a2a6e]" onclick="toggleView('list')">
                             <i class="fas fa-list"></i>
                         </button>
                     </div>
@@ -310,7 +182,7 @@
                     <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>
                         上一頁
                     </button>
-                    <button class="px-3 py-1 text-sm bg-green-500 text-white rounded">1</button>
+                    <button class="px-3 py-1 text-sm bg-[#17225e] text-white rounded">1</button>
                     <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">2</button>
                     <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
                         下一頁
@@ -349,6 +221,12 @@
                         </div>
                     </div>
                     
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">商品圖片</label>
+                        <input type="file" id="productImageFile" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">選擇圖片後，系統會自動上傳並產生 URL 儲存到資料庫。</p>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">售價</label>
@@ -365,12 +243,6 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">商品分類</label>
                             <select id="productCategory" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
                                 <option value="">請選擇分類</option>
-                                <option value="electronics">電子產品</option>
-                                <option value="sports">運動用品</option>
-                                <option value="fashion">時尚配件</option>
-                                <option value="clothing">服飾鞋帽</option>
-                                <option value="home">家居用品</option>
-                                <option value="others">其他商品</option>
                             </select>
                         </div>
                         <div>
@@ -386,7 +258,14 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">供應商</label>
-                            <input type="text" id="productSupplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入供應商名稱">
+                            <div class="flex space-x-2">
+                                <select id="productSupplier" class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <option value="">請選擇供應商</option>
+                                </select>
+                                <button type="button" onclick="showAddSupplierModal()" class="px-3 py-2 bg-[#17225e] text-white rounded-r-lg hover:bg-[#1a2a6e] transition-colors">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
@@ -395,32 +274,85 @@
                         <textarea id="productDescription" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入商品描述（選填）"></textarea>
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">商品圖片</label>
-                        <div class="flex items-center space-x-4">
-                            <input type="url" id="productImage" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="請輸入圖片網址，或選擇預設圖片">
-                            <select id="defaultImages" onchange="selectDefaultImage()" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                                <option value="">選擇預設圖片</option>
-                                <option value="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center">3C產品</option>
-                                <option value="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&h=200&fit=crop&crop=center">運動鞋</option>
-                                <option value="https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200&h=200&fit=crop&crop=center">太陽眼鏡</option>
-                                <option value="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200&h=200&fit=crop&crop=center">服飾</option>
-                                <option value="https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=200&h=200&fit=crop&crop=center">家居用品</option>
-                            </select>
-                        </div>
-                    </div>
+
                     
                     <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="testDatabaseConnection()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-database mr-2"></i>測試連接
+                        </button>
                         <button type="button" onclick="hideAddProductModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                             取消
                         </button>
-                        <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                        <button type="submit" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                             <i class="fas fa-plus mr-2"></i>新增商品
                         </button>
                     </div>
                 </form>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- 新增供應商模態框 -->
+    <div id="addSupplierModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800" id="supplierModalTitle">新增供應商</h3>
+                <button onclick="closeSupplierModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="supplierForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">供應商名稱 *</label>
+                        <input type="text" id="supplierName" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">聯絡人</label>
+                        <input type="text" id="contactPerson" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">電話</label>
+                        <input type="tel" id="supplierPhone" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">電子郵件</label>
+                        <input type="email" id="supplierEmail" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
+                    <textarea id="supplierAddress" rows="2" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">備註</label>
+                    <textarea id="supplierNotes" rows="3" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeSupplierModal()" 
+                            class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        儲存
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -469,7 +401,7 @@
                         <button type="button" onclick="deleteProduct()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
                             <i class="fas fa-trash mr-2"></i>刪除
                         </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        <button type="submit" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                             <i class="fas fa-save mr-2"></i>保存
                         </button>
                     </div>
@@ -482,8 +414,476 @@
     <script>
         // 商品數據
         let productData = {};
+        let categoriesData = [];
+        let suppliersData = [];
+
+        // 商品管理功能
+
+        // 顯示新增商品模態框
+        function showAddProductModal() {
+            console.log('showAddProductModal 被調用');
+            const modal = document.getElementById('addProductModal');
+            if (!modal) {
+                console.error('找不到 addProductModal 元素');
+                return;
+            }
+            modal.classList.remove('hidden');
+            const nameInput = document.getElementById('productName');
+            if (nameInput) {
+                nameInput.focus();
+            }
+            console.log('新增商品模態框已顯示');
+        }
+
+        // 隱藏新增商品模態框
+        function hideAddProductModal() {
+            document.getElementById('addProductModal').classList.add('hidden');
+            document.getElementById('addProductForm').reset();
+        }
+
+        // 生成隨機條碼
+        function generateBarcode() {
+            const barcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
+            document.getElementById('productBarcode').value = barcode.toString();
+        }
+
+
+
+        // 新增商品表單提交處理函數
+        async function handleAddProduct(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('productName').value.trim();
+            const barcode = document.getElementById('productBarcode').value.trim();
+            const price = parseInt(document.getElementById('productPrice').value);
+            const cost = parseInt(document.getElementById('productCost').value) || 0;
+            const categoryId = document.getElementById('productCategory').value;
+            const stock = parseInt(document.getElementById('productStock').value);
+            const minStock = parseInt(document.getElementById('productMinStock').value) || 10;
+            const supplierElement = document.getElementById('productSupplier');
+            const supplier = supplierElement ? supplierElement.value.trim() : '';
+            console.log('供應商元素:', supplierElement);
+            console.log('供應商選擇值:', supplier);
+            console.log('供應商選項數量:', supplierElement ? supplierElement.options.length : 0);
+            console.log('供應商資料:', suppliersData);
+            const description = document.getElementById('productDescription').value.trim();
+
+            // 驗證必填欄位
+            if (!name || !barcode || !categoryId) {
+                alert('請填寫商品名稱、條碼和選擇分類');
+                return;
+            }
+
+            // 驗證供應商選擇
+            console.log('驗證供應商選擇 - supplier:', supplier, 'suppliersData.length:', suppliersData.length);
+            if (!supplier) {
+                if (suppliersData.length === 0) {
+                    alert('請先新增供應商，然後再新增商品');
+                    showAddSupplierModal(); // 顯示供應商新增模態框
+                } else {
+                    alert('請選擇供應商');
+                }
+                return;
+            }
+
+            try {
+                // 檢查資料庫連接狀態
+                console.log('檢查資料庫連接狀態...');
+                if (!DatabaseManager.isConnected()) {
+                    console.log('資料庫未連接，嘗試重新初始化...');
+                    const initSuccess = await DatabaseManager.initialize();
+                    if (!initSuccess) {
+                        throw new Error('資料庫初始化失敗');
+                    }
+                }
+                console.log('資料庫連接狀態:', DatabaseManager.getStatus());
+
+                // 檢查條碼是否已存在於Supabase
+                console.log('檢查條碼是否重複...');
+                const existingProducts = await BusinessAPI.getProducts();
+                if (existingProducts === null) {
+                    throw new Error('無法獲取現有商品資料，資料庫連接可能有問題');
+                }
+                const barcodeExists = existingProducts.some(product => product.barcode === barcode);
+                
+                if (barcodeExists) {
+                    alert('此條碼已存在，請使用其他條碼');
+                    return;
+                }
+
+                // 計算庫存狀態
+                let status = 'normal';
+                if (stock === 0) status = 'out';
+                else if (stock <= minStock) status = 'low';
+
+                // 準備要插入到Supabase的商品資料
+                const productDataForSupabase = {
+                    name: name,
+                    barcode: barcode,
+                    price: price,
+                    cost: cost,
+                    category_id: parseInt(categoryId), // 確保是數字
+                    stock: stock,
+                    min_stock: minStock, // Supabase欄位名稱
+                    description: description,
+                    // status: status, // 移除，因為Supabase表中沒有此欄位
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                // 檢查供應商是否已選擇
+                console.log('供應商選擇值:', supplier);
+                if (!supplier || supplier === '') {
+                    alert('請選擇供應商');
+                    return;
+                }
+                
+                        // 根據外鍵約束，supplier 欄位應該存儲供應商名稱，不是 ID
+        // 從供應商資料中找到對應的名稱
+        console.log('尋找供應商 - supplier 值:', supplier, '類型:', typeof supplier);
+        console.log('suppliersData:', suppliersData);
+        
+        let selectedSupplier;
+        if (typeof supplier === 'string' && supplier.trim() !== '') {
+            // 如果 supplier 是字串，直接使用（可能是供應商名稱）
+            selectedSupplier = suppliersData.find(s => s.name === supplier);
+        } else if (supplier) {
+            // 如果 supplier 是數字，轉換為整數後查找
+            const supplierId = parseInt(supplier);
+            selectedSupplier = suppliersData.find(s => s.id === supplierId);
+        }
+        
+        if (!selectedSupplier) {
+            console.error('找不到選擇的供應商資料');
+            console.error('供應商選擇值:', supplier);
+            console.error('可用供應商:', suppliersData);
+            alert('找不到選擇的供應商資料，請重新選擇供應商');
+            return;
+        }
+        
+        productDataForSupabase.supplier = selectedSupplier.name; // 存儲供應商名稱
+        console.log('設定後的 supplier:', productDataForSupabase.supplier);
+
+                // 若使用者選了圖片，先上傳取得 URL
+                const imageInput = document.getElementById('productImageFile');
+                if (imageInput && imageInput.files && imageInput.files[0]) {
+                    try {
+                        console.log('開始上傳圖片...');
+                        const imageUrl = await BusinessAPI.uploadProductImage(imageInput.files[0]);
+                        if (imageUrl) {
+                            productDataForSupabase.image_url = imageUrl;
+                            console.log('圖片上傳成功，URL:', imageUrl);
+                        } else {
+                            console.warn('圖片上傳失敗，返回的URL為null');
+                        }
+                    } catch (error) {
+                        console.warn('圖片上傳失敗，繼續新增商品:', error);
+                        // 圖片上傳失敗不影響商品新增
+                    }
+                }
+
+                // 插入到Supabase
+                console.log('準備插入商品資料到Supabase:', productDataForSupabase);
+                console.log('資料庫連接狀態:', DatabaseManager.getStatus());
+                console.log('Supabase 客戶端狀態:', supabase ? '已初始化' : '未初始化');
+                
+                // 先檢查資料表結構
+                try {
+                    console.log('檢查 products 表結構...');
+                    const { data: tableCheck, error: tableError } = await supabase
+                        .from('products')
+                        .select('*')
+                        .limit(1);
+                    
+                    if (tableError) {
+                        throw new Error(`無法存取 products 表: ${tableError.message}`);
+                    }
+                    
+                    if (tableCheck && tableCheck.length > 0) {
+                        const actualFields = Object.keys(tableCheck[0]);
+                        console.log('products 表實際欄位:', actualFields);
+                        
+                        // 檢查必要欄位是否存在
+                        const requiredFields = ['name', 'barcode', 'price', 'category_id', 'stock'];
+                        const missingFields = requiredFields.filter(field => !actualFields.includes(field));
+                        
+                        if (missingFields.length > 0) {
+                            throw new Error(`products 表缺少必要欄位: ${missingFields.join(', ')}`);
+                        }
+                        
+                        // 檢查欄位名稱是否匹配
+                        const codeFields = Object.keys(productDataForSupabase);
+                        const mismatchedFields = codeFields.filter(field => !actualFields.includes(field));
+                        
+                        if (mismatchedFields.length > 0) {
+                            console.warn('發現欄位名稱不匹配:', mismatchedFields);
+                            // 移除不匹配的欄位
+                            mismatchedFields.forEach(field => {
+                                delete productDataForSupabase[field];
+                                console.log(`已移除欄位: ${field}`);
+                            });
+                        }
+                    }
+                } catch (structureError) {
+                    console.error('資料表結構檢查失敗:', structureError);
+                    throw new Error(`資料表結構問題: ${structureError.message}`);
+                }
+                
+                const result = await BusinessAPI.addProduct(productDataForSupabase);
+                
+                if (result) {
+                    console.log('商品成功新增到Supabase:', result);
+                    
+                    // 重新載入商品資料
+                    await loadProductDataFromSupabase();
+                    
+                    // 更新統計
+                    updateStatistics();
+                    
+                    // 如果當前正在查看該分類，重新渲染
+                    if (String(currentCategory) === String(categoryId)) {
+                        renderProducts(categoryId);
+                    }
+                    
+                    alert('商品新增成功！已儲存到資料庫');
+                    hideAddProductModal();
+                } else {
+                    console.error('BusinessAPI.addProduct 返回 null 或 undefined');
+                    throw new Error('新增商品失敗：資料庫操作未成功');
+                }
+                
+            } catch (error) {
+                console.error('新增商品到Supabase失敗:', error);
+                console.error('錯誤詳情:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                
+                // 提供更具體的錯誤訊息
+                let errorMessage = '新增商品失敗';
+                if (error.message.includes('資料庫初始化失敗')) {
+                    errorMessage += '：資料庫連接失敗，請檢查網路連線和Supabase設定';
+                } else if (error.message.includes('無法獲取現有商品資料')) {
+                    errorMessage += '：資料庫查詢失敗，請檢查資料表是否存在';
+                } else if (error.message.includes('資料庫操作未成功')) {
+                    errorMessage += '：資料插入失敗，請檢查資料格式和資料表結構';
+                } else {
+                    errorMessage += '：' + error.message;
+                }
+                
+                alert(errorMessage);
+            }
+        }
+
+        // 導航和工具函數
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                // 嘗試與父頁面通信切換iframe
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    // 如果不在iframe中，直接跳轉
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                // 備用方案：在新分頁中開啟
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 前往匯出/入頁面
+        function goToImportExport() {
+            navigateToPage('import-export');
+        }
+
+        // 顯示盤點作業彈出視窗
+        function showStockTakingModal() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">盤點作業</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- 盤點清單 -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-3">盤點清單</h4>
+                            <div class="space-y-2 max-h-96 overflow-y-auto" id="stockTakingList">
+                                <!-- 盤點項目將動態添加 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 盤點統計 -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-3">盤點統計</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700">總商品數</span>
+                                    <span class="font-semibold text-[#17225e]" id="stockTakingTotal">0</span>
+                                </div>
+                                <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700">已盤點</span>
+                                    <span class="font-semibold text-green-600" id="stockTakingCounted">0</span>
+                                </div>
+                                <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700">差異項目</span>
+                                    <span class="font-semibold text-yellow-600" id="stockTakingDiff">0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 space-y-3">
+                                <button onclick="startStockTaking()" class="w-full bg-[#17225e] text-white py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                                    <i class="fas fa-play mr-2"></i>開始盤點
+                                </button>
+                                <button onclick="exportStockTakingReport()" class="w-full bg-[#17225e] text-white py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                                    <i class="fas fa-download mr-2"></i>匯出盤點報告
+                                </button>
+                                <button onclick="this.closest('.fixed').remove()" class="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            loadStockTakingList();
+        }
+
+        // 顯示分類管理
+        function showCategoryManagement() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">分類管理</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 統計卡片 -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-[#17225e]" id="modalTotalCategories">0</p>
+                                <p class="text-sm text-gray-600">總分類數</p>
+                            </div>
+                        </div>
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-[#17225e]" id="modalTotalProducts">0</p>
+                                <p class="text-sm text-gray-600">商品總數</p>
+                            </div>
+                        </div>
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-[#17225e]" id="modalPopularCategory">-</p>
+                                <p class="text-sm text-gray-600">熱門分類</p>
+                            </div>
+                        </div>
+                        <div class="apple-card rounded-xl p-4 shadow-lg">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-[#17225e]" id="modalEmptyCategories">0</p>
+                                <p class="text-sm text-gray-600">空分類</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按鈕 -->
+                    <div class="flex space-x-3 mb-6">
+                        <button onclick="showAddCategoryModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                            <i class="fas fa-plus mr-2"></i>新增分類
+                        </button>
+                        <button onclick="showImportCategoryModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                            <i class="fas fa-upload mr-2"></i>匯入分類
+                        </button>
+                        <button onclick="exportCategories()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                            <i class="fas fa-download mr-2"></i>匯出分類
+                        </button>
+                    </div>
+                    
+                    <!-- 搜尋 -->
+                    <div class="mb-4">
+                        <input type="text" id="searchCategory" placeholder="搜尋分類..." 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    </div>
+                    
+                    <!-- 分類列表 -->
+                    <div id="modalCategoriesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- 分類項目將動態添加 -->
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            loadCategoriesForModal();
+        }
 
         // 載入商品資料
+        async function loadProductDataFromSupabase() {
+            try {
+                // 從Supabase獲取商品資料
+                const products = await BusinessAPI.getProducts();
+                
+                if (products && products.length > 0) {
+                    // 將Supabase資料轉換為本地格式
+                    productData = {};
+                    
+                    products.forEach(product => {
+                        const categoryId = product.category_id.toString();
+                        if (!productData[categoryId]) {
+                            productData[categoryId] = [];
+                        }
+                        
+                        // 轉換資料格式
+                        const localProduct = {
+                            name: product.name,
+                            barcode: product.barcode,
+                            price: product.price,
+                            cost: product.cost || 0,
+                            category_id: product.category_id,
+                            stock: product.stock,
+                            minStock: product.min_stock || 10,
+                            supplier: product.supplier || '',
+                            description: product.description || '',
+                            image_url: product.image_url || '',
+                            // 移除圖片字段，因為不再需要
+                            // status 將根據庫存動態計算
+                        };
+                        
+                        productData[categoryId].push(localProduct);
+                    });
+                    
+                    console.log('成功從Supabase載入商品資料:', products.length, '筆');
+                } else {
+                    productData = {};
+                    console.log('沒有找到商品資料或載入失敗');
+                }
+            } catch (error) {
+                console.error('載入商品資料失敗:', error);
+                productData = {};
+                showNotification('載入商品資料失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 載入商品資料（保持向後兼容）
         function loadProductData() {
             const savedProducts = localStorage.getItem('productData');
             if (savedProducts) {
@@ -511,24 +911,21 @@
         let currentCategory = '';
 
         // 切換分類檢視
-        function showCategory(category) {
-            currentCategory = category;
-            const categoryNames = {
-                'tableware': '餐具系列',
-                'glassware': '酒具系列',
-                'decorative': '擺飾系列',
-                'teaware': '茶具系列',
-                'kitchenware': '廚具系列',
-                'others': '其他商品'
-            };
+        function showCategory(categoryId) {
+            currentCategory = categoryId;
+            
+            // 從分類資料中找到對應的分類
+            // 確保型別一致性，將 categoryId 轉換為字串進行比較
+            const category = categoriesData.find(cat => String(cat.id) === String(categoryId));
+            const categoryName = category ? category.name : '未知分類';
 
             document.getElementById('categoryView').style.display = 'none';
             document.getElementById('productsView').style.display = 'block';
             document.getElementById('backToCategories').style.display = 'inline-block';
-            document.getElementById('pageSubtitle').textContent = `管理 ${categoryNames[category]} 商品`;
-            document.getElementById('categoryTitle').textContent = categoryNames[category];
+            document.getElementById('pageSubtitle').textContent = `管理 ${categoryName} 商品`;
+            document.getElementById('categoryTitle').textContent = categoryName;
             
-            renderProducts(category);
+            renderProducts(categoryId);
         }
 
         // 返回分類檢視
@@ -541,7 +938,7 @@
 
         // 渲染商品
         function renderProducts(category) {
-            const products = productData[category] || [];
+            const products = productData[String(category)] || [];
             const gridView = document.getElementById('gridView');
             const listView = document.getElementById('listView');
             
@@ -552,10 +949,12 @@
             gridView.innerHTML = products.map(product => `
                 <div class="product-card bg-white rounded-lg p-3 shadow-md">
                     <div class="relative mb-3">
-                        <img src="${product.image}" alt="${product.name}" class="w-full h-20 object-cover rounded">
+                        <div class="w-full h-20 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                            ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="w-full h-full object-cover">` : `<i class="fas fa-box text-gray-400 text-2xl"></i>`}
+                        </div>
                         <div class="absolute top-1 right-1">
-                            <span class="bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-1 py-0.5 rounded-full">
-                                ${getStatusText(product.status)}
+                            <span class="bg-${getStatusColor(calculateProductStatus(product))}-100 text-${getStatusColor(calculateProductStatus(product))}-800 text-xs px-1 py-0.5 rounded-full">
+                                ${getStatusText(calculateProductStatus(product))}
                             </span>
                         </div>
                     </div>
@@ -564,14 +963,14 @@
                         <p class="text-xs text-gray-600 mb-2">條碼: ${product.barcode}</p>
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-xs text-gray-600">售價</span>
-                            <span class="font-bold text-blue-600 text-sm">NT$${product.price.toLocaleString()}</span>
+                            <span class="font-bold text-[#17225e] text-sm">NT$${product.price.toLocaleString()}</span>
                         </div>
                         <div class="flex justify-between items-center mb-3">
                             <span class="text-xs text-gray-600">庫存</span>
                             <span class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'} text-sm">${product.stock} 件</span>
                         </div>
                         <div class="flex space-x-1">
-                            <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="flex-1 bg-blue-500 text-white py-1.5 rounded text-xs hover:bg-blue-600 transition-colors">
+                            <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="flex-1 bg-[#17225e] text-white py-1.5 rounded text-xs hover:bg-[#1a2a6e] transition-colors">
                                 <i class="fas fa-edit mr-1"></i>編輯
                             </button>
                             <button onclick="viewProduct('${currentCategory}', ${products.indexOf(product)})" class="px-2 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50 transition-colors">
@@ -585,26 +984,28 @@
             // 列表檢視
             listView.innerHTML = products.map(product => `
                 <div class="flex items-center space-x-4 p-3 bg-white rounded-lg shadow-sm">
-                    <img src="${product.image}" alt="${product.name}" class="w-12 h-12 rounded object-cover">
+                    <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                        ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="w-full h-full object-cover">` : `<i class="fas fa-box text-gray-400"></i>`}
+                    </div>
                     <div class="flex-1">
                         <h4 class="font-medium text-gray-800">${product.name}</h4>
                         <p class="text-sm text-gray-600">條碼: ${product.barcode}</p>
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600">售價</p>
-                        <p class="font-bold text-blue-600">NT$${product.price.toLocaleString()}</p>
+                        <p class="font-bold text-[#17225e]">NT$${product.price.toLocaleString()}</p>
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600">庫存</p>
                         <p class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'}">${product.stock} 件</p>
                     </div>
                     <div class="text-center">
-                        <span class="inline-block bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-2 py-1 rounded-full">
-                            ${getStatusText(product.status)}
+                        <span class="inline-block bg-${getStatusColor(calculateProductStatus(product))}-100 text-${getStatusColor(calculateProductStatus(product))}-800 text-xs px-2 py-1 rounded-full">
+                            ${getStatusText(calculateProductStatus(product))}
                         </span>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors">
+                        <button onclick="editProduct('${currentCategory}', ${products.indexOf(product)})" class="bg-[#17225e] text-white px-3 py-1 rounded text-sm hover:bg-[#1a2a6e] transition-colors">
                             <i class="fas fa-edit mr-1"></i>編輯
                         </button>
                         <button onclick="viewProduct('${currentCategory}', ${products.indexOf(product)})" class="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors">
@@ -639,6 +1040,16 @@
             }
         }
 
+        // 動態計算商品狀態
+        function calculateProductStatus(product) {
+            const stock = product.stock || 0;
+            const minStock = product.minStock || 10;
+            
+            if (stock === 0) return 'out';
+            else if (stock <= minStock) return 'low';
+            else return 'normal';
+        }
+
         // 獲取狀態文字
         function getStatusText(status) {
             switch(status) {
@@ -649,23 +1060,358 @@
             }
         }
 
-        // 事件監聽
-        document.addEventListener('DOMContentLoaded', function() {
-            // 分類卡片點擊事件
+
+
+        // 載入分類資料
+        async function loadCategoriesData() {
+            try {
+                // 從Supabase獲取分類資料
+                const categories = await BusinessAPI.getCategories();
+                
+                if (categories) {
+                    categoriesData = categories;
+                    console.log('成功載入分類資料:', categoriesData.length, '筆');
+                    populateCategorySelect();
+                    renderCategoryCards(); // 渲染分類卡片
+                } else {
+                    categoriesData = [];
+                    console.log('沒有找到分類資料或載入失敗');
+                }
+            } catch (error) {
+                console.error('載入分類資料失敗:', error);
+                categoriesData = [];
+                showNotification('載入分類資料失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 載入供應商資料
+        async function loadSuppliersData() {
+            try {
+                // 從Supabase獲取供應商資料
+                const suppliers = await BusinessAPI.getSuppliers();
+                
+                if (suppliers) {
+                    suppliersData = suppliers;
+                    console.log('成功載入供應商資料:', suppliersData.length, '筆');
+                    populateSupplierSelect();
+                } else {
+                    suppliersData = [];
+                    console.log('沒有找到供應商資料或載入失敗');
+                }
+            } catch (error) {
+                console.error('載入供應商資料失敗:', error);
+                suppliersData = [];
+                showNotification('載入供應商資料失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 填充分類選擇下拉選單
+        function populateCategorySelect() {
+            const categorySelect = document.getElementById('productCategory');
+            if (!categorySelect) {
+                console.warn('populateCategorySelect: 找不到 #productCategory，略過更新');
+                return;
+            }
+            
+            // 清空現有選項（保留預設選項）
+            categorySelect.innerHTML = '<option value="">請選擇分類</option>';
+            
+            // 添加分類選項
+            categoriesData.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        // 填充分類選擇下拉選單
+        function populateSupplierSelect() {
+            const supplierSelect = document.getElementById('productSupplier');
+            if (!supplierSelect) {
+                console.warn('populateSupplierSelect: 找不到 #productSupplier 元素');
+                return;
+            }
+            
+            console.log('populateSupplierSelect: 開始載入供應商選項，供應商數量:', suppliersData.length);
+            
+            // 清空現有選項
+            supplierSelect.innerHTML = '';
+            
+            // 檢查是否有供應商數據
+            if (suppliersData.length === 0) {
+                supplierSelect.innerHTML = '<option value="">請先新增供應商</option>';
+                console.log('populateSupplierSelect: 沒有供應商數據');
+                return;
+            }
+            
+            // 添加預設選項
+            supplierSelect.innerHTML = '<option value="">請選擇供應商</option>';
+            
+            // 添加供應商選項
+            suppliersData.forEach(supplier => {
+                const option = document.createElement('option');
+                // 根據外鍵約束，我們需要存儲供應商名稱，所以這裡使用名稱作為值
+                option.value = supplier.name; // 使用供應商名稱作為值，符合外鍵約束
+                option.textContent = supplier.name;
+                supplierSelect.appendChild(option);
+                console.log('新增供應商選項:', supplier.name, '值:', supplier.name);
+            });
+            
+            console.log('populateSupplierSelect: 完成載入供應商選項');
+        }
+
+        // 渲染分類卡片
+        function renderCategoryCards() {
+            const categoriesGrid = document.getElementById('categoriesGrid');
+            
+            if (!categoriesGrid) return;
+            
+            // 清空現有內容
+            categoriesGrid.innerHTML = '';
+            
+            // 為每個分類生成卡片
+            categoriesData.forEach(category => {
+                const categoryCard = createCategoryCard(category);
+                categoriesGrid.appendChild(categoryCard);
+            });
+            
+            // 重新綁定點擊事件
+            bindCategoryCardEvents();
+        }
+
+        // 創建分類卡片
+        function createCategoryCard(category) {
+            const card = document.createElement('div');
+            card.className = 'category-card apple-card rounded-xl p-6 shadow-md text-center';
+            card.setAttribute('data-category', String(category.id));
+            
+            // 計算該分類的商品統計
+            const categoryProducts = productData[String(category.id)] || [];
+            const productCount = categoryProducts.length;
+            const totalValue = categoryProducts.reduce((sum, product) => sum + (product.price * product.stock), 0);
+            
+            // 根據分類名稱選擇圖標和顏色
+            const iconConfig = getCategoryIconConfig(category.name);
+            
+            card.innerHTML = `
+                <div class="w-16 h-16 ${iconConfig.bgColor} rounded-full flex items-center justify-center mx-auto mb-4">
+                    ${iconConfig.isSvg ? iconConfig.icon : `<i class="${iconConfig.icon} text-2xl ${iconConfig.textColor}"></i>`}
+                </div>
+                <h4 class="font-semibold text-gray-800 mb-2">${category.name}</h4>
+                <p class="text-sm text-gray-600 mb-3">${category.description || '商品分類'}</p>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">商品數量</span>
+                    <span class="font-semibold text-[#17225e]">${productCount} 件</span>
+                </div>
+                <div class="flex justify-between text-sm mt-1">
+                    <span class="text-gray-500">庫存價值</span>
+                    <span class="font-semibold text-green-600">NT$${totalValue.toLocaleString()}</span>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // 根據分類名稱獲取圖標配置
+        function getCategoryIconConfig(categoryName) {
+            const configs = {
+                '餐具': { icon: 'fas fa-utensils', bgColor: 'bg-gray-100', textColor: 'text-[#17225e]' },
+                '酒具': { icon: 'fas fa-wine-glass', bgColor: 'bg-purple-100', textColor: 'text-purple-600' },
+                '擺飾': { icon: 'fas fa-seedling', bgColor: 'bg-gray-100', textColor: 'text-[#17225e]' },
+                '茶具': { icon: 'fas fa-coffee', bgColor: 'bg-pink-100', textColor: 'text-pink-600' },
+                '廚具': { icon: 'fas fa-blender', bgColor: 'bg-gray-100', textColor: 'text-[#17225e]' },
+                '電子': { icon: 'fas fa-mobile-alt', bgColor: 'bg-indigo-100', textColor: 'text-indigo-600' },
+                '服飾': { icon: 'fas fa-tshirt', bgColor: 'bg-red-100', textColor: 'text-red-600' },
+                '運動': { icon: 'fas fa-dumbbell', bgColor: 'bg-orange-100', textColor: 'text-orange-600' },
+                '瓷器': { 
+                    icon: `<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                        <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>`, 
+                    bgColor: 'bg-cyan-100', 
+                    textColor: 'text-cyan-600',
+                    isSvg: true
+                },
+                '家居': { 
+                    icon: `<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                        <path d="M8 12h8v2H8z"/>
+                        <path d="M8 14h8v2H8z"/>
+                        <path d="M8 16h6v2H8z"/>
+                    </svg>`, 
+                    bgColor: 'bg-amber-100', 
+                    textColor: 'text-amber-600',
+                    isSvg: true
+                },
+                '裝飾': { 
+                    icon: `<svg class="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        <path d="M12 6l1.5 3.13L17 9.27l-2.5 2.43.59 3.44L12 15.77l-3.09 1.37.59-3.44L7 9.27l3.5-.14L12 6z"/>
+                    </svg>`, 
+                    bgColor: 'bg-rose-100', 
+                    textColor: 'text-rose-600',
+                    isSvg: true
+                }
+            };
+            
+            // 根據分類名稱匹配最適合的配置
+            for (const [key, config] of Object.entries(configs)) {
+                if (categoryName.includes(key)) {
+                    return config;
+                }
+            }
+            
+            // 預設配置
+            return { icon: 'fas fa-box', bgColor: 'bg-gray-100', textColor: 'text-gray-600' };
+        }
+
+        // 綁定分類卡片事件
+        function bindCategoryCardEvents() {
             document.querySelectorAll('.category-card').forEach(card => {
                 card.addEventListener('click', function() {
-                    const category = this.getAttribute('data-category');
-                    showCategory(category);
+                    const categoryId = this.getAttribute('data-category');
+                    showCategory(categoryId);
                 });
             });
+        }
+
+        // 顯示通知
+        function showNotification(message, type = 'info') {
+            const alertClass = {
+                'success': 'bg-gray-100 border-[#17225e] text-gray-700',
+                'error': 'bg-red-100 border-red-500 text-red-700',
+                'warning': 'bg-gray-100 border-gray-500 text-gray-700',
+                'info': 'bg-gray-100 border-[#17225e] text-gray-700'
+            }[type];
+            
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 border-l-4 p-4 rounded shadow-lg ${alertClass}`;
+            notification.innerHTML = `
+                <div class="flex">
+                    <div class="flex-1">${message}</div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // 顯示新增供應商模態框
+        function showAddSupplierModal() {
+            document.getElementById('supplierModalTitle').textContent = '新增供應商';
+            document.getElementById('supplierForm').reset();
+            document.getElementById('addSupplierModal').classList.remove('hidden');
+        }
+
+        // 關閉供應商模態框
+        function closeSupplierModal() {
+            document.getElementById('addSupplierModal').classList.add('hidden');
+        }
+
+        // 處理新增供應商
+        async function handleAddSupplier(e) {
+            e.preventDefault();
+            
+            try {
+                const supplierData = {
+                    name: document.getElementById('supplierName').value,
+                    contact_person: document.getElementById('contactPerson').value,
+                    phone: document.getElementById('supplierPhone').value,
+                    email: document.getElementById('supplierEmail').value,
+                    address: document.getElementById('supplierAddress').value,
+                    notes: document.getElementById('supplierNotes').value
+                };
+
+                // 驗證必填欄位
+                if (!supplierData.name.trim()) {
+                    showNotification('請輸入供應商名稱', 'error');
+                    return;
+                }
+
+                // 新增供應商到資料庫
+                const newSupplier = await BusinessAPI.addSupplier(supplierData);
+                
+                if (newSupplier) {
+                    // 重新載入供應商資料並更新下拉選單
+                    await loadSuppliersData();
+                    
+                    // 將新增的供應商ID填入商品表單的供應商欄位
+                    document.getElementById('productSupplier').value = supplierData.id;
+                    
+                    closeSupplierModal();
+                    showNotification('供應商新增成功！', 'success');
+                } else {
+                    showNotification('新增供應商失敗，請檢查資料庫連接', 'error');
+                }
+            } catch (error) {
+                console.error('處理供應商資料時發生錯誤:', error);
+                showNotification('操作失敗: ' + error.message, 'error');
+            }
+        }
+
+        // 事件監聽
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('DOMContentLoaded 事件觸發');
+            
+            // 進行權限檢查
+            const isAuthenticated = await checkAuthentication();
+            if (!isAuthenticated) {
+                console.log('認證失敗，重定向');
+                return; // 如果未通過認證，函數會自動重定向
+            }
+            
+            console.log('認證成功，開始初始化頁面');
+            
+            // 統一初始化資料庫
+            console.log('初始化資料庫...');
+            await DatabaseManager.initialize();
+            
+            // 載入商品資料
+            console.log('載入商品資料...');
+            await loadProductDataFromSupabase();
+            
+            // 載入分類資料
+            console.log('載入分類資料...');
+            await loadCategoriesData();
+            
+            // 載入供應商資料
+            console.log('載入供應商資料...');
+            await loadSuppliersData();
+
+            // 更新統計
+            console.log('更新統計...');
+            updateStatistics();
+            
+            console.log('頁面初始化完成');
 
             // 返回按鈕點擊事件
             document.getElementById('backToCategories').addEventListener('click', backToCategories);
 
-            // 掃碼新增商品按鈕
-            document.getElementById('scanAddProductBtn').addEventListener('click', function() {
-                scanToAddProduct();
+            // 新增商品按鈕
+            document.getElementById('addProductBtn').addEventListener('click', function() {
+                showAddProductModal();
             });
+
+
+
+            // 供應商表單提交事件
+            document.getElementById('supplierForm').addEventListener('submit', handleAddSupplier);
+            
+            // 新增商品表單提交事件
+            document.getElementById('addProductForm').addEventListener('submit', handleAddProduct);
+            
+            // 編輯商品表單提交事件
+            document.getElementById('editProductForm').addEventListener('submit', handleEditProduct);
         });
 
         // 統一導航函數
@@ -692,189 +1438,16 @@
             navigateToPage('import-export');
         }
 
-        // 掃碼新增商品功能
-        function scanToAddProduct() {
-            if (typeof window.quickScan === 'function') {
-                window.quickScan(
-                    // 掃描成功回調
-                    function(barcode) {
-                        handleProductScan(barcode);
-                    },
-                    // 掃描錯誤回調
-                    function(error) {
-                        alert('掃描失敗: ' + error.message);
-                    }
-                );
-            } else {
-                alert('掃描功能尚未載入，請重新整理頁面');
-            }
-        }
 
-        // 處理商品掃描結果
-        function handleProductScan(barcode) {
-            console.log('掃描到商品條碼:', barcode);
-            
-            // 檢查是否已存在該條碼的商品
-            let productExists = false;
-            
-            // 遍歷所有分類檢查商品是否存在
-            for (const category in productData) {
-                const products = productData[category];
-                const existingProduct = products.find(p => p.barcode === barcode);
-                if (existingProduct) {
-                    productExists = true;
-                    alert(`商品已存在：${existingProduct.name}\n條碼：${barcode}\n價格：NT$${existingProduct.price.toLocaleString()}\n庫存：${existingProduct.stock}件`);
-                    
-                    // 可以選擇跳轉到該商品所在的分類
-                    if (confirm('是否要查看該商品詳情？')) {
-                        showCategory(category);
-                    }
-                    return;
-                }
-            }
-            
-            // 如果商品不存在，提示新增
-            if (!productExists) {
-                const productName = prompt(`條碼 ${barcode} 的商品不存在。\n請輸入商品名稱：`);
-                if (productName) {
-                    const price = prompt('請輸入商品價格：');
-                    const stock = prompt('請輸入初始庫存數量：');
-                    const categoryChoice = prompt('請選擇商品分類：\n1. 餐具系列\n2. 酒具系列\n3. 擺飾系列\n4. 茶具系列\n5. 廚具系列\n6. 其他商品\n\n請輸入數字(1-6)：');
-                    
-                    if (productName && price && stock && categoryChoice) {
-                        const categories = ['tableware', 'glassware', 'decorative', 'teaware', 'kitchenware', 'others'];
-                        const categoryIndex = parseInt(categoryChoice) - 1;
-                        
-                        if (categoryIndex >= 0 && categoryIndex < categories.length) {
-                            const selectedCategory = categories[categoryIndex];
-                            
-                            // 創建新商品
-                            const newProduct = {
-                                name: productName,
-                                price: parseInt(price),
-                                stock: parseInt(stock),
-                                barcode: barcode,
-                                image: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop&crop=center', // 預設圖片
-                                status: parseInt(stock) > 10 ? 'normal' : parseInt(stock) > 0 ? 'low' : 'out'
-                            };
-                            
-                            // 添加到對應分類
-                            productData[selectedCategory].push(newProduct);
-                            saveProductData();
-                            
-                            alert(`商品新增成功！\n名稱：${productName}\n條碼：${barcode}\n價格：NT$${price}\n庫存：${stock}件`);
-                            
-                            // 如果當前正在查看該分類，重新渲染
-                            if (currentCategory === selectedCategory) {
-                                renderProducts(selectedCategory);
-                            }
-                        } else {
-                            alert('無效的分類選擇');
-                        }
-                    }
-                }
-            }
-        }
 
-        // 商品管理功能
 
-        // 顯示新增商品模態框
-        function showAddProductModal() {
-            document.getElementById('addProductModal').classList.remove('hidden');
-            document.getElementById('productName').focus();
-        }
-
-        // 隱藏新增商品模態框
-        function hideAddProductModal() {
-            document.getElementById('addProductModal').classList.add('hidden');
-            document.getElementById('addProductForm').reset();
-        }
-
-        // 生成隨機條碼
-        function generateBarcode() {
-            const barcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
-            document.getElementById('productBarcode').value = barcode.toString();
-        }
-
-        // 選擇預設圖片
-        function selectDefaultImage() {
-            const select = document.getElementById('defaultImages');
-            const imageInput = document.getElementById('productImage');
-            if (select.value) {
-                imageInput.value = select.value;
-            }
-        }
-
-        // 新增商品表單提交
-        document.getElementById('addProductForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const name = document.getElementById('productName').value.trim();
-            const barcode = document.getElementById('productBarcode').value.trim();
-            const price = parseInt(document.getElementById('productPrice').value);
-            const cost = parseInt(document.getElementById('productCost').value) || 0;
-            const category = document.getElementById('productCategory').value;
-            const stock = parseInt(document.getElementById('productStock').value);
-            const minStock = parseInt(document.getElementById('productMinStock').value) || 10;
-            const supplier = document.getElementById('productSupplier').value.trim();
-            const description = document.getElementById('productDescription').value.trim();
-            const image = document.getElementById('productImage').value.trim() || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop&crop=center';
-
-            // 檢查條碼是否已存在
-            let barcodeExists = false;
-            for (const cat in productData) {
-                if (productData[cat].some(product => product.barcode === barcode)) {
-                    barcodeExists = true;
-                    break;
-                }
-            }
-
-            if (barcodeExists) {
-                alert('此條碼已存在，請使用其他條碼');
-                return;
-            }
-
-            // 計算庫存狀態
-            let status = 'normal';
-            if (stock === 0) status = 'out';
-            else if (stock <= minStock) status = 'low';
-
-            // 創建新商品
-            const newProduct = {
-                name: name,
-                barcode: barcode,
-                price: price,
-                cost: cost,
-                stock: stock,
-                minStock: minStock,
-                supplier: supplier,
-                description: description,
-                image: image,
-                status: status
-            };
-
-            // 添加到對應分類
-            productData[category].push(newProduct);
-            saveProductData();
-
-            // 更新統計
-            updateStatistics();
-
-            // 如果當前正在查看該分類，重新渲染
-            if (currentCategory === category) {
-                renderProducts(category);
-            }
-
-            alert('商品新增成功！');
-            hideAddProductModal();
-        });
 
         // 編輯商品
-        function editProduct(category, index) {
-            const product = productData[category][index];
+        function editProduct(categoryId, index) {
+            const product = productData[String(categoryId)][index];
             
             document.getElementById('editProductIndex').value = index;
-            document.getElementById('editProductCategory').value = category;
+            document.getElementById('editProductCategory').value = categoryId;
             document.getElementById('editProductName').value = product.name;
             document.getElementById('editProductBarcode').value = product.barcode;
             document.getElementById('editProductPrice').value = product.price;
@@ -888,50 +1461,50 @@
             document.getElementById('editProductModal').classList.add('hidden');
         }
 
-        // 編輯商品表單提交
-        document.getElementById('editProductForm').addEventListener('submit', function(e) {
+        // 編輯商品表單提交處理函數
+        function handleEditProduct(e) {
             e.preventDefault();
             
             const index = parseInt(document.getElementById('editProductIndex').value);
-            const category = document.getElementById('editProductCategory').value;
+            const categoryId = document.getElementById('editProductCategory').value;
             const name = document.getElementById('editProductName').value.trim();
             const barcode = document.getElementById('editProductBarcode').value.trim();
             const price = parseInt(document.getElementById('editProductPrice').value);
             const stock = parseInt(document.getElementById('editProductStock').value);
 
             // 更新商品
-            const product = productData[category][index];
+            const product = productData[String(categoryId)][index];
             product.name = name;
             product.barcode = barcode;
             product.price = price;
             product.stock = stock;
             
-            // 更新庫存狀態
-            const minStock = product.minStock || 10;
-            if (stock === 0) product.status = 'out';
-            else if (stock <= minStock) product.status = 'low';
-            else product.status = 'normal';
+            // 移除狀態更新，因為狀態將動態計算
+            // const minStock = product.minStock || 10;
+            // if (stock === 0) product.status = 'out';
+            // else if (stock <= minStock) product.status = 'low';
+            // else product.status = 'normal';
 
             saveProductData();
 
             // 重新渲染
-            renderProducts(category);
+            renderProducts(categoryId);
             updateStatistics();
 
             alert('商品更新成功！');
             hideEditProductModal();
-        });
+        }
 
         // 刪除商品
         function deleteProduct() {
             if (confirm('確定要刪除此商品嗎？此操作無法復原。')) {
                 const index = parseInt(document.getElementById('editProductIndex').value);
-                const category = document.getElementById('editProductCategory').value;
+                const categoryId = document.getElementById('editProductCategory').value;
                 
-                productData[category].splice(index, 1);
+                productData[String(categoryId)].splice(index, 1);
                 saveProductData();
                 
-                renderProducts(category);
+                renderProducts(categoryId);
                 updateStatistics();
                 
                 alert('商品已刪除');
@@ -940,8 +1513,8 @@
         }
 
         // 查看商品詳情
-        function viewProduct(category, index) {
-            const product = productData[category][index];
+        function viewProduct(categoryId, index) {
+            const product = productData[String(categoryId)][index];
             
             const details = `
 商品詳情：
@@ -950,7 +1523,7 @@
 條碼：${product.barcode}
 售價：NT$${product.price.toLocaleString()}
 庫存：${product.stock} 件
-狀態：${getStatusText(product.status)}
+狀態：${getStatusText(calculateProductStatus(product))}
 ${product.cost ? '成本：NT$' + product.cost.toLocaleString() : ''}
 ${product.supplier ? '供應商：' + product.supplier : ''}
 ${product.description ? '描述：' + product.description : ''}
@@ -965,7 +1538,7 @@ ${product.description ? '描述：' + product.description : ''}
             
             if (!currentCategory) return;
             
-            let products = [...productData[currentCategory]];
+            let products = [...productData[String(currentCategory)]];
             
             if (query) {
                 products = products.filter(product => 
@@ -983,7 +1556,7 @@ ${product.description ? '描述：' + product.description : ''}
             
             if (!currentCategory) return;
             
-            let products = [...productData[currentCategory]];
+            let products = [...productData[String(currentCategory)]];
             
             // 應用搜尋篩選
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -996,56 +1569,13 @@ ${product.description ? '描述：' + product.description : ''}
             
             // 應用庫存篩選
             if (stockFilter) {
-                products = products.filter(product => product.status === stockFilter);
+                products = products.filter(product => calculateProductStatus(product) === stockFilter);
             }
             
             renderFilteredProducts(products);
         }
 
-        // 排序商品
-        function sortProducts() {
-            const sortBy = document.getElementById('sortSelect').value;
-            
-            if (!currentCategory) return;
-            
-            let products = [...productData[currentCategory]];
-            
-            // 應用搜尋和篩選
-            const query = document.getElementById('searchInput').value.toLowerCase().trim();
-            const stockFilter = document.getElementById('stockFilter').value;
-            
-            if (query) {
-                products = products.filter(product => 
-                    product.name.toLowerCase().includes(query) ||
-                    product.barcode.includes(query)
-                );
-            }
-            
-            if (stockFilter) {
-                products = products.filter(product => product.status === stockFilter);
-            }
-            
-            // 排序
-            switch(sortBy) {
-                case 'price-desc':
-                    products.sort((a, b) => b.price - a.price);
-                    break;
-                case 'price-asc':
-                    products.sort((a, b) => a.price - b.price);
-                    break;
-                case 'stock-desc':
-                    products.sort((a, b) => b.stock - a.stock);
-                    break;
-                case 'stock-asc':
-                    products.sort((a, b) => a.stock - b.stock);
-                    break;
-                case 'name-asc':
-                    products.sort((a, b) => a.name.localeCompare(b.name));
-                    break;
-            }
-            
-            renderFilteredProducts(products);
-        }
+        // 已移除排序功能
 
         // 渲染篩選後的商品
         function renderFilteredProducts(products) {
@@ -1058,10 +1588,12 @@ ${product.description ? '描述：' + product.description : ''}
             gridView.innerHTML = products.map((product, index) => `
                 <div class="product-card bg-white rounded-lg p-3 shadow-md">
                     <div class="relative mb-3">
-                        <img src="${product.image}" alt="${product.name}" class="w-full h-20 object-cover rounded">
+                        <div class="w-full h-20 bg-gray-100 rounded flex items-center justify-center">
+                            <i class="fas fa-box text-gray-400 text-2xl"></i>
+                        </div>
                         <div class="absolute top-1 right-1">
-                            <span class="bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-1 py-0.5 rounded-full">
-                                ${getStatusText(product.status)}
+                            <span class="bg-${getStatusColor(calculateProductStatus(product))}-100 text-${getStatusColor(calculateProductStatus(product))}-800 text-xs px-1 py-0.5 rounded-full">
+                                ${getStatusText(calculateProductStatus(product))}
                             </span>
                         </div>
                     </div>
@@ -1070,14 +1602,14 @@ ${product.description ? '描述：' + product.description : ''}
                         <p class="text-xs text-gray-600 mb-2">條碼: ${product.barcode}</p>
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-xs text-gray-600">售價</span>
-                            <span class="font-bold text-blue-600 text-sm">NT$${product.price.toLocaleString()}</span>
+                            <span class="font-bold text-[#17225e] text-sm">NT$${product.price.toLocaleString()}</span>
                         </div>
                         <div class="flex justify-between items-center mb-3">
                             <span class="text-xs text-gray-600">庫存</span>
                             <span class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'} text-sm">${product.stock} 件</span>
                         </div>
                         <div class="flex space-x-1">
-                            <button onclick="editProductFromFiltered('${currentCategory}', '${product.barcode}')" class="flex-1 bg-blue-500 text-white py-1.5 rounded text-xs hover:bg-blue-600 transition-colors">
+                            <button onclick="editProductFromFiltered('${currentCategory}', '${product.barcode}')" class="flex-1 bg-[#17225e] text-white py-1.5 rounded text-xs hover:bg-[#1a2a6e] transition-colors">
                                 <i class="fas fa-edit mr-1"></i>編輯
                             </button>
                             <button onclick="viewProductFromFiltered('${currentCategory}', '${product.barcode}')" class="px-2 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50 transition-colors">
@@ -1091,26 +1623,28 @@ ${product.description ? '描述：' + product.description : ''}
             // 列表檢視
             listView.innerHTML = products.map((product, index) => `
                 <div class="flex items-center space-x-4 p-3 bg-white rounded-lg shadow-sm">
-                    <img src="${product.image}" alt="${product.name}" class="w-12 h-12 rounded object-cover">
+                    <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                        <i class="fas fa-box text-gray-400"></i>
+                    </div>
                     <div class="flex-1">
                         <h4 class="font-medium text-gray-800">${product.name}</h4>
                         <p class="text-sm text-gray-600">條碼: ${product.barcode}</p>
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600">售價</p>
-                        <p class="font-bold text-blue-600">NT$${product.price.toLocaleString()}</p>
+                        <p class="font-bold text-[#17225e]">NT$${product.price.toLocaleString()}</p>
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600">庫存</p>
                         <p class="font-semibold ${product.stock > 10 ? 'text-green-600' : product.stock > 0 ? 'text-orange-600' : 'text-red-600'}">${product.stock} 件</p>
                     </div>
                     <div class="text-center">
-                        <span class="inline-block bg-${getStatusColor(product.status)}-100 text-${getStatusColor(product.status)}-800 text-xs px-2 py-1 rounded-full">
-                            ${getStatusText(product.status)}
+                        <span class="inline-block bg-${getStatusColor(calculateProductStatus(product))}-100 text-${getStatusColor(calculateProductStatus(product))}-800 text-xs px-2 py-1 rounded-full">
+                            ${getStatusText(calculateProductStatus(product))}
                         </span>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="editProductFromFiltered('${currentCategory}', '${product.barcode}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors">
+                        <button onclick="editProductFromFiltered('${currentCategory}', '${product.barcode}')" class="bg-[#17225e] text-white px-3 py-1 rounded text-sm hover:bg-[#1a2a6e] transition-colors">
                             <i class="fas fa-edit mr-1"></i>編輯
                         </button>
                         <button onclick="viewProductFromFiltered('${currentCategory}', '${product.barcode}')" class="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors">
@@ -1122,18 +1656,18 @@ ${product.description ? '描述：' + product.description : ''}
         }
 
         // 從篩選結果編輯商品
-        function editProductFromFiltered(category, barcode) {
-            const index = productData[category].findIndex(product => product.barcode === barcode);
+        function editProductFromFiltered(categoryId, barcode) {
+            const index = productData[String(categoryId)].findIndex(product => product.barcode === barcode);
             if (index !== -1) {
-                editProduct(category, index);
+                editProduct(categoryId, index);
             }
         }
 
         // 從篩選結果查看商品
-        function viewProductFromFiltered(category, barcode) {
-            const index = productData[category].findIndex(product => product.barcode === barcode);
+        function viewProductFromFiltered(categoryId, barcode) {
+            const index = productData[String(categoryId)].findIndex(product => product.barcode === barcode);
             if (index !== -1) {
-                viewProduct(category, index);
+                viewProduct(categoryId, index);
             }
         }
 
@@ -1147,9 +1681,10 @@ ${product.description ? '描述：' + product.description : ''}
             for (const category in productData) {
                 productData[category].forEach(product => {
                     totalProducts++;
-                    if (product.status === 'normal') inStock++;
-                    else if (product.status === 'low') lowStock++;
-                    else if (product.status === 'out') outOfStock++;
+                    const status = calculateProductStatus(product);
+                    if (status === 'normal') inStock++;
+                    else if (status === 'low') lowStock++;
+                    else if (status === 'out') outOfStock++;
                 });
             }
 
@@ -1197,25 +1732,25 @@ ${product.description ? '描述：' + product.description : ''}
                         <div>
                             <h4 class="text-lg font-semibold text-gray-800 mb-3">盤點統計</h4>
                             <div class="space-y-3">
-                                <div class="flex justify-between p-3 bg-blue-50 rounded-lg">
+                                <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
                                     <span class="text-gray-700">總商品數</span>
-                                    <span class="font-semibold text-blue-600" id="stockTakingTotal">0</span>
+                                    <span class="font-semibold text-[#17225e]" id="stockTakingTotal">0</span>
                                 </div>
-                                <div class="flex justify-between p-3 bg-green-50 rounded-lg">
+                                <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
                                     <span class="text-gray-700">已盤點</span>
                                     <span class="font-semibold text-green-600" id="stockTakingCounted">0</span>
                                 </div>
-                                <div class="flex justify-between p-3 bg-yellow-50 rounded-lg">
+                                <div class="flex justify-between p-3 bg-gray-50 rounded-lg">
                                     <span class="text-gray-700">差異項目</span>
                                     <span class="font-semibold text-yellow-600" id="stockTakingDiff">0</span>
                                 </div>
                             </div>
                             
                             <div class="mt-6 space-y-3">
-                                <button onclick="startStockTaking()" class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors">
+                                <button onclick="startStockTaking()" class="w-full bg-[#17225e] text-white py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
                                     <i class="fas fa-play mr-2"></i>開始盤點
                                 </button>
-                                <button onclick="exportStockTakingReport()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                <button onclick="exportStockTakingReport()" class="w-full bg-[#17225e] text-white py-2 rounded-lg hover:bg-[#1a2a6e] transition-colors">
                                     <i class="fas fa-download mr-2"></i>匯出盤點報告
                                 </button>
                                 <button onclick="this.closest('.fixed').remove()" class="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors">
@@ -1248,7 +1783,7 @@ ${product.description ? '描述：' + product.description : ''}
                     </div>
                     <div class="text-center mx-4">
                         <p class="text-xs text-gray-600">系統庫存</p>
-                        <p class="font-semibold text-blue-600">${product.stock}</p>
+                        <p class="font-semibold text-[#17225e]">${product.stock}</p>
                     </div>
                     <div class="text-center mx-4">
                         <p class="text-xs text-gray-600">實際庫存</p>
@@ -1351,97 +1886,39 @@ ${product.description ? '描述：' + product.description : ''}
             alert('盤點報告匯出成功！');
         }
 
-        // 顯示分類管理
-        function showCategoryManagement() {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
-            modal.innerHTML = `
-                <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-xl font-bold text-gray-800">分類管理</h3>
-                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-times text-xl"></i>
-                        </button>
-                    </div>
-                    
-                    <!-- 統計卡片 -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="apple-card rounded-xl p-4 shadow-lg">
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-blue-600" id="modalTotalCategories">0</p>
-                                <p class="text-sm text-gray-600">總分類數</p>
-                            </div>
-                        </div>
-                        <div class="apple-card rounded-xl p-4 shadow-lg">
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-green-600" id="modalTotalProducts">0</p>
-                                <p class="text-sm text-gray-600">商品總數</p>
-                            </div>
-                        </div>
-                        <div class="apple-card rounded-xl p-4 shadow-lg">
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-yellow-600" id="modalPopularCategory">-</p>
-                                <p class="text-sm text-gray-600">熱門分類</p>
-                            </div>
-                        </div>
-                        <div class="apple-card rounded-xl p-4 shadow-lg">
-                            <div class="text-center">
-                                <p class="text-2xl font-bold text-red-600" id="modalEmptyCategories">0</p>
-                                <p class="text-sm text-gray-600">空分類</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 操作按鈕 -->
-                    <div class="flex space-x-3 mb-6">
-                        <button onclick="showAddCategoryModal()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
-                            <i class="fas fa-plus mr-2"></i>新增分類
-                        </button>
-                        <button onclick="showImportCategoryModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-upload mr-2"></i>匯入分類
-                        </button>
-                        <button onclick="exportCategories()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
-                            <i class="fas fa-download mr-2"></i>匯出分類
-                        </button>
-                    </div>
-                    
-                    <!-- 搜尋 -->
-                    <div class="mb-4">
-                        <input type="text" id="searchCategory" placeholder="搜尋分類..." 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    
-                    <!-- 分類列表 -->
-                    <div id="modalCategoriesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- 分類項目將動態添加 -->
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            loadCategoriesForModal();
-        }
-
         // 載入分類數據用於模態框
-        function loadCategoriesForModal() {
-            const savedCategories = localStorage.getItem('categories');
-            let categories = [];
-            if (savedCategories) {
-                categories = JSON.parse(savedCategories);
-            } else {
-                // 預設分類
-                categories = [
-                    { id: 'tableware', name: '餐具', description: '各種餐具用品', color: 'blue', order: 1, productCount: 0 },
-                    { id: 'glassware', name: '酒具', description: '酒杯、酒瓶等', color: 'green', order: 2, productCount: 0 },
-                    { id: 'decorative', name: '擺飾', description: '裝飾用品', color: 'yellow', order: 3, productCount: 0 },
-                    { id: 'teaware', name: '茶具', description: '茶具用品', color: 'red', order: 4, productCount: 0 },
-                    { id: 'kitchenware', name: '廚具', description: '廚房用具', color: 'purple', order: 5, productCount: 0 },
-                    { id: 'others', name: '其他', description: '其他商品', color: 'gray', order: 6, productCount: 0 }
-                ];
-                localStorage.setItem('categories', JSON.stringify(categories));
+        async function loadCategoriesForModal() {
+            try {
+                // 優先從 Supabase 載入
+                const cats = await BusinessAPI.getCategories();
+                categoriesData = Array.isArray(cats) ? cats : [];
+
+                // 正規化並計算商品數
+                const normalized = categoriesData
+                    .map(cat => ({
+                        id: cat.id,
+                        name: cat.name,
+                        description: cat.description || '',
+                        color: cat.color || 'blue',
+                        productCount: (productData[String(cat.id)] || []).length
+                    }));
+
+                updateCategoriesForModal(normalized);
+                updateModalStatistics(normalized);
+            } catch (error) {
+                console.error('載入分類（模態框）失敗:', error);
+                // 後備：用目前已載入的 categoriesData
+                const fallback = (categoriesData || []).map(cat => ({
+                    id: cat.id,
+                    name: cat.name,
+                    description: cat.description || '',
+                    color: cat.color || 'blue',
+                    order: cat.order || 1,
+                    productCount: (productData[String(cat.id)] || []).length
+                }));
+                updateCategoriesForModal(fallback);
+                updateModalStatistics(fallback);
             }
-            
-            updateCategoriesForModal(categories);
-            updateModalStatistics(categories);
         }
 
         // 更新模態框中的分類列表
@@ -1457,7 +1934,7 @@ ${product.description ? '描述：' + product.description : ''}
                             <h4 class="text-lg font-semibold text-gray-800">${category.name}</h4>
                         </div>
                         <div class="flex space-x-2">
-                            <button onclick="editCategory('${category.id}')" class="text-blue-500 hover:text-blue-700">
+                            <button onclick="editCategory('${category.id}')" class="text-[#17225e] hover:text-[#1a2a6e]">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button onclick="deleteCategory('${category.id}')" class="text-red-500 hover:text-red-700">
@@ -1468,7 +1945,6 @@ ${product.description ? '描述：' + product.description : ''}
                     <p class="text-gray-600 text-sm mb-3">${category.description}</p>
                     <div class="flex items-center justify-between text-sm">
                         <span class="text-gray-500">商品數量：${category.productCount}</span>
-                        <span class="text-gray-500">排序：${category.order}</span>
                     </div>
                 </div>
             `).join('');
@@ -1476,33 +1952,33 @@ ${product.description ? '描述：' + product.description : ''}
 
         // 更新模態框統計
         function updateModalStatistics(categories) {
+            // 總分類數
             document.getElementById('modalTotalCategories').textContent = categories.length;
-            
-            const products = JSON.parse(localStorage.getItem('products') || '{}');
-            const totalProducts = Object.keys(products).length;
+
+            // 總商品數（以目前載入的 productData 為準）
+            const totalProducts = Object.values(productData).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0);
             document.getElementById('modalTotalProducts').textContent = totalProducts;
-            
+
             // 計算每個分類的商品數量
-            const categoryCounts = {};
-            Object.values(products).forEach(product => {
-                if (product.category) {
-                    categoryCounts[product.category] = (categoryCounts[product.category] || 0) + 1;
-                }
+            const countsById = {};
+            Object.keys(productData).forEach(catId => {
+                countsById[catId] = (productData[catId] || []).length;
             });
-            
-            // 找出熱門分類
+
+            // 找出熱門分類（顯示分類名稱）
             let popularCategory = '-';
             let maxCount = 0;
-            Object.entries(categoryCounts).forEach(([category, count]) => {
+            categories.forEach(cat => {
+                const count = countsById[String(cat.id)] || 0;
                 if (count > maxCount) {
                     maxCount = count;
-                    popularCategory = category;
+                    popularCategory = cat.name;
                 }
             });
             document.getElementById('modalPopularCategory').textContent = popularCategory;
-            
-            // 計算空分類
-            const emptyCount = categories.filter(cat => cat.productCount === 0).length;
+
+            // 空分類數
+            const emptyCount = categories.filter(cat => (countsById[String(cat.id)] || 0) === 0).length;
             document.getElementById('modalEmptyCategories').textContent = emptyCount;
         }
 
@@ -1523,18 +1999,18 @@ ${product.description ? '描述：' + product.description : ''}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">分類名稱</label>
                             <input type="text" id="categoryName" required 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                         </div>
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">分類描述</label>
                             <textarea id="categoryDescription" rows="3" 
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent"></textarea>
                         </div>
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">分類顏色</label>
-                            <select id="categoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select id="categoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                                 <option value="blue">藍色</option>
                                 <option value="green">綠色</option>
                                 <option value="yellow">黃色</option>
@@ -1547,9 +2023,7 @@ ${product.description ? '描述：' + product.description : ''}
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">排序順序</label>
-                            <input type="number" id="categoryOrder" min="1" value="1" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            
                         </div>
                         
                         <div class="flex justify-end space-x-3 pt-4">
@@ -1558,7 +2032,7 @@ ${product.description ? '描述：' + product.description : ''}
                                 取消
                             </button>
                             <button type="submit" 
-                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                    class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                                 儲存
                             </button>
                         </div>
@@ -1575,64 +2049,49 @@ ${product.description ? '描述：' + product.description : ''}
         }
 
         // 儲存分類
-        function saveCategory() {
+        async function saveCategory() {
             const name = document.getElementById('categoryName').value.trim();
             const description = document.getElementById('categoryDescription').value.trim();
             const color = document.getElementById('categoryColor').value;
-            const order = parseInt(document.getElementById('categoryOrder').value);
             
+
             if (!name) {
                 alert('請輸入分類名稱');
                 return;
             }
-            
-            // 載入現有分類
-            const savedCategories = localStorage.getItem('categories');
-            let categories = [];
-            if (savedCategories) {
-                categories = JSON.parse(savedCategories);
-            }
-            
-            // 檢查是否有重複的分類名稱
-            const existingCategory = categories.find(cat => cat.name === name);
-            if (existingCategory) {
+
+            // 以現有 categoriesData 檢查名稱重複
+            const duplicate = (categoriesData || []).some(cat => String(cat.name).trim() === name);
+            if (duplicate) {
                 alert('分類名稱已存在，請使用不同的名稱');
                 return;
             }
-            
-            // 新增分類
-            const newCategory = {
-                id: 'cat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                name,
-                description,
-                color,
-                order,
-                productCount: 0
-            };
-            categories.push(newCategory);
-            
-            // 按排序順序排序
-            categories.sort((a, b) => a.order - b.order);
-            
-            // 儲存分類
-            localStorage.setItem('categories', JSON.stringify(categories));
-            
-            // 關閉模態框並重新載入
-            document.querySelector('.fixed').remove();
-            loadCategoriesForModal();
-            
-            alert('分類新增成功！');
+
+            try {
+                const payload = { name, description, color, order };
+                const created = await BusinessAPI.addCategory(payload);
+                if (!created) {
+                    alert('分類新增失敗，請檢查資料庫連接');
+                    return;
+                }
+
+                // 重新載入分類，刷新主畫面與模態框列表
+                await loadCategoriesData();
+                renderCategoryCards();
+                const addCatModal = document.getElementById('categoryForm')?.closest('.fixed');
+                if (addCatModal) addCatModal.remove();
+                await loadCategoriesForModal();
+                alert('分類新增成功！');
+            } catch (error) {
+                console.error('新增分類失敗:', error);
+                alert('分類新增失敗：' + (error.message || '未知錯誤'));
+            }
         }
 
         // 編輯分類
         function editCategory(categoryId) {
-            const savedCategories = localStorage.getItem('categories');
-            let categories = [];
-            if (savedCategories) {
-                categories = JSON.parse(savedCategories);
-            }
-            
-            const category = categories.find(cat => cat.id === categoryId);
+            // 從目前的 categoriesData 取得分類
+            const category = (categoriesData || []).find(cat => String(cat.id) === String(categoryId));
             if (!category) return;
             
             const modal = document.createElement('div');
@@ -1650,18 +2109,18 @@ ${product.description ? '描述：' + product.description : ''}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">分類名稱</label>
                             <input type="text" id="editCategoryName" value="${category.name}" required 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                         </div>
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">分類描述</label>
                             <textarea id="editCategoryDescription" rows="3" 
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">${category.description}</textarea>
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">${category.description}</textarea>
                         </div>
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">分類顏色</label>
-                            <select id="editCategoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select id="editCategoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                                 <option value="blue" ${category.color === 'blue' ? 'selected' : ''}>藍色</option>
                                 <option value="green" ${category.color === 'green' ? 'selected' : ''}>綠色</option>
                                 <option value="yellow" ${category.color === 'yellow' ? 'selected' : ''}>黃色</option>
@@ -1674,9 +2133,7 @@ ${product.description ? '描述：' + product.description : ''}
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">排序順序</label>
-                            <input type="number" id="editCategoryOrder" min="1" value="${category.order}" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            
                         </div>
                         
                         <div class="flex justify-end space-x-3 pt-4">
@@ -1685,7 +2142,7 @@ ${product.description ? '描述：' + product.description : ''}
                                 取消
                             </button>
                             <button type="submit" 
-                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                    class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                                 儲存
                             </button>
                         </div>
@@ -1702,75 +2159,51 @@ ${product.description ? '描述：' + product.description : ''}
         }
 
         // 更新分類
-        function updateCategory(categoryId) {
+        async function updateCategory(categoryId) {
             const name = document.getElementById('editCategoryName').value.trim();
             const description = document.getElementById('editCategoryDescription').value.trim();
             const color = document.getElementById('editCategoryColor').value;
-            const order = parseInt(document.getElementById('editCategoryOrder').value);
+            
             
             if (!name) {
                 alert('請輸入分類名稱');
                 return;
             }
             
-            // 載入現有分類
-            const savedCategories = localStorage.getItem('categories');
-            let categories = [];
-            if (savedCategories) {
-                categories = JSON.parse(savedCategories);
-            }
-            
-            // 檢查是否有重複的分類名稱
-            const existingCategory = categories.find(cat => cat.name === name && cat.id !== categoryId);
-            if (existingCategory) {
+            // 檢查是否有重複的分類名稱（排除自己）
+            const nameDup = (categoriesData || []).some(cat => String(cat.name).trim() === name && String(cat.id) !== String(categoryId));
+            if (nameDup) {
                 alert('分類名稱已存在，請使用不同的名稱');
                 return;
             }
-            
-            // 更新分類
-            const index = categories.findIndex(cat => cat.id === categoryId);
-            if (index !== -1) {
-                categories[index] = {
-                    ...categories[index],
-                    name,
-                    description,
-                    color,
-                    order
-                };
+
+            try {
+                const updated = await BusinessAPI.updateCategory(categoryId, { name, description, color, order });
+                if (!updated) {
+                    alert('分類更新失敗，請檢查資料庫連接');
+                    return;
+                }
+
+                await loadCategoriesData();
+                renderCategoryCards();
+                const editCatModal = document.getElementById('editCategoryForm')?.closest('.fixed');
+                if (editCatModal) editCatModal.remove();
+                await loadCategoriesForModal();
+                alert('分類更新成功！');
+            } catch (error) {
+                console.error('更新分類失敗:', error);
+                alert('分類更新失敗：' + (error.message || '未知錯誤'));
             }
-            
-            // 按排序順序排序
-            categories.sort((a, b) => a.order - b.order);
-            
-            // 儲存分類
-            localStorage.setItem('categories', JSON.stringify(categories));
-            
-            // 關閉模態框並重新載入
-            document.querySelector('.fixed').remove();
-            loadCategoriesForModal();
-            
-            alert('分類更新成功！');
         }
 
         // 刪除分類
-        function deleteCategory(categoryId) {
-            const savedCategories = localStorage.getItem('categories');
-            let categories = [];
-            if (savedCategories) {
-                categories = JSON.parse(savedCategories);
-            }
-            
-            const category = categories.find(cat => cat.id === categoryId);
+        async function deleteCategory(categoryId) {
+            // 以目前的 categoriesData 取得分類
+            const category = (categoriesData || []).find(cat => String(cat.id) === String(categoryId));
             if (!category) return;
             
-            // 重新計算該分類的商品數量
-            const products = JSON.parse(localStorage.getItem('products') || '{}');
-            let productCount = 0;
-            Object.values(products).forEach(product => {
-                if (product.category === category.name) {
-                    productCount++;
-                }
-            });
+            // 計算該分類商品數量（以當前 productData 為準）
+            const productCount = (productData[String(categoryId)] || []).length;
             
             if (productCount > 0) {
                 alert(`無法刪除包含 ${productCount} 個商品的分類！\n請先將商品移至其他分類。`);
@@ -1778,23 +2211,37 @@ ${product.description ? '描述：' + product.description : ''}
             }
             
             const confirmDelete = confirm(`確定要刪除分類「${category.name}」嗎？`);
-            if (confirmDelete) {
-                categories = categories.filter(cat => cat.id !== categoryId);
-                localStorage.setItem('categories', JSON.stringify(categories));
-                loadCategoriesForModal();
+            if (!confirmDelete) return;
+
+            try {
+                const ok = await BusinessAPI.deleteCategory(categoryId);
+                if (!ok) {
+                    alert('分類刪除失敗，請檢查資料庫連接');
+                    return;
+                }
+                await loadCategoriesData();
+                renderCategoryCards();
+                await loadCategoriesForModal();
                 alert('分類刪除成功！');
+            } catch (error) {
+                console.error('刪除分類失敗:', error);
+                alert('分類刪除失敗：' + (error.message || '未知錯誤'));
             }
         }
 
         // 匯出分類
         function exportCategories() {
-            const savedCategories = localStorage.getItem('categories');
-            if (!savedCategories) {
+            const categories = (categoriesData || []).map(cat => ({
+                id: cat.id,
+                name: cat.name,
+                description: cat.description || '',
+                color: cat.color || 'blue'
+            }));
+            if (categories.length === 0) {
                 alert('沒有分類數據可匯出');
                 return;
             }
-            
-            const categories = JSON.parse(savedCategories);
+
             const dataStr = JSON.stringify(categories, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             const url = URL.createObjectURL(dataBlob);
@@ -1825,13 +2272,13 @@ ${product.description ? '描述：' + product.description : ''}
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">選擇檔案</label>
                             <input type="file" id="importCategoryFile" accept=".json,.csv" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                         </div>
                         
-                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                             <div class="flex items-center">
-                                <i class="fas fa-info-circle text-blue-600 mr-2"></i>
-                                <span class="text-sm text-blue-800">支援 JSON 和 CSV 格式</span>
+                                <i class="fas fa-info-circle text-[#17225e] mr-2"></i>
+                                <span class="text-sm text-gray-700">支援 JSON 和 CSV 格式</span>
                             </div>
                         </div>
                         
@@ -1841,7 +2288,7 @@ ${product.description ? '描述：' + product.description : ''}
                                 取消
                             </button>
                             <button onclick="importCategories()" 
-                                    class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                    class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                                 匯入
                             </button>
                         </div>
@@ -1852,7 +2299,7 @@ ${product.description ? '描述：' + product.description : ''}
         }
 
         // 匯入分類
-        function importCategories() {
+        async function importCategories() {
             const fileInput = document.getElementById('importCategoryFile');
             const file = fileInput.files[0];
             
@@ -1862,7 +2309,7 @@ ${product.description ? '描述：' + product.description : ''}
             }
             
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     let importedCategories;
                     
@@ -1876,31 +2323,36 @@ ${product.description ? '描述：' + product.description : ''}
                     }
                     
                     if (Array.isArray(importedCategories)) {
-                        // 載入現有分類
-                        const savedCategories = localStorage.getItem('categories');
-                        let categories = [];
-                        if (savedCategories) {
-                            categories = JSON.parse(savedCategories);
-                        }
-                        
-                        // 合併分類，避免重複
-                        importedCategories.forEach(importedCat => {
-                            const existingIndex = categories.findIndex(cat => cat.id === importedCat.id);
-                            if (existingIndex !== -1) {
-                                categories[existingIndex] = { ...categories[existingIndex], ...importedCat };
-                            } else {
-                                categories.push(importedCat);
-                            }
+                        // 移除非法欄位並去重（以名稱為準）
+                        const toInsert = [];
+                        const existingNames = new Set((categoriesData || []).map(c => String(c.name).trim()));
+                        importedCategories.forEach(c => {
+                            const name = String(c.name || '').trim();
+                            if (!name || existingNames.has(name)) return;
+                            toInsert.push({
+                                name,
+                                description: c.description || '',
+                                color: c.color || 'blue'
+                            });
+                            existingNames.add(name);
                         });
-                        
-                        categories.sort((a, b) => a.order - b.order);
-                        localStorage.setItem('categories', JSON.stringify(categories));
-                        
-                        // 關閉模態框並重新載入
-                        document.querySelector('.fixed').remove();
-                        loadCategoriesForModal();
-                        
-                        alert(`成功匯入 ${importedCategories.length} 個分類！`);
+
+                        if (toInsert.length === 0) {
+                            alert('沒有可匯入的分類（可能都已存在或資料無效）');
+                            return;
+                        }
+
+                        // 逐筆新增到資料庫（也可改用批量）
+                        for (const payload of toInsert) {
+                            await BusinessAPI.addCategory(payload);
+                        }
+
+                        await loadCategoriesData();
+                        renderCategoryCards();
+                        const importCatModal = document.getElementById('importCategoryFile')?.closest('.fixed');
+                        if (importCatModal) importCatModal.remove();
+                        await loadCategoriesForModal();
+                        alert(`成功匯入 ${toInsert.length} 個分類！`);
                     } else {
                         alert('檔案格式錯誤');
                     }
@@ -1931,11 +2383,57 @@ ${product.description ? '描述：' + product.description : ''}
             return categories;
         }
 
-        // 頁面載入時初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            loadProductData();
-            updateStatistics();
-        });
+        // 頁面載入時初始化（已合併到主要的DOMContentLoaded事件中）
+
+        // 測試資料庫連接
+        async function testDatabaseConnection() {
+            try {
+                console.log('=== 開始測試資料庫連接 ===');
+                
+                // 檢查全域變數
+                console.log('DatabaseManager 狀態:', typeof DatabaseManager);
+                console.log('BusinessAPI 狀態:', typeof BusinessAPI);
+                console.log('supabase 狀態:', typeof window.supabase);
+                
+                // 檢查資料庫管理器狀態
+                if (typeof DatabaseManager !== 'undefined') {
+                    console.log('DatabaseManager 連接狀態:', DatabaseManager.getStatus());
+                    console.log('DatabaseManager 是否已初始化:', DatabaseManager.isInitialized);
+                }
+                
+                // 測試資料庫初始化
+                console.log('嘗試初始化資料庫...');
+                const initSuccess = await DatabaseManager.initialize();
+                console.log('資料庫初始化結果:', initSuccess);
+                
+                if (initSuccess) {
+                    // 測試基本查詢
+                    console.log('測試基本查詢...');
+                    const categories = await BusinessAPI.getCategories();
+                    console.log('分類查詢結果:', categories);
+                    
+                    const suppliers = await BusinessAPI.getSuppliers();
+                    console.log('供應商查詢結果:', suppliers);
+                    
+                    const products = await BusinessAPI.getProducts();
+                    console.log('商品查詢結果:', products);
+                    
+                    alert('資料庫連接測試成功！\n\n' +
+                          '連接狀態: ' + DatabaseManager.getStatus() + '\n' +
+                          '分類數量: ' + (categories ? categories.length : '查詢失敗') + '\n' +
+                          '供應商數量: ' + (suppliers ? suppliers.length : '查詢失敗') + '\n' +
+                          '商品數量: ' + (products ? products.length : '查詢失敗'));
+                } else {
+                    alert('資料庫連接測試失敗！\n請檢查網路連線和Supabase設定。');
+                }
+                
+            } catch (error) {
+                console.error('資料庫連接測試失敗:', error);
+                alert('資料庫連接測試失敗！\n錯誤: ' + error.message);
+            }
+        }
+
+        // 新增商品表單提交處理函數
     </script>
 </body>
 </html> 

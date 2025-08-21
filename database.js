@@ -3,14 +3,21 @@
 
 // Supabase 配置
 const SUPABASE_URL = 'https://cgwhckykrlphnibmuvhz.supabase.co'; // 需要替換為您的Supabase URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODgzLCJleHAiOjIwNjg2NzY1ODN9.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'; // 需要替換為您的Supabase Anon Key
+const SUPABASE_ANON_KEY = 'sb_publishable_ThaibxLrJdwUixK594BZYw_ad8axjFN'; // 需要替換為您的Supabase Anon Key
 
 // 初始化 Supabase 客戶端
-let supabase;
+let supabase = null;
+const PRODUCT_IMAGE_BUCKET = 'product-images';
 
 // 初始化資料庫連接
 async function initDatabase() {
     try {
+        // 如果已經初始化過，直接返回
+        if (supabase) {
+            console.log('資料庫已經初始化');
+            return true;
+        }
+        
         // 動態載入 Supabase 客戶端
         const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
         supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -52,6 +59,9 @@ class DatabaseAPI {
     // 新增資料
     static async insertData(tableName, data) {
         try {
+            console.log(`準備插入資料到 ${tableName}:`, data);
+            
+            // 如果資料包含ID，使用指定的ID；否則讓Supabase自動生成
             const { data: result, error } = await supabase
                 .from(tableName)
                 .insert([data])
@@ -59,9 +69,11 @@ class DatabaseAPI {
             
             if (error) {
                 console.error(`新增${tableName}資料失敗:`, error);
+                console.error('錯誤詳情:', error.message, error.details, error.hint);
                 return null;
             }
             
+            console.log(`成功插入資料到 ${tableName}:`, result);
             return result[0];
         } catch (error) {
             console.error(`新增${tableName}資料時發生錯誤:`, error);
@@ -93,6 +105,14 @@ class DatabaseAPI {
     // 刪除資料
     static async deleteData(tableName, id) {
         try {
+            // 檢查 Supabase 是否已初始化
+            if (!supabase) {
+                console.warn('Supabase 未初始化，無法刪除資料');
+                return false;
+            }
+            
+            console.log(`嘗試刪除 ${tableName} 中的記錄，ID: ${id}`);
+            
             const { error } = await supabase
                 .from(tableName)
                 .delete()
@@ -103,6 +123,7 @@ class DatabaseAPI {
                 return false;
             }
             
+            console.log(`成功刪除 ${tableName} 中的記錄，ID: ${id}`);
             return true;
         } catch (error) {
             console.error(`刪除${tableName}資料時發生錯誤:`, error);
@@ -140,11 +161,21 @@ class BusinessAPI {
     }
     
     static async addProduct(productData) {
-        return await DatabaseAPI.insertData('products', {
-            ...productData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+        console.log('BusinessAPI.addProduct 被調用，資料:', productData);
+        // 嘗試帶 image_url 新增；若後端無該欄位，移除後重試
+        let result = await DatabaseAPI.insertData('products', productData);
+        if (!result && Object.prototype.hasOwnProperty.call(productData, 'image_url')) {
+            try {
+                const fallbackData = { ...productData };
+                delete fallbackData.image_url;
+                console.warn('products 表可能沒有 image_url 欄位，嘗試不帶 image_url 重新新增');
+                result = await DatabaseAPI.insertData('products', fallbackData);
+            } catch (e) {
+                console.error('fallback 新增商品失敗:', e);
+            }
+        }
+        console.log('BusinessAPI.addProduct 結果:', result);
+        return result;
     }
     
     static async updateProduct(id, productData) {
@@ -157,6 +188,42 @@ class BusinessAPI {
     static async deleteProduct(id) {
         return await DatabaseAPI.deleteData('products', id);
     }
+
+    // 圖片上傳到 Supabase Storage，回傳公開 URL
+    static async uploadProductImage(file) {
+        try {
+            if (!supabase) {
+                const ok = await initDatabase();
+                if (!ok) throw new Error('資料庫未初始化');
+            }
+            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+            const path = `products/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+            
+            // 直接嘗試上傳，如果 bucket 不存在會自動報錯
+            console.log('嘗試上傳圖片到 bucket:', PRODUCT_IMAGE_BUCKET);
+            
+            const { data, error } = await supabase
+                .storage
+                .from(PRODUCT_IMAGE_BUCKET)
+                .upload(path, file, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: file.type || 'image/jpeg'
+                });
+            if (error) {
+                console.error('上傳圖片失敗:', error);
+                return null;
+            }
+            const { data: pub } = supabase
+                .storage
+                .from(PRODUCT_IMAGE_BUCKET)
+                .getPublicUrl(data.path);
+            return pub?.publicUrl || null;
+        } catch (error) {
+            console.error('uploadProductImage 發生錯誤:', error);
+            return null;
+        }
+    }
     
     // 分類管理
     static async getCategories() {
@@ -164,22 +231,138 @@ class BusinessAPI {
     }
     
     static async addCategory(categoryData) {
-        return await DatabaseAPI.insertData('categories', {
-            ...categoryData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+        // 優先傳送 name 與 description（常見欄位）。
+        // 若後端不存在 description 欄位，後端會回 400；如發生可再通知我們加回容錯。
+        const payload = {
+            name: categoryData.name,
+            ...(categoryData.description ? { description: categoryData.description } : {})
+        };
+        return await DatabaseAPI.insertData('categories', payload);
     }
     
     static async updateCategory(id, categoryData) {
-        return await DatabaseAPI.updateData('categories', id, {
-            ...categoryData,
-            updated_at: new Date().toISOString()
-        });
+        // 更新時傳送 name 與 description（如提供）。
+        const payload = {
+            name: categoryData.name,
+            ...(categoryData.description ? { description: categoryData.description } : {})
+        };
+        return await DatabaseAPI.updateData('categories', id, payload);
     }
     
     static async deleteCategory(id) {
         return await DatabaseAPI.deleteData('categories', id);
+    }
+
+    // 進貨管理
+    static async getPurchaseHistory() {
+        try {
+            return await DatabaseAPI.getData('purchase_history');
+        } catch (error) {
+            console.warn('purchase_history 表不存在，返回空數組:', error.message);
+            return [];
+        }
+    }
+    
+    static async getPurchaseHistoryByProduct(productId) {
+        try {
+            const { data, error } = await supabase
+                .from('purchase_history')
+                .select('*')
+                .eq('product_id', productId);
+            
+            if (error) {
+                console.error('獲取商品進貨記錄失敗:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('獲取商品進貨記錄時發生錯誤:', error);
+            return [];
+        }
+    }
+    
+    static async getPurchaseHistoryByDateRange(startDate, endDate) {
+        try {
+            const { data, error } = await supabase
+                .from('purchase_history')
+                .select('*')
+                .gte('purchase_date', startDate)
+                .lte('purchase_date', endDate);
+            
+            if (error) {
+                console.error('獲取日期範圍進貨記錄失敗:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('獲取日期範圍進貨記錄時發生錯誤:', error);
+            return [];
+        }
+    }
+    
+    static async addPurchaseRecord(purchaseData) {
+        return await DatabaseAPI.insertData('purchase_history', {
+            ...purchaseData,
+            purchase_date: purchaseData.purchase_date || new Date().toISOString(),
+            created_at: new Date().toISOString()
+        });
+    }
+    
+    static async updatePurchaseRecord(id, purchaseData) {
+        return await DatabaseAPI.updateData('purchase_history', id, {
+            ...purchaseData,
+            updated_at: new Date().toISOString()
+        });
+    }
+    
+    static async deletePurchaseRecord(id) {
+        return await DatabaseAPI.deleteData('purchase_history', id);
+    }
+    
+    // 退貨管理
+    static async getRefunds() {
+        return await DatabaseAPI.getData('refunds');
+    }
+    
+    static async getRefundsByDateRange(startDate, endDate) {
+        try {
+            const { data, error } = await supabase
+                .from('refunds')
+                .select('*')
+                .gte('refund_date', startDate)
+                .lte('refund_date', endDate);
+            
+            if (error) {
+                console.error('獲取日期範圍退貨記錄失敗:', error);
+                return [];
+            }
+            
+            return data || [];
+        } catch (error) {
+            console.error('獲取日期範圍退貨記錄時發生錯誤:', error);
+            return [];
+        }
+    }
+    
+    static async addRefund(refundData) {
+        return await DatabaseAPI.insertData('refunds', {
+            ...refundData,
+            refund_date: refundData.refund_date || new Date().toISOString(),
+            created_at: new Date().toISOString()
+        });
+    }
+    
+    static async updateRefund(id, refundData) {
+        return await DatabaseAPI.updateData('refunds', id, {
+            ...refundData,
+            updated_at: new Date().toISOString()
+        });
+    }
+    
+    static async deleteRefund(id) {
+        return await DatabaseAPI.deleteData('refunds', id);
     }
     
     // 會員管理
@@ -327,7 +510,8 @@ class DatabaseManager {
     
     // 初始化資料庫
     static async initialize() {
-        if (this.isInitialized) {
+        if (this.isInitialized && supabase) {
+            console.log('資料庫管理器已經初始化');
             return true;
         }
         
@@ -361,6 +545,7 @@ class DatabaseManager {
 window.DatabaseAPI = DatabaseAPI;
 window.BusinessAPI = BusinessAPI;
 window.DatabaseManager = DatabaseManager;
+window.supabase = supabase; // 暴露 supabase 客戶端到全域
 
 // 自動初始化
 document.addEventListener('DOMContentLoaded', async function() {

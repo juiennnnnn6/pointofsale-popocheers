@@ -7,8 +7,2979 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../database.js"></script>
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
+
+    <script>
+        // 全局變數
+        let salesData = [];
+        let productsData = [];
+        let membersData = [];
+        let inventoryData = [];
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 設定預設日期範圍（本月）
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            
+            document.getElementById('startDate').value = firstDayOfMonth.toISOString().split('T')[0];
+            document.getElementById('endDate').value = lastDayOfMonth.toISOString().split('T')[0];
+            
+            await loadAllData();
+            await updateDashboard();
+            setupCharts();
+            
+            // 測試資料載入
+            setTimeout(() => {
+                testPurchaseData();
+                testPerformanceData();
+            }, 1000);
+        });
+
+        // 載入所有數據
+        async function loadAllData() {
+            try {
+                await DatabaseManager.initialize();
+                
+                // 並行載入所有數據
+                const [sales, products, members, purchases, refunds] = await Promise.all([
+                    BusinessAPI.getSalesHistory(),
+                    BusinessAPI.getProducts(),
+                    BusinessAPI.getMembers(),
+                    BusinessAPI.getPurchaseHistory(),
+                    BusinessAPI.getRefunds()
+                ]);
+
+                salesData = sales || [];
+                productsData = products || [];
+                membersData = members || [];
+                purchaseData = purchases || [];
+                refundData = refunds || [];
+                inventoryData = []; // 暫時設為空陣列，因為沒有庫存交易API
+
+                console.log('數據載入完成:', {
+                    sales: salesData.length,
+                    products: productsData.length,
+                    members: membersData.length,
+                    purchases: purchaseData.length,
+                    refunds: refundData.length
+                });
+                
+                // 調試信息
+                if (salesData.length > 0) {
+                    console.log('銷售數據範例:', salesData[0]);
+                    // 檢查銷售項目的結構
+                    if (salesData[0].items) {
+                        console.log('銷售項目類型:', typeof salesData[0].items);
+                        if (typeof salesData[0].items === 'string') {
+                            try {
+                                const parsedItems = JSON.parse(salesData[0].items);
+                                console.log('解析後的銷售項目:', parsedItems);
+                            } catch (e) {
+                                console.error('解析銷售項目失敗:', e);
+                            }
+                        }
+                    }
+                }
+                if (productsData.length > 0) {
+                    console.log('商品數據範例:', productsData[0]);
+                }
+                if (purchaseData.length > 0) {
+                    console.log('進貨數據範例:', purchaseData[0]);
+                    console.log('進貨數據總數:', purchaseData.length);
+                } else {
+                    console.log('沒有進貨數據');
+                }
+            } catch (error) {
+                console.error('載入數據失敗:', error);
+                showNotification('載入數據失敗，請檢查資料庫連接', 'error');
+            }
+        }
+
+        // 更新儀表板數據
+        async function updateDashboard() {
+            updateStatistics();
+            updateInventoryTable();
+            await updateTopProducts();
+            updateInventoryAlerts();
+            updateMonthlyComparison();
+        }
+
+        // 更新儀表板數據（支援日期範圍）
+        async function updateDashboardWithDateRange(startDate, endDate) {
+            updateStatisticsWithDateRange(startDate, endDate);
+            updateInventoryTableWithDateRange(startDate, endDate);
+            await updateTopProductsWithDateRange(startDate, endDate);
+            updateInventoryAlerts();
+            updateMonthlyComparisonWithDateRange(startDate, endDate);
+            await setupCategoryChartWithDateRange(startDate, endDate);
+        }
+
+        // 更新統計數據
+        function updateStatistics() {
+            const currentMonthData = getCurrentMonthData();
+            const lastMonthData = getLastMonthData();
+            
+            // 本月訂單數
+            const orderCount = currentMonthData.sales.length;
+            document.getElementById('orderCount').textContent = orderCount;
+            
+            // 計算訂單增長率
+            const orderGrowth = calculateGrowthRate(orderCount, lastMonthData.sales.length);
+            updateGrowthDisplay('orderGrowth', orderGrowth, '%');
+            
+            // 本月總進貨額
+            const purchaseAmount = currentMonthData.purchases.reduce((sum, purchase) => sum + (purchase.total_cost || 0), 0);
+            document.getElementById('purchaseAmount').textContent = `NT$${purchaseAmount.toLocaleString()}`;
+            
+            // 計算進貨增長率
+            const lastMonthPurchaseAmount = lastMonthData.purchases.reduce((sum, purchase) => sum + (purchase.total_cost || 0), 0);
+            const purchaseGrowth = calculateGrowthRate(purchaseAmount, lastMonthPurchaseAmount);
+            updateGrowthDisplay('purchaseGrowth', purchaseGrowth, '%');
+            
+            // 本月毛利率
+            const grossProfit = calculateGrossProfit(currentMonthData.sales);
+            const grossProfitRate = grossProfit > 0 ? ((grossProfit / currentMonthData.totalSales) * 100).toFixed(1) : 0;
+            document.getElementById('grossProfitRate').textContent = `${grossProfitRate}%`;
+            
+            // 計算毛利率增長率
+            const lastMonthGrossProfit = calculateGrossProfit(lastMonthData.sales);
+            const lastMonthGrossProfitRate = lastMonthData.totalSales > 0 ? ((lastMonthGrossProfit / lastMonthData.totalSales) * 100) : 0;
+            const profitGrowth = calculateGrowthRate(parseFloat(grossProfitRate), lastMonthGrossProfitRate);
+            updateGrowthDisplay('profitGrowth', profitGrowth, '%');
+            
+            // 庫存週轉率
+            const turnoverRate = calculateInventoryTurnover();
+            document.getElementById('turnoverRate').textContent = turnoverRate.toFixed(1);
+            
+            // 計算週轉率增長率
+            const lastMonthTurnoverRate = calculateLastMonthInventoryTurnover();
+            const turnoverGrowth = calculateGrowthRate(turnoverRate, lastMonthTurnoverRate);
+            updateGrowthDisplay('turnoverGrowth', turnoverGrowth, '');
+        }
+
+        // 更新統計數據（支援日期範圍）
+        function updateStatisticsWithDateRange(startDate, endDate) {
+            const dateRangeData = getDataByDateRange(startDate, endDate);
+            
+            // 日期範圍內訂單數
+            const orderCount = dateRangeData.sales.length;
+            document.getElementById('orderCount').textContent = orderCount;
+            
+            // 更新標籤顯示日期範圍
+            const orderLabel = document.querySelector('#orderCount').parentElement.querySelector('p');
+            if (orderLabel) {
+                orderLabel.textContent = `${startDate} 至 ${endDate} 訂單數`;
+            }
+            
+            // 日期範圍內總進貨額
+            const purchaseAmount = dateRangeData.purchases.reduce((sum, purchase) => sum + (purchase.total_cost || 0), 0);
+            document.getElementById('purchaseAmount').textContent = `NT$${purchaseAmount.toLocaleString()}`;
+            const purchaseLabel = document.querySelector('#purchaseAmount').parentElement.querySelector('p');
+            if (purchaseLabel) {
+                purchaseLabel.textContent = `${startDate} 至 ${endDate} 總進貨額`;
+            }
+            
+            // 日期範圍內毛利率
+            const grossProfit = calculateGrossProfit(dateRangeData.sales);
+            const grossProfitRate = grossProfit > 0 ? ((grossProfit / dateRangeData.totalSales) * 100).toFixed(1) : 0;
+            document.getElementById('grossProfitRate').textContent = `${grossProfitRate}%`;
+            const profitLabel = document.querySelector('#grossProfitRate').parentElement.querySelector('p');
+            if (profitLabel) {
+                profitLabel.textContent = `${startDate} 至 ${endDate} 毛利率`;
+            }
+            
+            // 庫存週轉率（保持原樣）
+            const turnoverRate = calculateInventoryTurnover();
+            document.getElementById('turnoverRate').textContent = turnoverRate.toFixed(1);
+            
+            // 隱藏增長率顯示
+            document.querySelectorAll('[id$="Growth"]').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
+
+        // 獲取本月數據
+        function getCurrentMonthData() {
+            const startOfMonth = new Date(currentYear, currentMonth, 1);
+            const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+            
+            console.log('本月日期範圍:', startOfMonth.toISOString(), '到', endOfMonth.toISOString());
+            
+            const sales = salesData.filter(sale => {
+                // 處理不同的日期格式
+                let saleDate;
+                if (sale.created_at) {
+                    saleDate = new Date(sale.created_at);
+                } else if (sale.sale_date) {
+                    saleDate = new Date(sale.sale_date);
+                } else if (sale.date) {
+                    saleDate = new Date(sale.date);
+                } else {
+                    console.log('銷售記錄缺少日期:', sale);
+                    return false;
+                }
+                
+                const isInCurrentMonth = saleDate >= startOfMonth && saleDate <= endOfMonth;
+                if (isInCurrentMonth) {
+                    console.log('找到本月銷售記錄:', saleDate.toISOString(), sale);
+                }
+                
+                return isInCurrentMonth;
+            });
+            
+            // 獲取本月進貨數據
+            const purchases = purchaseData.filter(purchase => {
+                // 處理不同的日期格式
+                let purchaseDate;
+                if (purchase.purchase_date) {
+                    purchaseDate = new Date(purchase.purchase_date);
+                } else if (purchase.created_at) {
+                    purchaseDate = new Date(purchase.created_at);
+                } else {
+                    console.log('進貨記錄缺少日期:', purchase);
+                    return false;
+                }
+                return purchaseDate >= startOfMonth && purchaseDate <= endOfMonth;
+            });
+            
+            // 獲取本月退貨數據
+            const refunds = refundData.filter(refund => {
+                const refundDate = new Date(refund.refund_date);
+                return refundDate >= startOfMonth && refundDate <= endOfMonth;
+            });
+            
+            const totalSales = sales.reduce((sum, sale) => sum + (sale.total_amount || sale.total || 0), 0);
+            
+            return { sales, purchases, refunds, totalSales };
+        }
+
+        // 獲取指定日期範圍的數據
+        function getDataByDateRange(startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // 設定為當天結束時間
+            
+            console.log('日期範圍查詢:', start.toISOString(), '到', end.toISOString());
+            
+            const sales = salesData.filter(sale => {
+                // 處理不同的日期格式
+                let saleDate;
+                if (sale.created_at) {
+                    saleDate = new Date(sale.created_at);
+                } else if (sale.sale_date) {
+                    saleDate = new Date(sale.sale_date);
+                } else if (sale.date) {
+                    saleDate = new Date(sale.date);
+                } else {
+                    return false;
+                }
+                
+                return saleDate >= start && saleDate <= end;
+            });
+            
+            // 獲取日期範圍內進貨數據
+            const purchases = purchaseData.filter(purchase => {
+                // 處理不同的日期格式
+                let purchaseDate;
+                if (purchase.purchase_date) {
+                    purchaseDate = new Date(purchase.purchase_date);
+                } else if (purchase.created_at) {
+                    purchaseDate = new Date(purchase.created_at);
+                } else {
+                    return false;
+                }
+                return purchaseDate >= start && purchaseDate <= end;
+            });
+            
+            // 獲取日期範圍內退貨數據
+            const refunds = refundData.filter(refund => {
+                const refundDate = new Date(refund.refund_date);
+                return refundDate >= start && refundDate <= end;
+            });
+            
+            const totalSales = sales.reduce((sum, sale) => sum + (sale.total_amount || sale.total || 0), 0);
+            
+            return {
+                sales,
+                purchases,
+                refunds,
+                totalSales
+            };
+        }
+
+        // 計算毛利率（扣除退貨）
+        function calculateGrossProfit(sales) {
+            const currentMonthData = getCurrentMonthData();
+            let totalRevenue = 0;
+            let totalCost = 0;
+            
+            sales.forEach(sale => {
+                totalRevenue += sale.total_amount || sale.total || 0;
+                
+                // 解析銷售項目來計算實際成本
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                // 計算每個商品的成本
+                items.forEach(item => {
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    if (product) {
+                        // 使用商品成本或估算成本
+                        const cost = product.cost || (product.price * 0.6);
+                        totalCost += cost * item.quantity;
+                    } else {
+                        // 如果找不到商品，使用估算值
+                        totalCost += (item.total_price || item.price * item.quantity) * 0.6;
+                    }
+                });
+            });
+            
+            // 扣除退貨的影響
+            const refundAmount = currentMonthData.refunds.reduce((sum, refund) => {
+                return sum + (refund.refund_amount || 0);
+            }, 0);
+            
+            const refundCost = refundAmount * 0.6; // 假設退貨成本為退貨金額的60%
+            
+            return (totalRevenue - refundAmount) - (totalCost - refundCost);
+        }
+
+        // 計算庫存週轉率
+        function calculateInventoryTurnover() {
+            const currentMonthData = getCurrentMonthData();
+            const avgInventory = productsData.reduce((sum, product) => sum + (product.stock || 0), 0) / productsData.length;
+            const salesCount = currentMonthData.sales.reduce((sum, sale) => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                return sum + items.length;
+            }, 0);
+            
+            return avgInventory > 0 ? salesCount / avgInventory : 0;
+        }
+
+        // 更新庫存表格
+        async function updateInventoryTable() {
+            const tableBody = document.querySelector('#inventoryTable tbody');
+            if (!tableBody) return;
+            
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">載入中...</td></tr>';
+            
+            try {
+                // 計算所有商品的進銷存數據
+                const inventoryDataPromises = productsData.map(async product => {
+                    const beginningStock = product.stock || 0;
+                    const purchases = await getProductPurchases(product.id);
+                    const sales = getProductSales(product.id);
+                    const endingStock = beginningStock + purchases - sales;
+                    const salesAmount = getProductSalesAmount(product.id);
+                    const avgPrice = sales > 0 ? salesAmount / sales : product.price || 0;
+                    
+                    return {
+                        ...product,
+                        beginningStock,
+                        purchases,
+                        sales,
+                        endingStock,
+                        salesAmount,
+                        avgPrice,
+                        stockStatus: getStockStatus(endingStock, product.min_stock || 10)
+                    };
+                });
+                
+                const inventoryData = await Promise.all(inventoryDataPromises);
+                
+                // 清空載入提示
+                tableBody.innerHTML = '';
+                
+                // 按銷售量排序，顯示前15個商品
+                const sortedData = inventoryData
+                    .sort((a, b) => b.sales - a.sales)
+                    .slice(0, 15);
+                
+                sortedData.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-100 hover:bg-gray-50';
+                    
+                    const stockStatusClass = getStockStatusClass(product.stockStatus);
+                    const endingStockClass = product.endingStock <= 0 ? 'text-red-600' : 
+                                           product.endingStock <= (product.min_stock || 10) ? 'text-[#17225e]' : '';
+                    
+                    row.innerHTML = `
+                        <td class="py-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full ${stockStatusClass}"></span>
+                                <div>
+                                    <div class="font-medium">${product.name}</div>
+                                    <div class="text-xs text-gray-500">${product.barcode || '無條碼'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center py-3">${product.beginningStock}</td>
+                        <td class="text-center py-3 text-[#17225e]">+${product.purchases}</td>
+                        <td class="text-center py-3 text-[#17225e]">-${product.sales}</td>
+                        <td class="text-center py-3 font-semibold ${endingStockClass}">${product.endingStock}</td>
+                        <td class="text-center py-3 text-sm text-gray-600">NT$${product.avgPrice.toLocaleString()}</td>
+                        <td class="text-center py-3 text-sm text-gray-600">NT$${product.salesAmount.toLocaleString()}</td>
+                    `;
+                    
+                    // 添加點擊事件查看詳細信息
+                    row.addEventListener('click', () => showProductDetail(product));
+                    row.style.cursor = 'pointer';
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // 更新表格標題顯示總計
+                updateInventorySummary(inventoryData);
+                
+            } catch (error) {
+                console.error('更新庫存表格失敗:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-red-500">載入失敗，請重新整理頁面</td></tr>';
+            }
+        }
+
+        // 更新庫存表格（支援日期範圍）
+        async function updateInventoryTableWithDateRange(startDate, endDate) {
+            const tableBody = document.querySelector('#inventoryTable tbody');
+            if (!tableBody) return;
+            
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">載入中...</td></tr>';
+            
+            try {
+                // 計算所有商品的進銷存數據（日期範圍內）
+                const inventoryDataPromises = productsData.map(async product => {
+                    const beginningStock = product.stock || 0;
+                    const purchases = await getProductPurchasesByDateRange(product.id, startDate, endDate);
+                    const sales = getProductSalesByDateRange(product.id, startDate, endDate);
+                    const endingStock = beginningStock + purchases - sales;
+                    const salesAmount = getProductSalesAmountByDateRange(product.id, startDate, endDate);
+                    const avgPrice = sales > 0 ? salesAmount / sales : product.price || 0;
+                    
+                    return {
+                        ...product,
+                        beginningStock,
+                        purchases,
+                        sales,
+                        endingStock,
+                        salesAmount,
+                        avgPrice,
+                        stockStatus: getStockStatus(endingStock, product.min_stock || 10)
+                    };
+                });
+                
+                const inventoryData = await Promise.all(inventoryDataPromises);
+                
+                // 清空載入提示
+                tableBody.innerHTML = '';
+                
+                // 按銷售量排序，顯示前15個商品
+                const sortedData = inventoryData
+                    .sort((a, b) => b.sales - a.sales)
+                    .slice(0, 15);
+                
+                sortedData.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-100 hover:bg-gray-50';
+                    
+                    const stockStatusClass = getStockStatusClass(product.stockStatus);
+                    const endingStockClass = product.endingStock <= 0 ? 'text-red-600' : 
+                                           product.endingStock <= (product.min_stock || 10) ? 'text-[#17225e]' : '';
+                    
+                    row.innerHTML = `
+                        <td class="py-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full ${stockStatusClass}"></span>
+                                <div>
+                                    <div class="font-medium">${product.name}</div>
+                                    <div class="text-xs text-gray-500">${product.barcode || '無條碼'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center py-3">${product.beginningStock}</td>
+                        <td class="text-center py-3 text-[#17225e]">+${product.purchases}</td>
+                        <td class="text-center py-3 text-[#17225e]">-${product.sales}</td>
+                        <td class="text-center py-3 font-semibold ${endingStockClass}">${product.endingStock}</td>
+                        <td class="text-center py-3 text-sm text-gray-600">NT$${product.avgPrice.toLocaleString()}</td>
+                        <td class="text-center py-3 text-sm text-gray-600">NT$${product.salesAmount.toLocaleString()}</td>
+                    `;
+                    
+                    // 添加點擊事件查看詳細信息
+                    row.addEventListener('click', () => showProductDetail(product));
+                    row.style.cursor = 'pointer';
+                    
+                    tableBody.appendChild(row);
+                });
+                
+                // 更新表格標題顯示總計
+                updateInventorySummary(inventoryData);
+                
+            } catch (error) {
+                console.error('更新庫存表格失敗:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-red-500">載入失敗，請重新整理頁面</td></tr>';
+            }
+        }
+
+        // 獲取商品進貨數量
+        async function getProductPurchases(productId) {
+            try {
+                // 直接從已載入的進貨資料中篩選
+                const currentMonthData = getCurrentMonthData();
+                const currentMonth = new Date().getMonth();
+                const currentYear = new Date().getFullYear();
+                
+                const productPurchases = currentMonthData.purchases.filter(purchase => {
+                    // 支援多種商品ID匹配方式
+                    return purchase.product_id === productId || 
+                           purchase.product_id === productId.toString() ||
+                           purchase.product_id === parseInt(productId);
+                });
+                
+                const totalQuantity = productPurchases.reduce((sum, purchase) => {
+                    // 處理不同的日期格式
+                    let purchaseDate;
+                    if (purchase.purchase_date) {
+                        purchaseDate = new Date(purchase.purchase_date);
+                    } else if (purchase.created_at) {
+                        purchaseDate = new Date(purchase.created_at);
+                    } else {
+                        console.log('進貨記錄缺少日期:', purchase);
+                        return sum;
+                    }
+                    
+                    if (purchaseDate.getMonth() === currentMonth && purchaseDate.getFullYear() === currentYear) {
+                        return sum + (purchase.quantity || 0);
+                    }
+                    return sum;
+                }, 0);
+                
+                console.log(`商品 ${productId} 本月進貨數量:`, totalQuantity, '筆記錄:', productPurchases.length);
+                return totalQuantity;
+            } catch (error) {
+                console.error('獲取商品進貨數量失敗:', error);
+                return 0;
+            }
+        }
+
+        // 獲取商品進貨數量（支援日期範圍）
+        async function getProductPurchasesByDateRange(productId, startDate, endDate) {
+            try {
+                const dateRangeData = getDataByDateRange(startDate, endDate);
+                
+                const productPurchases = dateRangeData.purchases.filter(purchase => {
+                    return purchase.product_id === productId || 
+                           purchase.product_id === productId.toString() ||
+                           purchase.product_id === parseInt(productId);
+                });
+                
+                const totalQuantity = productPurchases.reduce((sum, purchase) => {
+                    return sum + (purchase.quantity || 0);
+                }, 0);
+                
+                console.log(`商品 ${productId} 日期範圍進貨數量:`, totalQuantity, '筆記錄:', productPurchases.length);
+                return totalQuantity;
+            } catch (error) {
+                console.error('獲取商品日期範圍進貨數量失敗:', error);
+                return 0;
+            }
+        }
+
+        // 獲取商品銷售數量（支援日期範圍）
+        function getProductSalesByDateRange(productId, startDate, endDate) {
+            const dateRangeData = getDataByDateRange(startDate, endDate);
+            const product = productsData.find(p => p.id === productId);
+            
+            // 計算銷售數量
+            const salesQuantity = dateRangeData.sales.reduce((sum, sale) => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                const item = items.find(item => {
+                    return item.product_id === productId || 
+                           item.barcode === product?.barcode ||
+                           item.name === product?.name;
+                });
+                
+                return sum + (item ? item.quantity : 0);
+            }, 0);
+            
+            // 計算退貨數量
+            const refundQuantity = dateRangeData.refunds.reduce((sum, refund) => {
+                if (refund.sale_id) {
+                    const sale = dateRangeData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        let items = [];
+                        if (typeof sale.items === 'string') {
+                            try {
+                                items = JSON.parse(sale.items);
+                            } catch (e) {
+                                items = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            items = sale.items;
+                        }
+                        
+                        const item = items.find(item => {
+                            return item.product_id === productId || 
+                                   item.barcode === product?.barcode ||
+                                   item.name === product?.name;
+                        });
+                        
+                        return sum + (item ? (refund.refund_quantity || item.quantity) : 0);
+                    }
+                }
+                return sum;
+            }, 0);
+            
+            return Math.max(0, salesQuantity - refundQuantity);
+        }
+
+        // 獲取商品銷售金額（支援日期範圍）
+        function getProductSalesAmountByDateRange(productId, startDate, endDate) {
+            const dateRangeData = getDataByDateRange(startDate, endDate);
+            const product = productsData.find(p => p.id === productId);
+            
+            // 計算銷售金額
+            const salesAmount = dateRangeData.sales.reduce((sum, sale) => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                const item = items.find(item => {
+                    return item.product_id === productId || 
+                           item.barcode === product?.barcode ||
+                           item.name === product?.name;
+                });
+                
+                return sum + (item ? (item.total_price || item.price * item.quantity) : 0);
+            }, 0);
+            
+            // 計算退貨金額
+            const refundAmount = dateRangeData.refunds.reduce((sum, refund) => {
+                if (refund.sale_id) {
+                    const sale = dateRangeData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        let items = [];
+                        if (typeof sale.items === 'string') {
+                            try {
+                                items = JSON.parse(sale.items);
+                            } catch (e) {
+                                items = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            items = sale.items;
+                        }
+                        
+                        const item = items.find(item => {
+                            return item.product_id === productId || 
+                                   item.barcode === product?.barcode ||
+                                   item.name === product?.name;
+                        });
+                        
+                        return sum + (item ? (refund.refund_amount || item.total_price) : 0);
+                    }
+                }
+                return sum;
+            }, 0);
+            
+            return Math.max(0, salesAmount - refundAmount);
+        }
+
+        // 獲取商品銷售數量（扣除退貨）
+        function getProductSales(productId) {
+            const currentMonthData = getCurrentMonthData();
+            const product = productsData.find(p => p.id === productId);
+            
+            // 計算銷售數量
+            const salesQuantity = currentMonthData.sales.reduce((sum, sale) => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                const item = items.find(item => {
+                    return item.product_id === productId || 
+                           item.barcode === product?.barcode ||
+                           item.name === product?.name;
+                });
+                
+                return sum + (item ? item.quantity : 0);
+            }, 0);
+            
+            // 計算退貨數量
+            const refundQuantity = currentMonthData.refunds.reduce((sum, refund) => {
+                // 檢查退貨記錄是否包含該商品
+                // 這裡需要根據實際的退貨數據結構進行調整
+                if (refund.sale_id) {
+                    // 找到對應的銷售記錄
+                    const sale = currentMonthData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        let items = [];
+                        if (typeof sale.items === 'string') {
+                            try {
+                                items = JSON.parse(sale.items);
+                            } catch (e) {
+                                items = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            items = sale.items;
+                        }
+                        
+                        const item = items.find(item => {
+                            return item.product_id === productId || 
+                                   item.barcode === product?.barcode ||
+                                   item.name === product?.name;
+                        });
+                        
+                        // 如果退貨記錄有具體的商品數量，使用退貨數量
+                        // 否則假設退貨了該銷售記錄中該商品的全部數量
+                        return sum + (item ? (refund.refund_quantity || item.quantity) : 0);
+                    }
+                }
+                return sum;
+            }, 0);
+            
+            // 返回淨銷售數量（銷售 - 退貨）
+            return Math.max(0, salesQuantity - refundQuantity);
+        }
+
+        // 獲取商品銷售金額（扣除退貨）
+        function getProductSalesAmount(productId) {
+            const currentMonthData = getCurrentMonthData();
+            const product = productsData.find(p => p.id === productId);
+            
+            // 計算銷售金額
+            const salesAmount = currentMonthData.sales.reduce((sum, sale) => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                const item = items.find(item => {
+                    return item.product_id === productId || 
+                           item.barcode === product?.barcode ||
+                           item.name === product?.name;
+                });
+                
+                return sum + (item ? (item.total_price || item.price * item.quantity) : 0);
+            }, 0);
+            
+            // 計算退貨金額
+            const refundAmount = currentMonthData.refunds.reduce((sum, refund) => {
+                if (refund.sale_id) {
+                    const sale = currentMonthData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        let items = [];
+                        if (typeof sale.items === 'string') {
+                            try {
+                                items = JSON.parse(sale.items);
+                            } catch (e) {
+                                items = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            items = sale.items;
+                        }
+                        
+                        const item = items.find(item => {
+                            return item.product_id === productId || 
+                                   item.barcode === product?.barcode ||
+                                   item.name === product?.name;
+                        });
+                        
+                        if (item) {
+                            // 如果退貨記錄有具體的退貨金額，使用退貨金額
+                            // 否則根據退貨數量計算
+                            const itemPrice = item.total_price || item.price * item.quantity;
+                            const refundQuantity = refund.refund_quantity || item.quantity;
+                            return sum + (itemPrice * (refundQuantity / item.quantity));
+                        }
+                    }
+                }
+                return sum;
+            }, 0);
+            
+            // 返回淨銷售金額（銷售 - 退貨）
+            return Math.max(0, salesAmount - refundAmount);
+        }
+
+        // 獲取庫存狀態
+        function getStockStatus(stock, minStock) {
+            if (stock <= 0) return 'out_of_stock';
+            if (stock <= minStock) return 'low_stock';
+            return 'normal';
+        }
+
+        // 獲取庫存狀態樣式
+        function getStockStatusClass(status) {
+            switch (status) {
+                case 'out_of_stock': return 'bg-red-500';
+                case 'low_stock': return 'bg-[#17225e]';
+                default: return 'bg-green-500';
+            }
+        }
+
+        // 更新庫存摘要
+        function updateInventorySummary(inventoryData) {
+            const totalProducts = inventoryData.length;
+            const outOfStock = inventoryData.filter(p => p.stockStatus === 'out_of_stock').length;
+            const lowStock = inventoryData.filter(p => p.stockStatus === 'low_stock').length;
+            const totalSales = inventoryData.reduce((sum, p) => sum + p.sales, 0);
+            const totalSalesAmount = inventoryData.reduce((sum, p) => sum + p.salesAmount, 0);
+            
+            // 更新表格標題
+            const tableTitle = document.querySelector('#inventoryTable').closest('.apple-card').querySelector('h3');
+            if (tableTitle) {
+                tableTitle.innerHTML = `進銷存明細報表 <span class="text-sm font-normal text-gray-500">(共 ${totalProducts} 項商品，${outOfStock} 項缺貨，${lowStock} 項低庫存，淨銷售已扣除退貨)</span>`;
+            }
+        }
+
+        // 顯示商品詳細信息
+        function showProductDetail(product) {
+            const currentMonthData = getCurrentMonthData();
+            
+            // 計算退貨數量
+            const refundQuantity = currentMonthData.refunds.reduce((sum, refund) => {
+                if (refund.sale_id) {
+                    const sale = currentMonthData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        let items = [];
+                        if (typeof sale.items === 'string') {
+                            try {
+                                items = JSON.parse(sale.items);
+                            } catch (e) {
+                                items = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            items = sale.items;
+                        }
+                        
+                        const item = items.find(item => {
+                            return item.product_id === product.id || 
+                                   item.barcode === product.barcode ||
+                                   item.name === product.name;
+                        });
+                        
+                        return sum + (item ? (refund.refund_quantity || item.quantity) : 0);
+                    }
+                }
+                return sum;
+            }, 0);
+            
+            const detailInfo = `
+📊 商品詳細報表
+
+商品名稱：${product.name}
+商品條碼：${product.barcode || '無條碼'}
+商品分類：${product.category || '未分類'}
+商品價格：NT$${product.price?.toLocaleString() || '0'}
+
+📈 本月進銷存數據：
+期初庫存：${product.beginningStock} 件
+本月進貨：${product.purchases} 件
+本月銷售：${product.sales + refundQuantity} 件
+本月退貨：${refundQuantity} 件
+淨銷售：${product.sales} 件
+期末庫存：${product.endingStock} 件
+平均售價：NT$${product.avgPrice.toLocaleString()}
+淨銷售金額：NT$${product.salesAmount.toLocaleString()}
+
+📋 庫存狀態：${getStockStatusText(product.stockStatus)}
+最低庫存：${product.min_stock || 10} 件
+
+${product.sales > 0 ? '✅ 本月有淨銷售記錄' : '❌ 本月無淨銷售記錄'}
+${refundQuantity > 0 ? `⚠️ 本月有 ${refundQuantity} 件退貨` : ''}
+            `;
+            
+            alert(detailInfo);
+        }
+
+        // 獲取庫存狀態文字
+        function getStockStatusText(status) {
+            switch (status) {
+                case 'out_of_stock': return '🔴 缺貨';
+                case 'low_stock': return '🟡 低庫存';
+                default: return '🟢 正常';
+            }
+        }
+
+        // 匯出進銷存報表
+        function exportInventoryReport() {
+            const inventoryData = productsData.map(product => {
+                const beginningStock = product.stock || 0;
+                const purchases = getProductPurchases(product.id);
+                const sales = getProductSales(product.id);
+                const endingStock = beginningStock + purchases - sales;
+                const salesAmount = getProductSalesAmount(product.id);
+                const avgPrice = sales > 0 ? salesAmount / sales : product.price || 0;
+                
+                return {
+                    name: product.name,
+                    barcode: product.barcode || '無條碼',
+                    category: product.category || '未分類',
+                    price: product.price || 0,
+                    beginningStock,
+                    purchases,
+                    sales,
+                    endingStock,
+                    avgPrice,
+                    salesAmount,
+                    stockStatus: getStockStatusText(getStockStatus(endingStock, product.min_stock || 10))
+                };
+            });
+            
+            // 按銷售量排序
+            const sortedData = inventoryData.sort((a, b) => b.sales - a.sales);
+            
+            // 生成CSV內容
+            const headers = ['商品名稱', '條碼', '分類', '價格', '期初庫存', '進貨', '銷售', '期末庫存', '平均售價', '銷售金額', '庫存狀態'];
+            const csvContent = [
+                headers.join(','),
+                ...sortedData.map(item => [
+                    `"${item.name}"`,
+                    `"${item.barcode}"`,
+                    `"${item.category}"`,
+                    item.price,
+                    item.beginningStock,
+                    item.purchases,
+                    item.sales,
+                    item.endingStock,
+                    item.avgPrice,
+                    item.salesAmount,
+                    `"${item.stockStatus}"`
+                ].join(','))
+            ].join('\n');
+            
+            // 下載CSV檔案
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `進銷存明細報表_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('進銷存報表已匯出', 'success');
+        }
+
+        // 顯示庫存篩選器
+        function showInventoryFilters() {
+            const filterOptions = [
+                { value: 'all', label: '全部商品' },
+                { value: 'out_of_stock', label: '缺貨商品' },
+                { value: 'low_stock', label: '低庫存商品' },
+                { value: 'normal', label: '庫存正常' },
+                { value: 'has_sales', label: '有銷售記錄' },
+                { value: 'no_sales', label: '無銷售記錄' }
+            ];
+            
+            const filter = prompt(
+                '請選擇篩選條件：\n\n' +
+                filterOptions.map((option, index) => `${index + 1}. ${option.label}`).join('\n') +
+                '\n\n請輸入數字 (1-6)：'
+            );
+            
+            if (filter && !isNaN(filter) && filter >= 1 && filter <= 6) {
+                const selectedFilter = filterOptions[parseInt(filter) - 1].value;
+                applyInventoryFilter(selectedFilter);
+            }
+        }
+
+        // 套用庫存篩選器
+        function applyInventoryFilter(filter) {
+            const tableBody = document.querySelector('#inventoryTable tbody');
+            if (!tableBody) return;
+            
+            const rows = tableBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const stockStatus = row.querySelector('.w-2.h-2.rounded-full').className;
+                const sales = parseInt(row.querySelector('td:nth-child(4)').textContent.replace('-', ''));
+                
+                let show = true;
+                
+                switch (filter) {
+                    case 'out_of_stock':
+                        show = stockStatus.includes('bg-red-500');
+                        break;
+                    case 'low_stock':
+                        show = stockStatus.includes('bg-[#17225e]');
+                        break;
+                    case 'normal':
+                        show = stockStatus.includes('bg-green-500');
+                        break;
+                    case 'has_sales':
+                        show = sales > 0;
+                        break;
+                    case 'no_sales':
+                        show = sales === 0;
+                        break;
+                    default:
+                        show = true;
+                }
+                
+                row.style.display = show ? '' : 'none';
+            });
+            
+            showNotification(`已篩選：${getFilterLabel(filter)}`, 'info');
+        }
+
+        // 獲取篩選標籤
+        function getFilterLabel(filter) {
+            const labels = {
+                'all': '全部商品',
+                'out_of_stock': '缺貨商品',
+                'low_stock': '低庫存商品',
+                'normal': '庫存正常',
+                'has_sales': '有銷售記錄',
+                'no_sales': '無銷售記錄'
+            };
+            return labels[filter] || '全部商品';
+        }
+
+        // 更新熱銷商品
+        async function updateTopProducts() {
+            const productSales = calculateProductSales();
+            const topProducts = productSales.slice(0, 3);
+            
+            const container = document.querySelector('#topProducts');
+            if (!container) return;
+            
+            // 獲取分類數據
+            let categories = [];
+            try {
+                categories = await BusinessAPI.getCategories();
+            } catch (error) {
+                console.error('獲取分類數據失敗:', error);
+            }
+            
+
+            
+            container.innerHTML = '';
+            
+            for (const product of topProducts) {
+                const index = topProducts.indexOf(product);
+                const rankColors = ['bg-[#17225e]', 'bg-gray-400', 'bg-[#17225e]'];
+                const rankColor = rankColors[index] || 'bg-gray-400';
+                
+                // 處理分類名稱
+                let categoryName = product.category;
+                if (product.category_id && categories.length > 0) {
+                    const categoryObj = categories.find(cat => cat.id === product.category_id);
+                    if (categoryObj) {
+                        categoryName = categoryObj.name;
+                    }
+                }
+                
+                // 處理商品圖片 - 從原始商品數據獲取
+                const originalProduct = productsData.find(p => p.id === product.id);
+                let imageUrl = originalProduct ? originalProduct.image_url : product.image_url;
+                
+                if (!imageUrl || imageUrl === '') {
+                    // 根據分類設置預設圖片 - 使用歐洲家居/波蘭陶食器相關圖片
+                    if (categoryName.includes('餐具')) {
+                        imageUrl = 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center';
+                    } else if (categoryName.includes('擺飾')) {
+                        imageUrl = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=32&h=32&fit=crop&crop=center';
+                    } else if (categoryName.includes('廚具')) {
+                        imageUrl = 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center';
+                    } else {
+                        // 使用歐洲家居風格的預設圖片
+                        imageUrl = 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center';
+                    }
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="w-6 h-6 ${rankColor} text-white text-xs rounded-full flex items-center justify-center">${index + 1}</span>
+                        <img src="${imageUrl}" 
+                             class="w-8 h-8 rounded object-cover"
+                             onerror="this.src='https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center'">
+                        <div>
+                            <span class="text-sm font-medium">${product.name}</span>
+                            <p class="text-xs text-gray-500">${categoryName || '未分類'}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-[#17225e]">${product.salesCount} 件</p>
+                        <p class="text-xs text-gray-500">NT$${product.salesAmount.toLocaleString()}</p>
+                    </div>
+                `;
+                
+                container.appendChild(div);
+            }
+        }
+
+        // 更新熱銷商品（支援日期範圍）
+        async function updateTopProductsWithDateRange(startDate, endDate) {
+            const productSales = calculateProductSalesByDateRange(startDate, endDate);
+            const topProducts = productSales.slice(0, 3);
+            
+            const container = document.querySelector('#topProducts');
+            if (!container) return;
+            
+            // 獲取分類數據
+            let categories = [];
+            try {
+                categories = await BusinessAPI.getCategories();
+            } catch (error) {
+                console.error('獲取分類數據失敗:', error);
+            }
+            
+            container.innerHTML = '';
+            
+            for (const product of topProducts) {
+                const index = topProducts.indexOf(product);
+                const rankColors = ['bg-[#17225e]', 'bg-gray-400', 'bg-[#17225e]'];
+                const rankColor = rankColors[index] || 'bg-gray-400';
+                
+                // 處理分類名稱
+                let categoryName = product.category;
+                if (product.category_id && categories.length > 0) {
+                    const categoryObj = categories.find(cat => cat.id === product.category_id);
+                    if (categoryObj) {
+                        categoryName = categoryObj.name;
+                    }
+                }
+                
+                // 處理商品圖片 - 從原始商品數據獲取
+                const originalProduct = productsData.find(p => p.id === product.id);
+                let imageUrl = originalProduct ? originalProduct.image_url : product.image_url;
+                
+                if (!imageUrl || imageUrl === '') {
+                    // 根據分類設置預設圖片 - 使用歐洲家居/波蘭陶食器相關圖片
+                    if (categoryName.includes('餐具')) {
+                        imageUrl = 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center';
+                    } else if (categoryName.includes('擺飾')) {
+                        imageUrl = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=32&h=32&fit=crop&crop=center';
+                    } else if (categoryName.includes('廚具')) {
+                        imageUrl = 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center';
+                    } else {
+                        // 使用歐洲家居風格的預設圖片
+                        imageUrl = 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center';
+                    }
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="w-6 h-6 ${rankColor} text-white text-xs rounded-full flex items-center justify-center">${index + 1}</span>
+                        <img src="${imageUrl}" 
+                             class="w-8 h-8 rounded object-cover"
+                             onerror="this.src='https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=32&h=32&fit=crop&crop=center'">
+                        <div>
+                            <span class="text-sm font-medium">${product.name}</span>
+                            <p class="text-xs text-gray-500">${categoryName || '未分類'}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-[#17225e]">${product.salesCount} 件</p>
+                        <p class="text-xs text-gray-500">NT$${product.salesAmount.toLocaleString()}</p>
+                    </div>
+                `;
+                
+                container.appendChild(div);
+            }
+        }
+
+        // 計算商品銷售數據（支援日期範圍）
+        function calculateProductSalesByDateRange(startDate, endDate) {
+            const dateRangeData = getDataByDateRange(startDate, endDate);
+            const productSalesMap = new Map();
+            
+            // 計算銷售數據
+            dateRangeData.sales.forEach(sale => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                items.forEach(item => {
+                    // 嘗試找到對應的商品
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    
+                    if (product) {
+                        const category = product.category || '未分類';
+                        const category_id = product.category_id;
+                        const image_url = product.image_url;
+                        
+                        if (!productSalesMap.has(product.id)) {
+                            productSalesMap.set(product.id, {
+                                id: product.id,
+                                name: product.name,
+                                category: category,
+                                category_id: category_id,
+                                image_url: image_url,
+                                salesCount: 0,
+                                salesAmount: 0
+                            });
+                        }
+                        
+                        const productSales = productSalesMap.get(product.id);
+                        productSales.salesCount += item.quantity || 0;
+                        productSales.salesAmount += item.total_price || (item.price * item.quantity) || 0;
+                    }
+                });
+            });
+            
+            // 扣除退貨數據
+            dateRangeData.refunds.forEach(refund => {
+                // 處理退貨記錄
+                if (refund.items) {
+                    let refundItems = [];
+                    if (typeof refund.items === 'string') {
+                        try {
+                            refundItems = JSON.parse(refund.items);
+                        } catch (e) {
+                            refundItems = [];
+                        }
+                    } else if (Array.isArray(refund.items)) {
+                        refundItems = refund.items;
+                    }
+                    
+                    refundItems.forEach(item => {
+                        const product = productsData.find(p => 
+                            p.id === item.product_id || 
+                            p.barcode === item.barcode ||
+                            p.name === item.name
+                        );
+                        
+                        if (product && productSalesMap.has(product.id)) {
+                            const productSales = productSalesMap.get(product.id);
+                            const refundQuantity = item.quantity || refund.refund_quantity || 0;
+                            const refundAmount = item.total_price || refund.refund_amount || 0;
+                            
+                            productSales.salesCount = Math.max(0, productSales.salesCount - refundQuantity);
+                            productSales.salesAmount = Math.max(0, productSales.salesAmount - refundAmount);
+                        }
+                    });
+                }
+            });
+            
+            // 轉換為數組並排序
+            const productSalesArray = Array.from(productSalesMap.values())
+                .filter(product => product.salesCount > 0)
+                .sort((a, b) => b.salesCount - a.salesCount);
+            
+            return productSalesArray;
+        }
+
+        // 計算商品銷售數據（本月，扣除退貨）
+        function calculateProductSales() {
+            const currentMonthData = getCurrentMonthData();
+            const productSalesMap = new Map();
+            
+            // 計算銷售數據
+            currentMonthData.sales.forEach(sale => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                items.forEach(item => {
+                    // 嘗試找到對應的商品
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    
+                    if (product) {
+                        // 獲取正確的分類信息
+                        let category = product.category;
+                        
+                        // 如果沒有 category 但有 category_id，從 Supabase 分類數據中查找
+                        if (!category && product.category_id) {
+                            // 這裡需要先獲取分類數據，但為了避免重複調用，我們先使用預設值
+                            // 實際的分類名稱會在 updateTopProducts 中處理
+                            category = `分類ID: ${product.category_id}`;
+                        }
+                        
+                        // 如果仍然沒有分類，使用預設分類
+                        if (!category) {
+                            category = '其他';
+                        }
+                        
+                        if (!productSalesMap.has(product.id)) {
+                            productSalesMap.set(product.id, {
+                                id: product.id,
+                                name: product.name,
+                                category: category,
+                                category_id: product.category_id,
+                                image_url: product.image_url || '',
+                                salesCount: 0,
+                                salesAmount: 0
+                            });
+                        }
+                        
+                        const productData = productSalesMap.get(product.id);
+                        productData.salesCount += item.quantity || 0;
+                        productData.salesAmount += (item.total_price || (item.price * item.quantity) || 0);
+                    }
+                });
+            });
+            
+            // 扣除退貨數據
+            currentMonthData.refunds.forEach(refund => {
+                if (refund.sale_id) {
+                    const sale = currentMonthData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        let items = [];
+                        if (typeof sale.items === 'string') {
+                            try {
+                                items = JSON.parse(sale.items);
+                            } catch (e) {
+                                items = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            items = sale.items;
+                        }
+                        
+                        items.forEach(item => {
+                            const product = productsData.find(p => 
+                                p.id === item.product_id || 
+                                p.barcode === item.barcode ||
+                                p.name === item.name
+                            );
+                            
+                            if (product && productSalesMap.has(product.id)) {
+                                const productData = productSalesMap.get(product.id);
+                                const refundQuantity = refund.refund_quantity || item.quantity;
+                                productData.salesCount = Math.max(0, productData.salesCount - refundQuantity);
+                                productData.salesAmount = Math.max(0, productData.salesAmount - (item.total_price || (item.price * refundQuantity)));
+                            }
+                        });
+                    }
+                }
+            });
+            
+            return Array.from(productSalesMap.values())
+                .filter(product => product.salesCount > 0) // 只顯示有銷售的商品
+                .sort((a, b) => b.salesCount - a.salesCount);
+        }
+
+        // 更新庫存預警
+        function updateInventoryAlerts() {
+            const lowStockProducts = productsData.filter(product => 
+                (product.stock || 0) <= 5 && (product.stock || 0) > 0
+            );
+            
+            const outOfStockProducts = productsData.filter(product => 
+                (product.stock || 0) <= 0
+            );
+            
+            const container = document.querySelector('#inventoryAlerts');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            // 低庫存警告
+            lowStockProducts.slice(0, 3).forEach(product => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded';
+                div.innerHTML = `
+                    <span class="text-sm text-gray-800">${product.name}</span>
+                    <span class="text-xs text-gray-600">低庫存 (${product.stock}件)</span>
+                `;
+                container.appendChild(div);
+            });
+            
+            // 缺貨警告
+            outOfStockProducts.slice(0, 2).forEach(product => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-2 bg-red-50 rounded';
+                div.innerHTML = `
+                    <span class="text-sm text-red-800">${product.name}</span>
+                    <span class="text-xs text-red-600">缺貨 (0件)</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 更新月度比較
+        function updateMonthlyComparison() {
+            const currentMonthData = getCurrentMonthData();
+            const lastMonthData = getLastMonthData();
+            
+            // 計算淨銷售額（扣除退貨）
+            const currentMonthNetSales = currentMonthData.totalSales - 
+                currentMonthData.refunds.reduce((sum, refund) => sum + (refund.refund_amount || 0), 0);
+            
+            const lastMonthNetSales = lastMonthData.totalSales - 
+                lastMonthData.refunds.reduce((sum, refund) => sum + (refund.refund_amount || 0), 0);
+            
+            // 更新本月銷售
+            const currentMonthElement = document.getElementById('currentMonthSales');
+            if (currentMonthElement) {
+                currentMonthElement.textContent = `NT$${currentMonthNetSales.toLocaleString()}`;
+            }
+            
+            // 更新上月銷售
+            const lastMonthElement = document.getElementById('lastMonthSales');
+            if (lastMonthElement) {
+                lastMonthElement.textContent = `NT$${lastMonthNetSales.toLocaleString()}`;
+            }
+            
+            // 計算並顯示增長率
+            const growthRate = calculateGrowthRate(currentMonthNetSales, lastMonthNetSales);
+            const growthElement = document.getElementById('salesGrowth');
+            if (growthElement) {
+                updateGrowthDisplay('salesGrowth', growthRate, '%');
+            }
+        }
+
+        // 更新月度比較（支援日期範圍）
+        function updateMonthlyComparisonWithDateRange(startDate, endDate) {
+            const dateRangeData = getDataByDateRange(startDate, endDate);
+            
+            // 計算日期範圍內的淨銷售額（扣除退貨）
+            const dateRangeNetSales = dateRangeData.totalSales - 
+                dateRangeData.refunds.reduce((sum, refund) => sum + (refund.refund_amount || 0), 0);
+            
+            // 更新日期範圍銷售
+            const currentMonthElement = document.getElementById('currentMonthSales');
+            if (currentMonthElement) {
+                currentMonthElement.textContent = `NT$${dateRangeNetSales.toLocaleString()}`;
+            }
+            
+            // 更新標籤顯示日期範圍
+            const lastMonthElement = document.getElementById('lastMonthSales');
+            if (lastMonthElement) {
+                lastMonthElement.textContent = `${startDate} 至 ${endDate}`;
+            }
+            
+            // 隱藏增長率顯示
+            const growthElement = document.getElementById('salesGrowth');
+            if (growthElement) {
+                growthElement.style.display = 'none';
+            }
+        }
+
+        // 獲取上月數據
+        function getLastMonthData() {
+            const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            const lastYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+            const startOfLastMonth = new Date(lastYear, lastMonth, 1);
+            const endOfLastMonth = new Date(lastYear, lastMonth + 1, 0);
+            
+            const sales = salesData.filter(sale => {
+                const saleDate = new Date(sale.created_at);
+                return saleDate >= startOfLastMonth && saleDate <= endOfLastMonth;
+            });
+            
+            const purchases = purchaseData.filter(purchase => {
+                // 處理不同的日期格式
+                let purchaseDate;
+                if (purchase.purchase_date) {
+                    purchaseDate = new Date(purchase.purchase_date);
+                } else if (purchase.created_at) {
+                    purchaseDate = new Date(purchase.created_at);
+                } else {
+                    return false;
+                }
+                return purchaseDate >= startOfLastMonth && purchaseDate <= endOfLastMonth;
+            });
+            
+            const refunds = refundData.filter(refund => {
+                const refundDate = new Date(refund.refund_date);
+                return refundDate >= startOfLastMonth && refundDate <= endOfLastMonth;
+            });
+            
+            const totalSales = sales.reduce((sum, sale) => sum + (sale.total_amount || sale.total || 0), 0);
+            
+            return { sales, purchases, refunds, totalSales };
+        }
+
+        // 計算增長率
+        function calculateGrowthRate(current, previous) {
+            if (previous === 0) return current > 0 ? 100 : 0;
+            return ((current - previous) / previous * 100).toFixed(1);
+        }
+
+        // 更新增長率顯示
+        function updateGrowthDisplay(elementId, growthRate, unit) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const growth = parseFloat(growthRate);
+            const icon = growth >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            const color = growth >= 0 ? 'text-[#17225e]' : 'text-red-500';
+            
+            element.innerHTML = `<i class="fas ${icon} mr-1"></i>${growth >= 0 ? '+' : ''}${growthRate}${unit} 比上月`;
+            element.className = `text-xs ${color}`;
+        }
+
+        // 計算上月庫存週轉率
+        function calculateLastMonthInventoryTurnover() {
+            const lastMonthData = getLastMonthData();
+            const avgInventory = productsData.reduce((sum, product) => sum + (product.stock || 0), 0) / productsData.length;
+            const salesCount = lastMonthData.sales.reduce((sum, sale) => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                return sum + items.length;
+            }, 0);
+            
+            return avgInventory > 0 ? salesCount / avgInventory : 0;
+        }
+
+        // 設置圖表
+        function setupCharts() {
+            setupTrendChart();
+            setupCategoryChart();
+        }
+
+        // 設置趨勢圖
+        function setupTrendChart() {
+            const trendCtx = document.getElementById('trendChart');
+            if (!trendCtx) return;
+            
+            const chartData = getChartData();
+            
+            new Chart(trendCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: '銷售額',
+                        data: chartData.sales,
+                        borderColor: '#17225e',
+                        backgroundColor: 'rgba(23, 34, 94, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: '進貨額',
+                        data: chartData.purchases,
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 獲取圖表數據
+        function getChartData() {
+            const labels = [];
+            const sales = [];
+            const purchases = [];
+            
+            // 生成最近6天的數據
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
+                
+                const daySales = salesData.filter(sale => {
+                    const saleDate = new Date(sale.created_at);
+                    return saleDate.toDateString() === date.toDateString();
+                });
+                
+                const dayPurchases = purchaseData.filter(purchase => {
+                    const purchaseDate = new Date(purchase.purchase_date);
+                    return purchaseDate.toDateString() === date.toDateString();
+                });
+                
+                sales.push(daySales.reduce((sum, sale) => sum + (sale.total_amount || sale.total || 0), 0));
+                purchases.push(dayPurchases.reduce((sum, purchase) => sum + (purchase.total_cost || 0), 0));
+            }
+            
+            return { labels, sales, purchases };
+        }
+
+        // 設置分類銷售占比圖
+        async function setupCategoryChart() {
+            const categoryCtx = document.getElementById('categoryChart');
+            if (!categoryCtx) return;
+            
+            const categoryData = await getCategoryData();
+            
+            // 如果沒有數據，顯示空狀態
+            if (categoryData.values.length === 0) {
+                categoryCtx.style.display = 'none';
+                const container = categoryCtx.parentElement;
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-chart-pie text-4xl mb-2"></i>
+                            <p>本月無銷售數據</p>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            new Chart(categoryCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: categoryData.labels,
+                    datasets: [{
+                        data: categoryData.values,
+                        backgroundColor: [
+                            '#17225e',
+                            '#6b7280',
+                            '#9ca3af',
+                            '#d1d5db',
+                            '#e5e7eb',
+                            '#f3f4f6'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const detail = categoryData.details[context.dataIndex];
+                                    return [
+                                        `分類: ${detail.category}`,
+                                        `銷售數量: ${detail.quantity} 件`,
+                                        `銷售金額: NT$${detail.amount.toLocaleString()}`,
+                                        `占比: ${detail.percentage}%`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新分類銷售詳情
+            updateCategoryDetails(categoryData.details);
+        }
+
+        // 設置分類銷售占比圖（支援日期範圍）
+        async function setupCategoryChartWithDateRange(startDate, endDate) {
+            const categoryCtx = document.getElementById('categoryChart');
+            if (!categoryCtx) return;
+            
+            const categoryData = await getCategoryDataByDateRange(startDate, endDate);
+            
+            // 如果沒有數據，顯示空狀態
+            if (categoryData.values.length === 0) {
+                categoryCtx.style.display = 'none';
+                const container = categoryCtx.parentElement;
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-chart-pie text-4xl mb-2"></i>
+                            <p>${startDate} 至 ${endDate} 無銷售數據</p>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            new Chart(categoryCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: categoryData.labels,
+                    datasets: [{
+                        data: categoryData.values,
+                        backgroundColor: [
+                            '#17225e',
+                            '#6b7280',
+                            '#9ca3af',
+                            '#d1d5db',
+                            '#e5e7eb',
+                            '#f3f4f6'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const detail = categoryData.details[context.dataIndex];
+                                    return [
+                                        `分類: ${detail.category}`,
+                                        `銷售數量: ${detail.quantity} 件`,
+                                        `銷售金額: NT$${detail.amount.toLocaleString()}`,
+                                        `占比: ${detail.percentage}%`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新分類銷售詳情
+            updateCategoryDetailsWithDateRange(categoryData.details, startDate, endDate);
+        }
+
+        // 更新分類銷售詳情（支援日期範圍）
+        function updateCategoryDetailsWithDateRange(categoryDetails, startDate, endDate) {
+            const container = document.getElementById('categoryDetails');
+            if (!container) return;
+            
+            if (categoryDetails.length === 0) {
+                container.innerHTML = `<p class="text-gray-500 text-center">${startDate} 至 ${endDate} 無銷售數據</p>`;
+                return;
+            }
+            
+            let detailsHtml = '';
+            categoryDetails.forEach((detail, index) => {
+                const rankColors = ['bg-[#17225e]', 'bg-gray-400', 'bg-[#17225e]', 'bg-gray-400', 'bg-[#17225e]'];
+                const rankColor = rankColors[index] || 'bg-gray-400';
+                
+                detailsHtml += `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2">
+                        <div class="flex items-center space-x-3">
+                            <span class="w-6 h-6 ${rankColor} text-white text-xs rounded-full flex items-center justify-center">${index + 1}</span>
+                            <div>
+                                <span class="text-sm font-medium text-gray-800">${detail.category}</span>
+                                <p class="text-xs text-gray-500">${detail.quantity} 件</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-semibold text-[#17225e]">NT$${detail.amount.toLocaleString()}</p>
+                            <p class="text-xs text-gray-500">${detail.percentage}%</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = detailsHtml;
+        }
+
+        // 更新分類銷售詳情
+        function updateCategoryDetails(categoryDetails) {
+            const container = document.getElementById('categoryDetails');
+            if (!container) return;
+            
+            if (categoryDetails.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center">本月無銷售數據</p>';
+                return;
+            }
+            
+            let detailsHtml = '';
+            categoryDetails.forEach((detail, index) => {
+                const rankColors = ['bg-[#17225e]', 'bg-gray-400', 'bg-[#17225e]', 'bg-gray-400', 'bg-[#17225e]'];
+                const rankColor = rankColors[index] || 'bg-gray-400';
+                
+                detailsHtml += `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2">
+                        <div class="flex items-center space-x-3">
+                            <span class="w-6 h-6 ${rankColor} text-white text-xs rounded-full flex items-center justify-center">${index + 1}</span>
+                            <div>
+                                <span class="text-sm font-medium text-gray-800">${detail.category}</span>
+                                <p class="text-xs text-gray-500">${detail.quantity} 件</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-semibold text-[#17225e]">NT$${detail.amount.toLocaleString()}</p>
+                            <p class="text-xs text-gray-500">${detail.percentage}%</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = detailsHtml;
+        }
+
+        // 根據分類ID獲取分類名稱
+        async function getCategoryNameById(categoryId) {
+            try {
+                // 從 Supabase 獲取真實的分類數據
+                const categories = await BusinessAPI.getCategories();
+                const category = categories.find(cat => cat.id === categoryId);
+                return category ? category.name : '其他';
+            } catch (error) {
+                console.error('獲取分類數據失敗:', error);
+                return '其他';
+            }
+        }
+
+        // 獲取分類銷售占比數據（本月，扣除退貨）
+        async function getCategoryData() {
+            const currentMonthData = getCurrentMonthData();
+            const categoryMap = new Map();
+            
+            console.log('=== 分類銷售數據計算 ===');
+            console.log('本月銷售記錄數:', currentMonthData.sales.length);
+            console.log('商品數據總數:', productsData.length);
+            
+            // 先獲取所有分類數據
+            let categories = [];
+            try {
+                categories = await BusinessAPI.getCategories();
+                console.log('獲取到的分類數據:', categories);
+            } catch (error) {
+                console.error('獲取分類數據失敗:', error);
+            }
+            
+            // 計算銷售數據
+            for (const sale of currentMonthData.sales) {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                console.log(`銷售記錄項目:`, items);
+                
+                for (const item of items) {
+                    console.log(`項目:`, item);
+                    
+                    // 嘗試找到對應的商品
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    
+                    console.log(`找到商品:`, product);
+                    
+                    if (product) {
+                        // 檢查分類信息
+                        let category = product.category;
+                        
+                        // 如果沒有 category 但有 category_id，從 Supabase 分類數據中查找
+                        if (!category && product.category_id) {
+                            const categoryObj = categories.find(cat => cat.id === product.category_id);
+                            category = categoryObj ? categoryObj.name : '其他';
+                            console.log(`根據 category_id ${product.category_id} 找到分類:`, category);
+                        }
+                        
+                        // 如果仍然沒有分類，使用預設分類
+                        if (!category) {
+                            category = '其他';
+                        }
+                        
+                        const currentData = categoryMap.get(category) || { quantity: 0, amount: 0 };
+                        currentData.quantity += item.quantity || 0;
+                        currentData.amount += (item.total_price || (item.price * item.quantity) || 0);
+                        categoryMap.set(category, currentData);
+                        console.log(`更新分類 ${category}:`, currentData);
+                    } else {
+                        console.log(`商品未找到:`, item.name);
+                    }
+                }
+            }
+            
+            // 扣除退貨數據
+            console.log('=== 處理退貨數據 ===');
+            console.log('本月退貨記錄數:', currentMonthData.refunds.length);
+            
+            for (const refund of currentMonthData.refunds) {
+                console.log('處理退貨記錄:', refund);
+                
+                // 處理退貨項目
+                let refundItems = [];
+                
+                // 如果退貨記錄有 items 欄位
+                if (refund.items) {
+                    if (typeof refund.items === 'string') {
+                        try {
+                            refundItems = JSON.parse(refund.items);
+                        } catch (e) {
+                            console.error('解析退貨項目 JSON 失敗:', e);
+                            refundItems = [];
+                        }
+                    } else if (Array.isArray(refund.items)) {
+                        refundItems = refund.items;
+                    }
+                }
+                // 如果沒有 items 但有 sale_id，從原銷售記錄獲取
+                else if (refund.sale_id) {
+                    const sale = currentMonthData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        if (typeof sale.items === 'string') {
+                            try {
+                                refundItems = JSON.parse(sale.items);
+                            } catch (e) {
+                                refundItems = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            refundItems = sale.items;
+                        }
+                    }
+                }
+                // 如果只有單一商品信息
+                else if (refund.product_id || refund.product_name) {
+                    refundItems = [{
+                        product_id: refund.product_id,
+                        name: refund.product_name,
+                        quantity: refund.refund_quantity || refund.quantity || 1,
+                        price: refund.refund_price || refund.price || 0,
+                        total_price: refund.refund_amount || refund.amount || 0
+                    }];
+                }
+                
+                console.log('退貨項目:', refundItems);
+                
+                for (const item of refundItems) {
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    
+                    if (product) {
+                        // 檢查分類信息
+                        let category = product.category;
+                        
+                        // 如果沒有 category 但有 category_id，從 Supabase 分類數據中查找
+                        if (!category && product.category_id) {
+                            const categoryObj = categories.find(cat => cat.id === product.category_id);
+                            category = categoryObj ? categoryObj.name : '其他';
+                        }
+                        
+                        // 如果仍然沒有分類，使用預設分類
+                        if (!category) {
+                            category = '其他';
+                        }
+                        
+                        if (categoryMap.has(category)) {
+                            const currentData = categoryMap.get(category);
+                            const refundQuantity = item.quantity || refund.refund_quantity || 1;
+                            const refundAmount = item.total_price || (item.price * refundQuantity) || refund.refund_amount || 0;
+                            
+                            currentData.quantity = Math.max(0, currentData.quantity - refundQuantity);
+                            currentData.amount = Math.max(0, currentData.amount - refundAmount);
+                            categoryMap.set(category, currentData);
+                            
+                            console.log(`扣除退貨 - 分類 ${category}: 數量 -${refundQuantity}, 金額 -${refundAmount}`);
+                            console.log(`更新後分類 ${category}:`, currentData);
+                        }
+                    }
+                }
+            }
+            
+            // 按銷售金額排序，取前5個分類
+            const sortedCategories = Array.from(categoryMap.entries())
+                .filter(([, data]) => data.amount > 0) // 只顯示有銷售的分類
+                .sort((a, b) => b[1].amount - a[1].amount)
+                .slice(0, 5);
+            
+            // 計算總銷售金額
+            const totalAmount = sortedCategories.reduce((sum, [, data]) => sum + data.amount, 0);
+            
+            return {
+                labels: sortedCategories.map(([category, data]) => 
+                    `${category} (${((data.amount / totalAmount) * 100).toFixed(1)}%)`
+                ),
+                values: sortedCategories.map(([, data]) => data.amount),
+                details: sortedCategories.map(([category, data]) => ({
+                    category,
+                    quantity: data.quantity,
+                    amount: data.amount,
+                    percentage: totalAmount > 0 ? ((data.amount / totalAmount) * 100).toFixed(1) : 0
+                }))
+            };
+        }
+
+        // 獲取分類銷售占比數據（支援日期範圍）
+        async function getCategoryDataByDateRange(startDate, endDate) {
+            const dateRangeData = getDataByDateRange(startDate, endDate);
+            const categoryMap = new Map();
+            
+            console.log('=== 分類銷售數據計算（日期範圍） ===');
+            console.log('日期範圍銷售記錄數:', dateRangeData.sales.length);
+            console.log('商品數據總數:', productsData.length);
+            
+            // 先獲取所有分類數據
+            let categories = [];
+            try {
+                categories = await BusinessAPI.getCategories();
+                console.log('獲取到的分類數據:', categories);
+            } catch (error) {
+                console.error('獲取分類數據失敗:', error);
+            }
+            
+            // 計算銷售數據
+            for (const sale of dateRangeData.sales) {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            console.error('解析銷售項目 JSON 失敗:', e);
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                for (const item of items) {
+                    // 嘗試找到對應的商品
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    
+                    if (product) {
+                        // 檢查分類信息
+                        let category = product.category;
+                        
+                        // 如果沒有 category 但有 category_id，從 Supabase 分類數據中查找
+                        if (!category && product.category_id) {
+                            const categoryObj = categories.find(cat => cat.id === product.category_id);
+                            category = categoryObj ? categoryObj.name : '其他';
+                        }
+                        
+                        // 如果仍然沒有分類，使用預設分類
+                        if (!category) {
+                            category = '其他';
+                        }
+                        
+                        const currentData = categoryMap.get(category) || { quantity: 0, amount: 0 };
+                        currentData.quantity += item.quantity || 0;
+                        currentData.amount += (item.total_price || (item.price * item.quantity) || 0);
+                        categoryMap.set(category, currentData);
+                    }
+                }
+            }
+            
+            // 扣除退貨數據
+            for (const refund of dateRangeData.refunds) {
+                // 處理退貨項目
+                let refundItems = [];
+                
+                // 如果退貨記錄有 items 欄位
+                if (refund.items) {
+                    if (typeof refund.items === 'string') {
+                        try {
+                            refundItems = JSON.parse(refund.items);
+                        } catch (e) {
+                            console.error('解析退貨項目 JSON 失敗:', e);
+                            refundItems = [];
+                        }
+                    } else if (Array.isArray(refund.items)) {
+                        refundItems = refund.items;
+                    }
+                }
+                // 如果沒有 items 但有 sale_id，從原銷售記錄獲取
+                else if (refund.sale_id) {
+                    const sale = dateRangeData.sales.find(s => s.id === refund.sale_id);
+                    if (sale && sale.items) {
+                        if (typeof sale.items === 'string') {
+                            try {
+                                refundItems = JSON.parse(sale.items);
+                            } catch (e) {
+                                refundItems = [];
+                            }
+                        } else if (Array.isArray(sale.items)) {
+                            refundItems = sale.items;
+                        }
+                    }
+                }
+                // 如果只有單一商品信息
+                else if (refund.product_id || refund.product_name) {
+                    refundItems = [{
+                        product_id: refund.product_id,
+                        name: refund.product_name,
+                        quantity: refund.refund_quantity || refund.quantity || 1,
+                        price: refund.refund_price || refund.price || 0,
+                        total_price: refund.refund_amount || refund.amount || 0
+                    }];
+                }
+                
+                for (const item of refundItems) {
+                    const product = productsData.find(p => 
+                        p.id === item.product_id || 
+                        p.barcode === item.barcode ||
+                        p.name === item.name
+                    );
+                    
+                    if (product) {
+                        // 檢查分類信息
+                        let category = product.category;
+                        
+                        // 如果沒有 category 但有 category_id，從 Supabase 分類數據中查找
+                        if (!category && product.category_id) {
+                            const categoryObj = categories.find(cat => cat.id === product.category_id);
+                            category = categoryObj ? categoryObj.name : '其他';
+                        }
+                        
+                        // 如果仍然沒有分類，使用預設分類
+                        if (!category) {
+                            category = '其他';
+                        }
+                        
+                        if (categoryMap.has(category)) {
+                            const currentData = categoryMap.get(category);
+                            const refundQuantity = item.quantity || refund.refund_quantity || 1;
+                            const refundAmount = item.total_price || (item.price * refundQuantity) || refund.refund_amount || 0;
+                            
+                            currentData.quantity = Math.max(0, currentData.quantity - refundQuantity);
+                            currentData.amount = Math.max(0, currentData.amount - refundAmount);
+                            categoryMap.set(category, currentData);
+                        }
+                    }
+                }
+            }
+            
+            // 按銷售金額排序，取前5個分類
+            const sortedCategories = Array.from(categoryMap.entries())
+                .filter(([, data]) => data.amount > 0) // 只顯示有銷售的分類
+                .sort((a, b) => b[1].amount - a[1].amount)
+                .slice(0, 5);
+            
+            // 計算總銷售金額
+            const totalAmount = sortedCategories.reduce((sum, [, data]) => sum + data.amount, 0);
+            
+            return {
+                labels: sortedCategories.map(([category, data]) => 
+                    `${category} (${((data.amount / totalAmount) * 100).toFixed(1)}%)`
+                ),
+                values: sortedCategories.map(([, data]) => data.amount),
+                details: sortedCategories.map(([category, data]) => ({
+                    category,
+                    quantity: data.quantity,
+                    amount: data.amount,
+                    percentage: totalAmount > 0 ? ((data.amount / totalAmount) * 100).toFixed(1) : 0
+                }))
+            };
+        }
+
+        // 顯示通知
+        function showNotification(message, type = 'info') {
+            const alertClass = {
+                'success': 'bg-gray-100 border-[#17225e] text-gray-700',
+                'error': 'bg-red-100 border-red-500 text-red-700',
+                'warning': 'bg-gray-100 border-gray-500 text-gray-700',
+                'info': 'bg-gray-100 border-[#17225e] text-gray-700'
+            }[type];
+
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg border ${alertClass} z-50`;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // 商品查詢功能
+        async function quickProductReport() {
+            const searchInput = prompt('請輸入商品條碼、商品名稱或商品ID：');
+            if (!searchInput) return;
+            
+            // 搜尋商品（支援條碼、名稱、ID）
+            const product = productsData.find(p => 
+                p.barcode === searchInput || 
+                p.name === searchInput || 
+                p.id.toString() === searchInput
+            );
+            
+            if (!product) {
+                alert(`找不到商品：${searchInput}\n\n請確認：\n- 條碼是否正確\n- 商品名稱是否完整\n- 商品ID是否正確`);
+                return;
+            }
+            
+            const productSales = getProductSalesData(product.id);
+            await showProductReport(product, productSales);
+        }
+
+        // 獲取商品銷售數據
+        function getProductSalesData(productId) {
+            const product = productsData.find(p => p.id === productId);
+            if (!product) return { salesCount: 0, totalQuantity: 0, totalAmount: 0, averagePrice: 0 };
+            
+            const sales = salesData.filter(sale => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                return items.some(item => 
+                    item.product_id === productId || 
+                    item.barcode === product.barcode ||
+                    item.name === product.name
+                );
+            });
+            
+            let totalQuantity = 0;
+            let totalAmount = 0;
+            
+            sales.forEach(sale => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                const item = items.find(item => 
+                    item.product_id === productId || 
+                    item.barcode === product.barcode ||
+                    item.name === product.name
+                );
+                
+                if (item) {
+                    totalQuantity += item.quantity || 0;
+                    totalAmount += (item.total_price || (item.price * item.quantity) || 0);
+                }
+            });
+            
+            return {
+                salesCount: sales.length,
+                totalQuantity,
+                totalAmount,
+                averagePrice: totalQuantity > 0 ? totalAmount / totalQuantity : 0
+            };
+        }
+
+        // 顯示商品報表
+        async function showProductReport(product, salesData) {
+            // 獲取分類數據
+            let categories = [];
+            try {
+                categories = await BusinessAPI.getCategories();
+            } catch (error) {
+                console.error('獲取分類數據失敗:', error);
+            }
+            
+            // 處理分類名稱
+            let categoryName = product.category;
+            if (!categoryName && product.category_id && categories.length > 0) {
+                const categoryObj = categories.find(cat => cat.id === product.category_id);
+                if (categoryObj) {
+                    categoryName = categoryObj.name;
+                }
+            }
+            if (!categoryName) {
+                categoryName = '未分類';
+            }
+            
+            // 計算本月銷售數據
+            const currentMonthData = getCurrentMonthData();
+            const currentMonthSales = currentMonthData.sales.filter(sale => {
+                let items = [];
+                if (sale.items) {
+                    if (typeof sale.items === 'string') {
+                        try {
+                            items = JSON.parse(sale.items);
+                        } catch (e) {
+                            items = [];
+                        }
+                    } else if (Array.isArray(sale.items)) {
+                        items = sale.items;
+                    }
+                }
+                
+                return items.some(item => 
+                    item.product_id === product.id || 
+                    item.barcode === product.barcode ||
+                    item.name === product.name
+                );
+            });
+            
+            // 計算本月退貨數據
+            const currentMonthRefunds = currentMonthData.refunds.filter(refund => {
+                return refund.product_id === product.id || 
+                       (refund.items && JSON.parse(refund.items).some(item => 
+                           item.product_id === product.id || 
+                           item.barcode === product.barcode ||
+                           item.name === product.name
+                       ));
+            });
+            
+            const report = `
+📊 商品銷售報表
+
+商品資訊：
+商品名稱：${product.name}
+商品分類：${categoryName}
+商品ID：${product.id}
+條碼：${product.barcode || '無'}
+單價：NT$${product.price?.toLocaleString() || '0'}
+當前庫存：${product.stock || 0} 件
+
+📈 總銷售數據：
+總銷售次數：${salesData.salesCount} 次
+總銷售數量：${salesData.totalQuantity} 件
+總銷售金額：NT$${salesData.totalAmount.toLocaleString()}
+平均售價：NT$${salesData.averagePrice.toLocaleString()}
+
+📅 本月數據：
+本月銷售次數：${currentMonthSales.length} 次
+本月退貨次數：${currentMonthRefunds.length} 次
+本月淨銷售：${salesData.salesCount > 0 ? '✅ 有銷售記錄' : '❌ 無銷售記錄'}
+
+💡 庫存建議：
+${product.stock <= 0 ? '🔴 缺貨 - 建議進貨' : 
+  product.stock <= 5 ? '🟡 庫存偏低 - 注意補貨' : 
+  '🟢 庫存充足'}
+            `;
+            
+            alert(report);
+        }
+
+
+
+        // 統一導航函數
+        function navigateToPage(page) {
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'navigate',
+                        page: page
+                    }, '*');
+                } else {
+                    window.location.href = `${page}.html`;
+                }
+            } catch (error) {
+                window.open(`${page}.html`, '_blank');
+            }
+        }
+
+        // 重新整理報表
+        async function refreshReports() {
+            try {
+                showNotification('正在重新載入報表數據...', 'info');
+                await loadAllData();
+                await updateDashboard();
+                showNotification('報表數據已更新', 'success');
+            } catch (error) {
+                console.error('重新載入報表失敗:', error);
+                showNotification('重新載入報表失敗', 'error');
+            }
+        }
+
+        // 日期範圍查詢
+        async function queryByDateRange() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                showNotification('請選擇開始和結束日期', 'warning');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                showNotification('開始日期不能晚於結束日期', 'error');
+                return;
+            }
+            
+            try {
+                showNotification('正在查詢指定日期範圍的數據...', 'info');
+                
+                // 更新當前查詢的日期範圍
+                window.currentQueryStartDate = startDate;
+                window.currentQueryEndDate = endDate;
+                
+                // 重新載入數據並更新顯示
+                await loadAllData();
+                await updateDashboardWithDateRange(startDate, endDate);
+                
+                showNotification(`已查詢 ${startDate} 至 ${endDate} 的數據`, 'success');
+            } catch (error) {
+                console.error('日期範圍查詢失敗:', error);
+                showNotification('日期範圍查詢失敗', 'error');
+            }
+        }
+
+        // 重置到本月數據
+        async function resetToCurrentMonth() {
+            try {
+                showNotification('正在重置到本月數據...', 'info');
+                
+                // 清除當前查詢的日期範圍
+                window.currentQueryStartDate = null;
+                window.currentQueryEndDate = null;
+                
+                // 重新設定日期為本月
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                
+                document.getElementById('startDate').value = firstDayOfMonth.toISOString().split('T')[0];
+                document.getElementById('endDate').value = lastDayOfMonth.toISOString().split('T')[0];
+                
+                // 重新載入數據並更新顯示
+                await loadAllData();
+                await updateDashboard();
+                
+                // 恢復增長率顯示
+                document.querySelectorAll('[id$="Growth"]').forEach(el => {
+                    el.style.display = 'block';
+                });
+                
+                // 恢復月度比較顯示
+                const salesGrowthElement = document.getElementById('salesGrowth');
+                if (salesGrowthElement) {
+                    salesGrowthElement.style.display = 'block';
+                }
+                
+                // 恢復原始標籤
+                const labels = document.querySelectorAll('.apple-card p');
+                if (labels.length >= 9) {
+                    labels[0].textContent = '本月訂單數';
+                    labels[4].textContent = '本月總進貨額';
+                    labels[8].textContent = '本月毛利率';
+                }
+                
+                // 恢復月度比較標籤
+                const lastMonthElement = document.getElementById('lastMonthSales');
+                if (lastMonthElement) {
+                    lastMonthElement.textContent = 'NT$0';
+                }
+                
+                // 重新設置分類圖表為本月數據
+                await setupCategoryChart();
+                
+                showNotification('已重置到本月數據', 'success');
+            } catch (error) {
+                console.error('重置到本月失敗:', error);
+                showNotification('重置到本月失敗', 'error');
+            }
+        }
+
+        // 匯出報表
+        function exportReports() {
+            try {
+                // 創建報表內容
+                const reportContent = generateReportContent();
+                
+                // 創建下載連結
+                const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `營業報表_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                showNotification('報表已匯出', 'success');
+            } catch (error) {
+                console.error('匯出報表失敗:', error);
+                showNotification('匯出報表失敗', 'error');
+            }
+        }
+
+        // 生成報表內容
+        function generateReportContent() {
+            const currentMonthData = getCurrentMonthData();
+            const lastMonthData = getLastMonthData();
+            
+            let content = `波波 聚 歐洲家居/波蘭陶食器 - 營業報表\n`;
+            content += `報表日期: ${new Date().toLocaleDateString('zh-TW')}\n`;
+            content += `==========================================\n\n`;
+            
+            // 本月統計
+            content += `本月統計:\n`;
+            content += `- 訂單數: ${currentMonthData.sales.length}\n`;
+            content += `- 銷售金額: NT$${currentMonthData.totalSales.toLocaleString()}\n`;
+            content += `- 進貨金額: NT$${currentMonthData.purchases.reduce((sum, p) => sum + (p.total_cost || 0), 0).toLocaleString()}\n`;
+            content += `- 毛利率: ${currentMonthData.totalSales > 0 ? ((calculateGrossProfit(currentMonthData.sales) / currentMonthData.totalSales) * 100).toFixed(1) : 0}%\n\n`;
+            
+            // 上月比較
+            content += `上月比較:\n`;
+            content += `- 訂單數: ${lastMonthData.sales.length}\n`;
+            content += `- 銷售金額: NT$${lastMonthData.totalSales.toLocaleString()}\n`;
+            content += `- 進貨金額: NT$${lastMonthData.purchases.reduce((sum, p) => sum + (p.total_cost || 0), 0).toLocaleString()}\n\n`;
+            
+            // 熱銷商品
+            const topProducts = calculateProductSales().slice(0, 5);
+            content += `熱銷商品 TOP 5:\n`;
+            topProducts.forEach((product, index) => {
+                content += `${index + 1}. ${product.name} - ${product.salesCount}件 - NT$${product.salesAmount.toLocaleString()}\n`;
+            });
+            
+            return content;
+        }
+
+        // 測試進貨資料載入
+        function testPurchaseData() {
+            console.log('=== 進貨資料測試 ===');
+            console.log('總進貨記錄數:', purchaseData.length);
+            
+            if (purchaseData.length > 0) {
+                console.log('進貨記錄範例:', purchaseData[0]);
+                console.log('進貨記錄欄位:', Object.keys(purchaseData[0]));
+                
+                const currentMonthData = getCurrentMonthData();
+                console.log('本月進貨記錄數:', currentMonthData.purchases.length);
+                
+                if (currentMonthData.purchases.length > 0) {
+                    console.log('本月進貨記錄範例:', currentMonthData.purchases[0]);
+                }
+            } else {
+                console.log('沒有進貨記錄');
+            }
+        }
+
+        // 測試營業績效資料
+        async function testPerformanceData() {
+            console.log('=== 營業績效資料測試 ===');
+            
+            console.log('當前月份:', currentMonth + 1, '年:', currentYear);
+            console.log('總銷售記錄數:', salesData.length);
+            console.log('總商品數:', productsData.length);
+            
+            if (salesData.length > 0) {
+                console.log('銷售記錄範例:', salesData[0]);
+                console.log('銷售記錄日期欄位:', Object.keys(salesData[0]));
+            }
+            
+            const currentMonthData = getCurrentMonthData();
+            console.log('本月銷售記錄數:', currentMonthData.sales.length);
+            console.log('本月退貨記錄數:', currentMonthData.refunds.length);
+            console.log('本月總銷售額:', currentMonthData.totalSales);
+            
+            if (currentMonthData.sales.length > 0) {
+                console.log('本月銷售記錄範例:', currentMonthData.sales[0]);
+            }
+            
+            const productSales = calculateProductSales();
+            console.log('熱銷商品數量:', productSales.length);
+            if (productSales.length > 0) {
+                console.log('熱銷商品TOP3:', productSales.slice(0, 3).map(p => ({
+                    name: p.name,
+                    salesCount: p.salesCount,
+                    salesAmount: p.salesAmount
+                })));
+            }
+            
+            const lowStockProducts = productsData.filter(product => 
+                (product.stock || 0) <= 5 && (product.stock || 0) > 0
+            );
+            const outOfStockProducts = productsData.filter(product => 
+                (product.stock || 0) <= 0
+            );
+            console.log('低庫存商品數:', lowStockProducts.length);
+            console.log('缺貨商品數:', outOfStockProducts.length);
+            
+            // 測試分類銷售數據
+            const categoryData = await getCategoryData();
+            console.log('分類銷售數據:', categoryData.details);
+        }
+
+        // 回到主頁面
+        function goBackToMenu() {
+            window.location.href = '../index.html';
+        }
+    </script>
+    <style>
+        .apple-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .report-card {
+            transition: all 0.3s ease;
+        }
+        .report-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-4">
+    
+    <!-- 頂部操作區 -->
+    <div class="mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">報表中心</h1>
+                <p class="text-gray-600">進銷存報表分析與數據統計</p>
+            </div>
+            <div class="flex space-x-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">開始日期：</span>
+                    <input type="date" id="startDate" 
+                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                    <span class="text-sm text-gray-600">結束日期：</span>
+                    <input type="date" id="endDate" 
+                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
+                </div>
+                <button onclick="goBackToMenu()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-th-large mr-2"></i>回選單
+                </button>
+                <button onclick="navigateToPage('members')" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-users mr-2"></i>會員管理
+                </button>
+                <button onclick="queryByDateRange()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-search mr-2"></i>查詢
+                </button>
+                <button onclick="resetToCurrentMonth()" class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-undo mr-2"></i>本月
+                </button>
+                <button onclick="exportReports()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-download mr-2"></i>匯出PDF
+                </button>
+                <button onclick="quickProductReport()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-barcode mr-2"></i>商品查詢
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 關鍵績效指標 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        
+        <!-- 本月訂單數 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月訂單數</p>
+                                    <p class="text-2xl font-bold text-[#17225e]" id="orderCount">0</p>
+                                    <p class="text-xs text-[#17225e]" id="orderGrowth">
+                        <i class="fas fa-arrow-up mr-1"></i>+0% 比上月
+                    </p>
+                </div>
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-shopping-cart text-[#17225e]"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 總進貨額 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月總進貨額</p>
+                    <p class="text-2xl font-bold text-[#17225e]" id="purchaseAmount">NT$0</p>
+                    <p class="text-xs text-[#17225e]" id="purchaseGrowth">
+                        <i class="fas fa-arrow-up mr-1"></i>+0% 比上月
+                    </p>
+                </div>
+                <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                                          <i class="fas fa-truck text-[#17225e]"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 毛利率 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">本月毛利率</p>
+                                    <p class="text-2xl font-bold text-[#17225e]" id="grossProfitRate">0%</p>
+                                    <p class="text-xs text-[#17225e]" id="profitGrowth">
+                        <i class="fas fa-arrow-up mr-1"></i>+0% 比上月
+                    </p>
+                </div>
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-percentage text-[#17225e]"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 庫存週轉率 -->
+        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">庫存週轉率</p>
+                                    <p class="text-2xl font-bold text-[#17225e]" id="turnoverRate">0</p>
+                                    <p class="text-xs text-[#17225e]" id="turnoverGrowth">
+                        <i class="fas fa-arrow-up mr-1"></i>+0 比上月
+                    </p>
+                </div>
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-sync text-[#17225e]"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 圖表分析區域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- 進銷存趨勢圖 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">進銷存趨勢分析</h3>
+                <div class="flex items-center space-x-4 text-sm">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-[#17225e] rounded-full mr-1"></div>
+                        <span>銷售</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-[#dc2626] rounded-full mr-1"></div>
+                        <span>進貨</span>
+                    </div>
+                </div>
+            </div>
+            <div style="height: 200px; position: relative;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 商品分類銷售占比 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">商品分類銷售占比</h3>
+                <span class="text-sm text-gray-600">本月數據</span>
+            </div>
+            <div style="height: 250px; position: relative;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="mt-4">
+                <h4 class="font-medium text-gray-700 mb-3">分類銷售詳情</h4>
+                <div id="categoryDetails">
+                    <!-- 分類詳情將由 JavaScript 動態填充 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 詳細報表 -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        
+        <!-- 進銷存明細報表 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">進銷存明細報表</h3>
+                <div class="flex space-x-2">
+                    <button onclick="exportInventoryReport()" class="text-[#17225e] text-sm hover:underline">
+                        <i class="fas fa-download mr-1"></i>匯出報表
+                    </button>
+                    <button onclick="showInventoryFilters()" class="text-[#17225e] text-sm hover:underline">
+                        <i class="fas fa-filter mr-1"></i>篩選
+                </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm" id="inventoryTable">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 text-gray-600">商品資訊</th>
+                            <th class="text-center py-3 text-gray-600">期初庫存</th>
+                            <th class="text-center py-3 text-gray-600">進貨</th>
+                            <th class="text-center py-3 text-gray-600">淨銷售</th>
+                            <th class="text-center py-3 text-gray-600">期末庫存</th>
+                            <th class="text-center py-3 text-gray-600">平均售價</th>
+                            <th class="text-center py-3 text-gray-600">銷售金額</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 商品明細將由 JavaScript 動態填充 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 營業績效分析 -->
+        <div class="apple-card rounded-xl p-6 shadow-lg">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">營業績效分析</h3>
+            
+            <div class="space-y-6">
+                
+                <!-- 熱銷商品TOP3 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">熱銷商品 TOP 3</h4>
+                    <div class="space-y-3" id="topProducts">
+                        <!-- 熱銷商品將由 JavaScript 動態填充 -->
+                    </div>
+                </div>
+
+                <!-- 月度比較 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">月度比較</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-[#17225e] mb-1">本月銷售</p>
+                            <p class="text-lg font-bold text-gray-700" id="currentMonthSales">NT$0</p>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">上月銷售</p>
+                            <p class="text-lg font-bold text-gray-800" id="lastMonthSales">NT$0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <p id="salesGrowth" class="text-xs text-gray-600">增長率: 0% 比上月</p>
+                    </div>
+                </div>
+
+                <!-- 庫存預警 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">庫存預警提醒</h4>
+                    <div class="space-y-2" id="inventoryAlerts">
+                        <!-- 庫存預警將由 JavaScript 動態填充 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         // 檢查掃描功能是否載入
@@ -28,683 +2999,6 @@
                 }
             }, 1000);
         });
-    </script>
-    <style>
-        .apple-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .report-card {
-            transition: all 0.3s ease;
-        }
-        .report-card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-indigo-50 to-purple-100 min-h-screen p-4">
-    
-    <!-- 頂部操作區 -->
-    <div class="mb-6">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">報表中心</h1>
-                <p class="text-gray-600">進銷存報表分析與數據統計</p>
-            </div>
-            <div class="flex space-x-3">
-                <div class="flex items-center space-x-2">
-                    <input type="date" value="2024-12-01" 
-                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    <span class="text-sm text-gray-600">至</span>
-                    <input type="date" value="2024-12-24" 
-                           class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                </div>
-                <button onclick="goBackToMenu()" class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors">
-                    <i class="fas fa-th-large mr-2"></i>回選單
-                </button>
-                <button onclick="navigateToPage('members')" class="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-600 transition-colors">
-                    <i class="fas fa-users mr-2"></i>會員管理
-                </button>
-                <button class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors">
-                    <i class="fas fa-search mr-2"></i>查詢
-                </button>
-                <button class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
-                    <i class="fas fa-download mr-2"></i>匯出PDF
-                </button>
-                <button id="quickProductReportBtn" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors">
-                    <i class="fas fa-barcode mr-2"></i>商品查詢
-                </button>
-                <button onclick="quickCouponReport()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-600 transition-colors">
-                    <i class="fas fa-ticket-alt mr-2"></i>優惠券統計
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 關鍵績效指標 -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        
-        <!-- 本月訂單數 -->
-        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 mb-1">本月訂單數</p>
-                    <p class="text-2xl font-bold text-green-600">342</p>
-                    <p class="text-xs text-green-500">
-                        <i class="fas fa-arrow-up mr-1"></i>+12.5% 比上月
-                    </p>
-                </div>
-                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-shopping-cart text-green-600"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- 總進貨額 -->
-        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 mb-1">本月總進貨額</p>
-                    <p class="text-2xl font-bold text-blue-600">NT$285,420</p>
-                    <p class="text-xs text-blue-500">
-                        <i class="fas fa-arrow-up mr-1"></i>+8.7% 比上月
-                    </p>
-                </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-truck text-blue-600"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- 毛利率 -->
-        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 mb-1">本月毛利率</p>
-                    <p class="text-2xl font-bold text-purple-600">41.2%</p>
-                    <p class="text-xs text-purple-500">
-                        <i class="fas fa-arrow-up mr-1"></i>+2.1% 比上月
-                    </p>
-                </div>
-                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-percentage text-purple-600"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- 庫存週轉率 -->
-        <div class="apple-card rounded-xl p-6 report-card shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600 mb-1">庫存週轉率</p>
-                    <p class="text-2xl font-bold text-orange-600">3.8</p>
-                    <p class="text-xs text-orange-500">
-                        <i class="fas fa-arrow-up mr-1"></i>+0.3 比上月
-                    </p>
-                </div>
-                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-sync text-orange-600"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 圖表分析區域 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        
-        <!-- 進銷存趨勢圖 -->
-        <div class="apple-card rounded-xl p-6 shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">進銷存趨勢分析</h3>
-                <div class="flex items-center space-x-4 text-sm">
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                        <span>銷售</span>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-                        <span>進貨</span>
-                    </div>
-                </div>
-            </div>
-            <div style="height: 200px; position: relative;">
-                <canvas id="trendChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 商品分類銷售占比 -->
-        <div class="apple-card rounded-xl p-6 shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">商品分類銷售占比</h3>
-                <span class="text-sm text-gray-600">本月數據</span>
-            </div>
-            <div style="height: 250px; position: relative;">
-                <canvas id="categoryChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- 詳細報表 -->
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        
-        <!-- 進銷存明細報表 -->
-        <div class="apple-card rounded-xl p-6 shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">進銷存明細報表</h3>
-                <button class="text-indigo-500 text-sm hover:underline">
-                    <i class="fas fa-external-link-alt mr-1"></i>查看詳細
-                </button>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-200">
-                            <th class="text-left py-3 text-gray-600">商品名稱</th>
-                            <th class="text-center py-3 text-gray-600">期初庫存</th>
-                            <th class="text-center py-3 text-gray-600">進貨</th>
-                            <th class="text-center py-3 text-gray-600">銷售</th>
-                            <th class="text-center py-3 text-gray-600">期末庫存</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="border-b border-gray-100">
-                            <td class="py-3">
-                                <div class="flex items-center space-x-2">
-                                    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=32&h=32&fit=crop&crop=center" 
-                                         class="w-8 h-8 rounded object-cover">
-                                    <span>Nike Air Max 270</span>
-                                </div>
-                            </td>
-                            <td class="text-center py-3">35</td>
-                            <td class="text-center py-3 text-blue-600">+25</td>
-                            <td class="text-center py-3 text-green-600">-12</td>
-                            <td class="text-center py-3 font-semibold">48</td>
-                        </tr>
-                        <tr class="border-b border-gray-100">
-                            <td class="py-3">
-                                <div class="flex items-center space-x-2">
-                                    <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=32&h=32&fit=crop&crop=center" 
-                                         class="w-8 h-8 rounded object-cover">
-                                    <span>Apple Watch Series 9</span>
-                                </div>
-                            </td>
-                            <td class="text-center py-3">8</td>
-                            <td class="text-center py-3 text-blue-600">+10</td>
-                            <td class="text-center py-3 text-green-600">-15</td>
-                            <td class="text-center py-3 font-semibold text-orange-600">3</td>
-                        </tr>
-                        <tr class="border-b border-gray-100">
-                            <td class="py-3">
-                                <div class="flex items-center space-x-2">
-                                    <img src="https://images.unsplash.com/photo-1434056886845-dac89ffe9b56?w=32&h=32&fit=crop&crop=center" 
-                                         class="w-8 h-8 rounded object-cover">
-                                    <span>Samsung Galaxy S24</span>
-                                </div>
-                            </td>
-                            <td class="text-center py-3">12</td>
-                            <td class="text-center py-3 text-blue-600">+8</td>
-                            <td class="text-center py-3 text-green-600">-5</td>
-                            <td class="text-center py-3 font-semibold">15</td>
-                        </tr>
-                        <tr class="border-b border-gray-100">
-                            <td class="py-3">
-                                <div class="flex items-center space-x-2">
-                                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=32&h=32&fit=crop&crop=center" 
-                                         class="w-8 h-8 rounded object-cover">
-                                    <span>JBL Tune 760NC</span>
-                                </div>
-                            </td>
-                            <td class="text-center py-3">5</td>
-                            <td class="text-center py-3 text-blue-600">+0</td>
-                            <td class="text-center py-3 text-green-600">-5</td>
-                            <td class="text-center py-3 font-semibold text-red-600">0</td>
-                        </tr>
-                        <tr>
-                            <td class="py-3">
-                                <div class="flex items-center space-x-2">
-                                    <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=32&h=32&fit=crop&crop=center" 
-                                         class="w-8 h-8 rounded object-cover">
-                                    <span>Adidas 運動外套</span>
-                                </div>
-                            </td>
-                            <td class="text-center py-3">15</td>
-                            <td class="text-center py-3 text-blue-600">+12</td>
-                            <td class="text-center py-3 text-green-600">-5</td>
-                            <td class="text-center py-3 font-semibold">22</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 營業績效分析 -->
-        <div class="apple-card rounded-xl p-6 shadow-lg">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">營業績效分析</h3>
-            
-            <div class="space-y-6">
-                
-                <!-- 熱銷商品TOP5 -->
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-3">熱銷商品 TOP 5</h4>
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center space-x-3">
-                                <span class="w-6 h-6 bg-yellow-500 text-white text-xs rounded-full flex items-center justify-center">1</span>
-                                <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=32&h=32&fit=crop&crop=center" 
-                                     class="w-8 h-8 rounded object-cover">
-                                <span class="text-sm font-medium">Nike Air Max 270</span>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm font-semibold text-green-600">32 件</p>
-                                <p class="text-xs text-gray-500">NT$102,400</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center space-x-3">
-                                <span class="w-6 h-6 bg-gray-400 text-white text-xs rounded-full flex items-center justify-center">2</span>
-                                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=32&h=32&fit=crop&crop=center" 
-                                     class="w-8 h-8 rounded object-cover">
-                                <span class="text-sm font-medium">Apple Watch</span>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm font-semibold text-green-600">18 件</p>
-                                <p class="text-xs text-gray-500">NT$232,200</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center space-x-3">
-                                <span class="w-6 h-6 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
-                                <img src="https://images.unsplash.com/photo-1434056886845-dac89ffe9b56?w=32&h=32&fit=crop&crop=center" 
-                                     class="w-8 h-8 rounded object-cover">
-                                <span class="text-sm font-medium">Samsung Galaxy</span>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm font-semibold text-green-600">15 件</p>
-                                <p class="text-xs text-gray-500">NT$433,500</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 月度比較 -->
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-3">月度比較</h4>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="p-3 bg-blue-50 rounded-lg">
-                            <p class="text-sm text-blue-600 mb-1">本月銷售</p>
-                            <p class="text-lg font-bold text-blue-800">NT$485,360</p>
-                        </div>
-                        <div class="p-3 bg-gray-50 rounded-lg">
-                            <p class="text-sm text-gray-600 mb-1">上月銷售</p>
-                            <p class="text-lg font-bold text-gray-800">NT$421,250</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 庫存預警 -->
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-3">庫存預警提醒</h4>
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between p-2 bg-orange-50 rounded">
-                            <span class="text-sm text-orange-800">Apple Watch Series 9</span>
-                            <span class="text-xs text-orange-600">低庫存 (3件)</span>
-                        </div>
-                        <div class="flex items-center justify-between p-2 bg-red-50 rounded">
-                            <span class="text-sm text-red-800">JBL Tune 760NC</span>
-                            <span class="text-xs text-red-600">缺貨 (0件)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // 波波 聚 歐洲家居/波蘭陶食器商品銷售數據（模擬）
-        const productSalesData = {
-            'P001-01': {name: '歐式骨瓷餐盤 - 20cm 白色經典款', category: '餐具', price: 890, salesCount: 42, salesAmount: 37380, profit: 11214},
-            'P001-02': {name: '歐式骨瓷餐盤 - 20cm 藍花圖案款', category: '餐具', price: 950, salesCount: 28, salesAmount: 26600, profit: 7980},
-            'P001-03': {name: '歐式骨瓷餐盤 - 20cm 金邊奢華款', category: '餐具', price: 1280, salesCount: 15, salesAmount: 19200, profit: 5760},
-            'P002-01': {name: '施華洛世奇水晶酒杯 - 紅酒杯 300ml', category: '酒具', price: 2890, salesCount: 18, salesAmount: 52020, profit: 15606},
-            'P002-02': {name: '施華洛世奇水晶酒杯 - 香檳杯 200ml', category: '酒具', price: 2590, salesCount: 22, salesAmount: 56980, profit: 17094},
-            'P003-01': {name: '北歐風陶瓷花瓶 - 小號 15cm 灰色', category: '擺飾', price: 680, salesCount: 35, salesAmount: 23800, profit: 7140},
-            'P003-02': {name: '北歐風陶瓷花瓶 - 中號 25cm 白色', category: '擺飾', price: 980, salesCount: 20, salesAmount: 19600, profit: 5880},
-            'P003-03': {name: '北歐風陶瓷花瓶 - 大號 35cm 黑色', category: '擺飾', price: 1380, salesCount: 8, salesAmount: 11040, profit: 3312},
-            'P004-01': {name: '英式骨瓷茶杯組 - 經典玫瑰圖案', category: '茶具', price: 1590, salesCount: 0, salesAmount: 0, profit: 0},
-            'P005-01': {name: '法式餐具套裝 - 4人份基礎款', category: '餐具', price: 3890, salesCount: 12, salesAmount: 46680, profit: 14004},
-            'P005-02': {name: '法式餐具套裝 - 4人份豪華款', category: '餐具', price: 5890, salesCount: 6, salesAmount: 35340, profit: 10602},
-            'P006-01': {name: '德國不鏽鋼廚具 - 基礎3件組', category: '廚具', price: 2200, salesCount: 14, salesAmount: 30800, profit: 9240}
-        };
-
-        // 初始化事件監聽
-        document.addEventListener('DOMContentLoaded', function() {
-            const quickReportBtn = document.getElementById('quickProductReportBtn');
-            
-            // 商品查詢按鈕
-            quickReportBtn.addEventListener('click', function() {
-                quickProductReport();
-            });
-        });
-
-        // 快速商品報表查詢
-        function quickProductReport() {
-            if (typeof window.quickScan === 'function') {
-                window.quickScan(
-                    // 掃描成功回調
-                    function(barcode) {
-                        showProductReport(barcode);
-                    },
-                    // 掃描錯誤回調
-                    function(error) {
-                        alert('掃描失敗: ' + error.message);
-                    }
-                );
-            } else {
-                alert('掃描功能尚未載入，請重新整理頁面');
-            }
-        }
-
-        // 顯示商品報表
-        function showProductReport(barcode) {
-            console.log('查詢商品報表:', barcode);
-            
-            const salesData = productSalesData[barcode];
-            
-            if (salesData) {
-                const profitRate = salesData.salesAmount > 0 ? ((salesData.profit / salesData.salesAmount) * 100).toFixed(1) : 0;
-                const avgSelling = salesData.salesCount > 0 ? Math.floor(salesData.salesAmount / salesData.salesCount) : 0;
-                
-                const reportMessage = 
-                    `📊 商品銷售報表\n\n` +
-                    `商品名稱：${salesData.name}\n` +
-                    `商品分類：${salesData.category}\n` +
-                    `條碼：${barcode}\n` +
-                    `單價：NT$${salesData.price.toLocaleString()}\n\n` +
-                    `📈 本期銷售數據：\n` +
-                    `銷售數量：${salesData.salesCount} 件\n` +
-                    `銷售金額：NT$${salesData.salesAmount.toLocaleString()}\n` +
-                    `銷售毛利：NT$${salesData.profit.toLocaleString()}\n` +
-                    `毛利率：${profitRate}%\n` +
-                    `平均售價：NT$${avgSelling.toLocaleString()}\n\n` +
-                    `${salesData.salesCount > 0 ? '✅ 有銷售記錄' : '❌ 本期無銷售'}`;
-                
-                alert(reportMessage);
-                
-                // 可以選擇顯示更詳細的圖表
-                if (salesData.salesCount > 0 && confirm('是否要查看該商品的詳細銷售趨勢？')) {
-                    showDetailedChart(salesData);
-                }
-            } else {
-                alert(`條碼 ${barcode} 找不到銷售數據`);
-            }
-        }
-
-        // 顯示詳細圖表（簡化版）
-        function showDetailedChart(salesData) {
-            alert(
-                `📊 ${salesData.name} 詳細分析\n\n` +
-                `近期表現：\n` +
-                `• 銷售趨勢：${salesData.salesCount > 20 ? '📈 熱銷' : salesData.salesCount > 10 ? '📊 正常' : '📉 滯銷'}\n` +
-                `• 庫存週轉：${salesData.salesCount > 15 ? '🔄 良好' : '⚠️ 需關注'}\n` +
-                `• 利潤貢獻：${salesData.profit > 50000 ? '💰 高' : salesData.profit > 20000 ? '💵 中' : '💴 低'}\n\n` +
-                `建議：\n` +
-                `${getSalesAdvice(salesData)}`
-            );
-        }
-
-        // 獲取銷售建議
-        function getSalesAdvice(salesData) {
-            if (salesData.salesCount === 0) {
-                return '• 考慮促銷活動或調整定價策略';
-            } else if (salesData.salesCount > 20) {
-                return '• 維持現有策略，考慮增加庫存';
-            } else if (salesData.salesCount > 10) {
-                return '• 表現正常，可考慮適度推廣';
-            } else {
-                return '• 分析銷售阻礙，優化推廣策略';
-            }
-        }
-
-        // 優惠券統計查詢
-        function quickCouponReport() {
-            // 模擬優惠券使用數據（與歐洲家居瓷器店相關）
-            const couponUsageData = {
-                'WELCOME2024': { 
-                    name: '新會員歡迎禮', 
-                    usedCount: 156, 
-                    totalDiscount: 23400, 
-                    type: 'percentage', 
-                    value: 15,
-                    category: '新客獲取',
-                    validPeriod: '2024/01/01 - 2024/12/31'
-                },
-                'CNY2024': { 
-                    name: '春節特惠', 
-                    usedCount: 89, 
-                    totalDiscount: 17800, 
-                    type: 'fixed', 
-                    value: 200,
-                    category: '節慶活動',
-                    validPeriod: '2024/02/01 - 2024/02/29'
-                },
-                'ANNIVERSARY50': { 
-                    name: '週年慶大優惠', 
-                    usedCount: 198, 
-                    totalDiscount: 198000, 
-                    type: 'percentage', 
-                    value: 50,
-                    category: '店慶活動',
-                    validPeriod: '2024/03/01 - 2024/03/15'
-                },
-                'VIP2024': { 
-                    name: 'VIP會員專享', 
-                    usedCount: 245, 
-                    totalDiscount: 49000, 
-                    type: 'member_only', 
-                    value: 20,
-                    category: '會員專屬',
-                    validPeriod: '2024/01/01 - 2024/12/31'
-                },
-                'BUY3GET1': { 
-                    name: '買三送一活動', 
-                    usedCount: 45, 
-                    totalDiscount: 30600, 
-                    type: 'buy_x_get_y', 
-                    value: 0,
-                    category: '促銷活動',
-                    validPeriod: '2024/04/01 - 2024/04/30'
-                }
-            };
-
-            const couponCode = prompt('🎫 優惠券統計查詢\n\n請輸入優惠券代碼：\n\n📋 可查詢的優惠券：\n• WELCOME2024 - 新會員歡迎禮\n• CNY2024 - 春節特惠\n• ANNIVERSARY50 - 週年慶大優惠\n• VIP2024 - VIP會員專享\n• BUY3GET1 - 買三送一活動\n\n或輸入 "ALL" 查看整體統計');
-            
-            if (!couponCode) return;
-            
-            if (couponCode.toUpperCase() === 'ALL') {
-                // 顯示整體優惠券統計
-                const totalUsed = Object.values(couponUsageData).reduce((sum, coupon) => sum + coupon.usedCount, 0);
-                const totalDiscount = Object.values(couponUsageData).reduce((sum, coupon) => sum + coupon.totalDiscount, 0);
-                const averageDiscount = totalUsed > 0 ? Math.round(totalDiscount / totalUsed) : 0;
-                
-                let report = `🎫 優惠券整體統計報表\n\n`;
-                report += `📊 總體數據：\n`;
-                report += `• 總使用次數：${totalUsed.toLocaleString()} 次\n`;
-                report += `• 總折扣金額：NT$${totalDiscount.toLocaleString()}\n`;
-                report += `• 平均折扣：NT$${averageDiscount.toLocaleString()}/次\n\n`;
-                
-                report += `📈 各優惠券表現：\n`;
-                Object.entries(couponUsageData).forEach(([code, coupon]) => {
-                    const usage = ((coupon.usedCount / totalUsed) * 100).toFixed(1);
-                    report += `• ${coupon.name}：${coupon.usedCount}次 (${usage}%)\n`;
-                });
-                
-                alert(report);
-                return;
-            }
-            
-            if (couponUsageData[couponCode.toUpperCase()]) {
-                const coupon = couponUsageData[couponCode.toUpperCase()];
-                const averageDiscount = coupon.usedCount > 0 ? Math.round(coupon.totalDiscount / coupon.usedCount) : 0;
-                const conversionRate = Math.min((coupon.usedCount / 1000) * 100, 100); // 假設發行1000張
-                
-                let typeText;
-                switch (coupon.type) {
-                    case 'percentage':
-                        typeText = `${coupon.value}% 百分比折扣`;
-                        break;
-                    case 'fixed':
-                        typeText = `NT$${coupon.value} 固定金額折扣`;
-                        break;
-                    case 'member_only':
-                        typeText = `會員專屬 ${coupon.value}% 折扣`;
-                        break;
-                    case 'buy_x_get_y':
-                        typeText = '買3送1特殊優惠';
-                        break;
-                    default:
-                        typeText = '特殊優惠';
-                }
-                
-                const effectiveness = coupon.usedCount > 150 ? '🔥 非常有效' : 
-                                   coupon.usedCount > 100 ? '✅ 效果良好' : 
-                                   coupon.usedCount > 50 ? '📊 效果一般' : '⚠️ 需要改進';
-                
-                alert(`🎫 優惠券詳細統計報表\n\n` +
-                    `📋 基本資訊：\n` +
-                    `• 優惠券名稱：${coupon.name}\n` +
-                    `• 代碼：${couponCode.toUpperCase()}\n` +
-                    `• 類型：${typeText}\n` +
-                    `• 分類：${coupon.category}\n` +
-                    `• 有效期：${coupon.validPeriod}\n\n` +
-                    `📈 使用數據：\n` +
-                    `• 使用次數：${coupon.usedCount.toLocaleString()} 次\n` +
-                    `• 總折扣金額：NT$${coupon.totalDiscount.toLocaleString()}\n` +
-                    `• 平均折扣：NT$${averageDiscount.toLocaleString()}/次\n` +
-                    `• 轉換率：${conversionRate.toFixed(1)}%\n\n` +
-                    `🎯 效果評估：${effectiveness}\n\n` +
-                    `💡 優化建議：\n${getCouponAdvice(coupon)}`);
-            } else {
-                alert('❌ 找不到該優惠券的使用資料\n\n請檢查代碼是否正確，或輸入 "ALL" 查看所有優惠券統計');
-            }
-        }
-
-        // 獲取優惠券優化建議
-        function getCouponAdvice(coupon) {
-            if (coupon.usedCount > 200) {
-                return '• 此優惠券表現優異，可考慮延長使用期限\n• 建議製作類似的優惠券擴大影響';
-            } else if (coupon.usedCount > 100) {
-                return '• 表現良好，可考慮在類似時期重新推出\n• 適度調整折扣力度以提升吸引力';
-            } else if (coupon.usedCount > 50) {
-                return '• 效果一般，建議檢視推廣管道\n• 考慮增加使用誘因或簡化使用流程';
-            } else {
-                return '• 需要改進推廣策略\n• 檢視目標客群是否精準\n• 考慮調整折扣門檻或力度';
-            }
-        }
-
-        // 進銷存趨勢圖
-        const trendCtx = document.getElementById('trendChart').getContext('2d');
-        new Chart(trendCtx, {
-            type: 'line',
-            data: {
-                labels: ['12/1', '12/5', '12/10', '12/15', '12/20', '12/24'],
-                datasets: [{
-                    label: '銷售額',
-                    data: [15000, 28000, 35000, 42000, 38000, 48000],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4
-                }, {
-                    label: '進貨額',
-                    data: [12000, 18000, 25000, 30000, 22000, 28000],
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        });
-
-        // 商品分類圓餅圖
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        new Chart(categoryCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['電子產品', '運動用品', '服飾鞋帽', '時尚配件', '其他'],
-                datasets: [{
-                    data: [45, 25, 15, 10, 5],
-                    backgroundColor: [
-                        '#3b82f6',
-                        '#10b981',
-                        '#f59e0b',
-                        '#8b5cf6',
-                        '#6b7280'
-                    ],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-
-        // 統一導航函數
-        function navigateToPage(page) {
-            try {
-                // 嘗試與父頁面通信切換iframe
-                if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({
-                        type: 'navigate',
-                        page: page
-                    }, '*');
-                } else {
-                    // 如果不在iframe中，直接跳轉
-                    window.location.href = `${page}.html`;
-                }
-            } catch (error) {
-                // 備用方案：在新分頁中開啟
-                window.open(`${page}.html`, '_blank');
-            }
-        }
-
-        // 回到主頁面
-        function goBackToMenu() {
-            window.location.href = '../index.html';
-        }
     </script>
 </body>
 </html> 

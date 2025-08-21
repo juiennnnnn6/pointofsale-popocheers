@@ -24,36 +24,36 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
         .coupon-code {
-            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            background: linear-gradient(45deg, #17225e, #1a2a6e);
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .discount-badge {
-            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            background: linear-gradient(45deg, #17225e, #1a2a6e);
         }
         .expired-badge {
-            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            background: linear-gradient(45deg, #6b7280, #9ca3af);
         }
         .active-badge {
-            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+            background: linear-gradient(45deg, #17225e, #1a2a6e);
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
     
     <div class="container mx-auto px-4 py-8">
         <!-- 頁面標題 -->
         <div class="flex items-center justify-between mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                    <i class="fas fa-ticket-alt text-orange-500 mr-3"></i>
+                    <i class="fas fa-ticket-alt text-[#17225e] mr-3"></i>
                     優惠券管理
                 </h1>
                 <p class="text-gray-600">管理店內所有優惠券，提升顧客購物體驗</p>
             </div>
             <div class="flex space-x-3">
-                <button onclick="showAddCouponModal()" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center">
+                <button onclick="showAddCouponModal()" class="bg-[#17225e] text-white px-6 py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors flex items-center">
                     <i class="fas fa-plus mr-2"></i>
                     新增優惠券
                 </button>
@@ -67,35 +67,35 @@
         <!-- 統計卡片 -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="apple-card rounded-xl p-6 text-center">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-ticket-alt text-blue-600 text-xl"></i>
+                <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                          <i class="fas fa-ticket-alt text-[#17225e] text-xl"></i>
                 </div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-1">總優惠券</h3>
-                <p class="text-2xl font-bold text-blue-600" id="totalCoupons">0</p>
+                <p class="text-2xl font-bold text-[#17225e]" id="totalCoupons">0</p>
             </div>
             
             <div class="apple-card rounded-xl p-6 text-center">
-                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-check-circle text-green-600 text-xl"></i>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-1">啟用中</h3>
-                <p class="text-2xl font-bold text-green-600" id="activeCoupons">0</p>
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-check-circle text-[#17225e] text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-1">啟用中</h3>
+            <p class="text-2xl font-bold text-[#17225e]" id="activeCoupons">0</p>
             </div>
             
             <div class="apple-card rounded-xl p-6 text-center">
-                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-clock text-yellow-600 text-xl"></i>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-1">即將到期</h3>
-                <p class="text-2xl font-bold text-yellow-600" id="expiringSoon">0</p>
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-clock text-[#17225e] text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-1">即將到期</h3>
+            <p class="text-2xl font-bold text-[#17225e]" id="expiringSoon">0</p>
             </div>
             
             <div class="apple-card rounded-xl p-6 text-center">
-                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-chart-line text-purple-600 text-xl"></i>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-1">本月使用</h3>
-                <p class="text-2xl font-bold text-purple-600" id="monthlyUsage">0</p>
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-chart-line text-[#17225e] text-xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-1">本月使用</h3>
+            <p class="text-2xl font-bold text-[#17225e]" id="monthlyUsage">0</p>
             </div>
         </div>
 
@@ -105,12 +105,12 @@
                 <div class="lg:col-span-2">
                     <div class="relative">
                         <input type="text" id="searchInput" placeholder="搜尋優惠券代碼或名稱..." onkeyup="searchCoupons()"
-                               class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                               class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                         <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     </div>
                 </div>
                 <div>
-                    <select id="statusFilter" onchange="filterCoupons()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select id="statusFilter" onchange="filterCoupons()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                         <option value="">所有狀態</option>
                         <option value="active">啟用中</option>
                         <option value="expired">已過期</option>
@@ -118,7 +118,7 @@
                     </select>
                 </div>
                 <div>
-                    <select id="typeFilter" onchange="filterCoupons()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select id="typeFilter" onchange="filterCoupons()" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent">
                         <option value="">所有類型</option>
                         <option value="percentage">百分比折扣</option>
                         <option value="fixed">固定金額</option>
@@ -135,7 +135,7 @@
                 <h2 class="text-xl font-semibold text-gray-800">優惠券列表</h2>
                 <div class="flex items-center space-x-3">
                     <span class="text-sm text-gray-600">共 <span id="couponCount">0</span> 張優惠券</span>
-                    <button onclick="generateBatchCoupons()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    <button onclick="generateBatchCoupons()" class="text-[#17225e] hover:text-[#1a2a6e] text-sm font-medium">
                         <i class="fas fa-magic mr-1"></i>批量生成
                     </button>
                 </div>
@@ -150,7 +150,7 @@
                 <i class="fas fa-ticket-alt text-gray-300 text-6xl mb-4"></i>
                 <h3 class="text-xl font-medium text-gray-500 mb-2">還沒有優惠券</h3>
                 <p class="text-gray-400 mb-6">創建您的第一張優惠券來吸引顧客</p>
-                <button onclick="showAddCouponModal()" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors">
+                <button onclick="showAddCouponModal()" class="bg-[#17225e] text-white px-6 py-3 rounded-lg hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-plus mr-2"></i>
                     新增優惠券
                 </button>
@@ -172,12 +172,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">優惠券名稱</label>
-                        <input type="text" id="couponName" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="例：週年慶特惠">
+                        <input type="text" id="couponName" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]" placeholder="例：週年慶特惠">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">優惠券代碼</label>
                         <div class="flex">
-                            <input type="text" id="couponCode" required class="flex-1 px-4 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-blue-500" placeholder="WELCOME2024">
+                            <input type="text" id="couponCode" required class="flex-1 px-4 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-[#17225e]" placeholder="WELCOME2024">
                             <button type="button" onclick="generateCouponCode()" class="px-4 py-3 bg-gray-100 border border-l-0 border-gray-200 rounded-r-lg hover:bg-gray-200 transition-colors">
                                 <i class="fas fa-random"></i>
                             </button>
@@ -188,7 +188,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">優惠類型</label>
-                        <select id="couponType" onchange="toggleDiscountFields()" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <select id="couponType" onchange="toggleDiscountFields()" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]">
                             <option value="">請選擇</option>
                             <option value="percentage">百分比折扣</option>
                             <option value="fixed">固定金額折扣</option>
@@ -198,33 +198,33 @@
                     </div>
                     <div id="discountValueField">
                         <label class="block text-sm font-medium text-gray-700 mb-2">折扣值</label>
-                        <input type="number" id="discountValue" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="10">
+                        <input type="number" id="discountValue" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]" placeholder="10">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">最低消費</label>
-                        <input type="number" id="minAmount" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="500">
+                        <input type="number" id="minAmount" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]" placeholder="500">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">開始日期</label>
-                        <input type="datetime-local" id="startDate" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input type="datetime-local" id="startDate" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
-                        <input type="datetime-local" id="endDate" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input type="datetime-local" id="endDate" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">使用次數限制</label>
-                        <input type="number" id="usageLimit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="100">
+                        <input type="number" id="usageLimit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]" placeholder="100">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">每人使用次數</label>
-                        <input type="number" id="userLimit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="1">
+                        <input type="number" id="userLimit" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]" placeholder="1">
                     </div>
                 </div>
 
@@ -254,14 +254,14 @@
 
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-2">備註說明</label>
-                    <textarea id="couponDescription" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="優惠券使用說明..."></textarea>
+                    <textarea id="couponDescription" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e]" placeholder="優惠券使用說明..."></textarea>
                 </div>
 
                 <div class="flex justify-end space-x-3">
                     <button type="button" onclick="closeCouponModal()" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                         取消
                     </button>
-                    <button type="submit" class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    <button type="submit" class="px-6 py-3 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                         <i class="fas fa-save mr-2"></i>
                         儲存
                     </button>
@@ -426,7 +426,7 @@
                                 </div>
                             </div>
                             <div class="flex space-x-2">
-                                <button onclick="editCoupon('${coupon.id}')" class="text-blue-600 hover:text-blue-800 p-1">
+                                <button onclick="editCoupon('${coupon.id}')" class="text-[#17225e] hover:text-[#1a2a6e] p-1">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button onclick="toggleCouponStatus('${coupon.id}')" class="text-gray-600 hover:text-gray-800 p-1">
@@ -460,7 +460,7 @@
                                     <span class="font-medium">${coupon.usedCount}/${coupon.usageLimit}</span>
                                 </div>
                                 <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: ${progress}%"></div>
+                                    <div class="bg-[#17225e] h-2 rounded-full transition-all duration-300" style="width: ${progress}%"></div>
                                 </div>
                             </div>
                         </div>
@@ -497,7 +497,7 @@
                 'buy_x_get_y': '買送',
                 'member_only': '會員專屬'
             };
-            return `<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">${types[coupon.type]}</span>`;
+            return `<span class="px-2 py-1 bg-gray-100 text-[#17225e] rounded-full text-xs">${types[coupon.type]}</span>`;
         }
 
         // 獲取折扣文字
