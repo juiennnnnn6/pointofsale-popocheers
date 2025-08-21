@@ -3107,6 +3107,12 @@
             }
         }
 
+        // 標準化電話號碼（移除所有非數字字符）
+        function normalizePhoneNumber(phone) {
+            if (!phone) return '';
+            return phone.replace(/\D/g, ''); // 移除所有非數字字符
+        }
+
         // 從 Supabase 查詢會員資料
         async function searchMemberFromSupabase(identifier) {
             try {
@@ -3119,13 +3125,50 @@
 
                 console.log('開始查詢會員:', identifier);
 
+                // 標準化輸入的識別碼（如果看起來像電話號碼）
+                const normalizedInput = normalizePhoneNumber(identifier);
+                
                 // 首先嘗試用手機號碼查詢（精確匹配）
                 let { data: memberData, error: memberError } = await supabase
                     .from('members')
                     .select('id, name, phone, email, total_spent, created_at, updated_at')
                     .eq('phone', identifier);
 
-                console.log('手機號碼查詢結果:', memberData, memberError);
+                console.log('手機號碼精確查詢結果:', memberData, memberError);
+
+                // 如果沒找到且輸入看起來像電話號碼，嘗試模糊匹配電話號碼
+                if ((!memberData || memberData.length === 0) && !memberError && normalizedInput.length >= 4) {
+                    console.log('嘗試電話號碼模糊查詢:', normalizedInput);
+                    
+                    // 獲取所有會員資料，然後在客戶端進行模糊匹配
+                    const { data: allMembers, error: allError } = await supabase
+                        .from('members')
+                        .select('id, name, phone, email, total_spent, created_at, updated_at');
+                    
+                    if (allMembers && !allError) {
+                        // 在客戶端進行電話號碼模糊匹配
+                        const matchedMembers = allMembers.filter(member => {
+                            if (!member.phone) return false;
+                            const normalizedMemberPhone = normalizePhoneNumber(member.phone);
+                            // 檢查是否包含輸入的數字序列
+                            return normalizedMemberPhone.includes(normalizedInput);
+                        });
+                        
+                        console.log('電話號碼模糊查詢結果:', matchedMembers);
+                        
+                        if (matchedMembers.length > 0) {
+                            memberData = matchedMembers;
+                            
+                            // 如果找到多個匹配，優先選擇完全匹配的
+                            const exactMatch = matchedMembers.find(member => 
+                                normalizePhoneNumber(member.phone) === normalizedInput
+                            );
+                            if (exactMatch) {
+                                memberData = [exactMatch];
+                            }
+                        }
+                    }
+                }
 
                 // 如果沒找到，嘗試用姓名查詢（模糊匹配）
                 if ((!memberData || memberData.length === 0) && !memberError) {
@@ -3163,21 +3206,40 @@
                     }
                 }
 
-                // 如果找到了資料，取第一個結果
+                // 如果找到了資料，處理結果
                 if (memberData && memberData.length > 0) {
-                    const member = memberData[0];
-                    console.log('找到會員資料:', member);
+                    console.log('找到會員資料:', memberData);
+                    
+                    let selectedMember = memberData[0]; // 預設選擇第一個
+                    
+                    // 如果找到多個會員，讓用戶選擇
+                    if (memberData.length > 1) {
+                        let memberList = '找到多個匹配的會員，請選擇：\n\n';
+                        memberData.forEach((member, index) => {
+                            memberList += `${index + 1}. ${member.name} - ${member.phone}\n`;
+                        });
+                        memberList += '\n請輸入要選擇的會員編號 (1-' + memberData.length + '):';
+                        
+                        const choice = prompt(memberList);
+                        const choiceIndex = parseInt(choice) - 1;
+                        
+                        if (choiceIndex >= 0 && choiceIndex < memberData.length) {
+                            selectedMember = memberData[choiceIndex];
+                        } else {
+                            alert('無效的選擇，將使用第一個匹配的會員');
+                        }
+                    }
                     
                     // 將 Supabase 會員資料轉換為本地格式
                     return {
-                        id: member.id,
-                        name: member.name || '未知會員',
-                        phone: member.phone || '',
-                        email: member.email || '',
-                        totalSpent: parseFloat(member.total_spent) || 0,
+                        id: selectedMember.id,
+                        name: selectedMember.name || '未知會員',
+                        phone: selectedMember.phone || '',
+                        email: selectedMember.email || '',
+                        totalSpent: parseFloat(selectedMember.total_spent) || 0,
                         status: 'active', // 預設為啟用狀態
-                        joinDate: member.created_at || new Date().toISOString(),
-                        lastVisit: member.updated_at || new Date().toISOString()
+                        joinDate: selectedMember.created_at || new Date().toISOString(),
+                        lastVisit: selectedMember.updated_at || new Date().toISOString()
                     };
                 }
 
