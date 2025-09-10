@@ -3113,6 +3113,129 @@
             return phone.replace(/\D/g, ''); // 移除所有非數字字符
         }
 
+        // 診斷會員消費金額問題
+        async function diagnoseMemberSpentIssue() {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        alert('Supabase 初始化失敗');
+                        return;
+                    }
+                }
+
+                console.log('開始診斷會員消費金額問題...');
+
+                // 1. 檢查 Supabase 中的會員資料
+                const { data: members, error } = await supabase
+                    .from('members')
+                    .select('id, name, phone, total_spent')
+                    .order('id');
+
+                if (error) {
+                    console.error('查詢會員資料失敗:', error);
+                    alert('查詢會員資料失敗: ' + error.message);
+                    return;
+                }
+
+                console.log('Supabase 中的會員資料:', members);
+
+                let report = '=== 會員消費金額診斷報告 ===\n\n';
+                
+                if (members && members.length > 0) {
+                    report += `找到 ${members.length} 個會員:\n\n`;
+                    
+                    members.forEach(member => {
+                        report += `ID: ${member.id}\n`;
+                        report += `姓名: ${member.name}\n`;
+                        report += `電話: ${member.phone}\n`;
+                        report += `消費金額(原始): ${member.total_spent}\n`;
+                        report += `消費金額(轉換): ${parseFloat(member.total_spent) || 0}\n`;
+                        report += `資料類型: ${typeof member.total_spent}\n`;
+                        report += '---\n';
+                    });
+                } else {
+                    report += '沒有找到任何會員資料\n';
+                }
+
+                // 2. 檢查銷售記錄中的會員消費
+                const { data: sales, error: salesError } = await supabase
+                    .from('sales_history')
+                    .select('member_id, total')
+                    .not('member_id', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (!salesError && sales && sales.length > 0) {
+                    report += '\n=== 最近10筆有會員的銷售記錄 ===\n\n';
+                    sales.forEach(sale => {
+                        report += `會員ID: ${sale.member_id}, 消費金額: ${sale.total}\n`;
+                    });
+                }
+
+                console.log(report);
+                alert(report);
+
+            } catch (error) {
+                console.error('診斷過程發生錯誤:', error);
+                alert('診斷過程發生錯誤: ' + error.message);
+            }
+        }
+
+        // 為了方便測試，將診斷函數綁定到 window 物件
+        window.diagnoseMemberSpentIssue = diagnoseMemberSpentIssue;
+
+        // 更新會員消費金額到 Supabase
+        async function updateMemberSpentInSupabase(memberId, additionalAmount) {
+            try {
+                if (!supabase) {
+                    const initSuccess = await initSupabase();
+                    if (!initSuccess) {
+                        throw new Error('Supabase 初始化失敗');
+                    }
+                }
+
+                console.log('開始更新會員消費金額:', memberId, additionalAmount);
+
+                // 先獲取當前會員的消費金額
+                const { data: memberData, error: fetchError } = await supabase
+                    .from('members')
+                    .select('total_spent')
+                    .eq('id', memberId)
+                    .single();
+
+                if (fetchError) {
+                    console.error('獲取會員資料失敗:', fetchError);
+                    return false;
+                }
+
+                const currentTotal = parseFloat(memberData.total_spent) || 0;
+                const newTotal = currentTotal + additionalAmount;
+
+                console.log('當前消費金額:', currentTotal, '新增金額:', additionalAmount, '更新後總額:', newTotal);
+
+                // 更新會員的消費金額
+                const { error: updateError } = await supabase
+                    .from('members')
+                    .update({ 
+                        total_spent: newTotal,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', memberId);
+
+                if (updateError) {
+                    console.error('更新會員消費金額失敗:', updateError);
+                    return false;
+                }
+
+                console.log('會員消費金額更新成功');
+                return true;
+            } catch (error) {
+                console.error('更新會員消費金額時發生錯誤:', error);
+                return false;
+            }
+        }
+
         // 從 Supabase 查詢會員資料
         async function searchMemberFromSupabase(identifier) {
             try {
@@ -3387,9 +3510,15 @@
 
                     updateCartDisplay(); // 重新計算會員價格
                     
+                    // 顯示會員詳細資訊（包含最新的消費金額）
+                    let memberInfo = `會員登入成功！\n\n`;
+                    memberInfo += `編號：${member.id}\n`;
+                    memberInfo += `姓名：${member.name}\n`;
+                    memberInfo += `電話：${member.phone}\n`;
+                    memberInfo += `累計消費：NT$${member.totalSpent.toLocaleString()}\n`;
+                    memberInfo += `狀態：${member.status === 'active' ? '啟用' : '停用'}`;
                     
-                    
-                    alert(`歡迎 ${member.name}！`);
+                    alert(memberInfo);
                 } else {
 
                     alert('此會員帳號已停用，請聯繫客服');
@@ -3958,10 +4087,26 @@
                         }
                     }
                     
+                    // 如果原訂單有會員，回滾會員消費金額
+                    if (saleRecord.member && saleRecord.member.id) {
+                        try {
+                            const memberUpdateSuccess = await updateMemberSpentInSupabase(saleRecord.member.id, -saleRecord.total);
+                            if (memberUpdateSuccess) {
+                                console.log('會員消費金額已回滾');
+                            } else {
+                                console.warn('會員消費金額回滾失敗');
+                                alert('退貨處理完成，但會員消費金額回滾失敗。請手動檢查會員資料。');
+                            }
+                        } catch (error) {
+                            console.error('回滾會員消費金額時發生錯誤:', error);
+                            alert('退貨處理完成，但會員消費金額回滾時發生錯誤。請手動檢查會員資料。');
+                        }
+                    }
+                    
                     // 生成並顯示退貨單
                     generateRefundReceipt(refundRecord);
                     
-                    alert(`退貨處理完成！\n退貨單號：${refundNumber}\n退款金額：NT$${saleRecord.total.toLocaleString()}\n${restoreInventory ? '庫存已恢復' : '庫存未變動'}`);
+                    alert(`退貨處理完成！\n退貨單號：${refundNumber}\n退款金額：NT$${saleRecord.total.toLocaleString()}\n${restoreInventory ? '庫存已恢復' : '庫存未變動'}${saleRecord.member ? '\n會員消費金額已回滾' : ''}`);
                 } else {
                     alert('退貨記錄保存失敗，請重試或聯繫管理員。');
                 }
@@ -4862,6 +5007,18 @@
                     name: currentMember.name
 
                 };
+
+                // 同步更新到 Supabase
+                try {
+                    const updateSuccess = await updateMemberSpentInSupabase(currentMember.id, total);
+                    if (updateSuccess) {
+                        console.log('會員消費金額已同步到 Supabase');
+                    } else {
+                        console.warn('會員消費金額同步到 Supabase 失敗');
+                    }
+                } catch (error) {
+                    console.error('同步會員消費金額時發生錯誤:', error);
+                }
 
             }
 
