@@ -902,9 +902,21 @@
                 return createdDate.getMonth() === thisMonth && createdDate.getFullYear() === thisYear;
             }).length;
 
-            document.getElementById('totalMembers').textContent = totalMembers.toLocaleString();
-            document.getElementById('activeMembers').textContent = activeMembers.toLocaleString();
-            document.getElementById('newMembers').textContent = newMembers.toLocaleString();
+            // 安全地更新元素，檢查元素是否存在
+            const totalMembersEl = document.getElementById('totalMembers');
+            if (totalMembersEl) {
+                totalMembersEl.textContent = totalMembers.toLocaleString();
+            }
+            
+            const activeMembersEl = document.getElementById('activeMembers');
+            if (activeMembersEl) {
+                activeMembersEl.textContent = activeMembers.toLocaleString();
+            }
+            
+            const newMembersEl = document.getElementById('newMembers');
+            if (newMembersEl) {
+                newMembersEl.textContent = newMembers.toLocaleString();
+            }
         }
 
         // 顯示新增會員模態框
@@ -1441,12 +1453,14 @@
 
         // 執行批量刪除
         async function performBatchDelete(selectedMembers) {
+            // 在最外層聲明，確保作用域覆蓋整個函數
+            const originalMembersData = [...membersData];
+            
             try {
                 console.log('開始批量刪除會員:', selectedMembers.length, '個');
                 console.log('要刪除的會員:', selectedMembers);
                 
                 // 先進行本地刪除
-                const originalMembersData = [...membersData];
                 const memberIds = selectedMembers.map(m => m.id);
                 console.log('要刪除的會員ID:', memberIds);
                 
@@ -1454,9 +1468,9 @@
                 saveMembersData();
                 
                 // 更新界面
-                    filteredMembers = [...membersData];
-                    renderMembers();
-                    updateStatistics();
+                filteredMembers = [...membersData];
+                renderMembers();
+                updateStatistics();
                     
                 let successCount = 0;
                 let errorCount = 0;
@@ -1477,7 +1491,7 @@
                                 errors.push(`刪除會員 ${member.name} 失敗`);
                                 console.warn('刪除會員失敗:', member.name);
                             }
-                } catch (error) {
+                        } catch (error) {
                             errorCount++;
                             errors.push(`刪除會員 ${member.name} 時發生錯誤: ${error.message}`);
                             console.error('刪除會員時發生錯誤:', member.name, error);
