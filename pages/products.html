@@ -2053,25 +2053,30 @@ ${product.description ? '描述：' + product.description : ''}
             const name = document.getElementById('categoryName').value.trim();
             const description = document.getElementById('categoryDescription').value.trim();
             const color = document.getElementById('categoryColor').value;
-            
 
             if (!name) {
                 alert('請輸入分類名稱');
                 return;
             }
 
-            // 以現有 categoriesData 檢查名稱重複
-            const duplicate = (categoriesData || []).some(cat => String(cat.name).trim() === name);
-            if (duplicate) {
-                alert('分類名稱已存在，請使用不同的名稱');
-                return;
-            }
-
             try {
+                // 重新從資料庫載入最新分類資料以確保檢查準確性
+                await loadCategoriesData();
+                
+                // 以最新的 categoriesData 檢查名稱重複
+                const duplicate = (categoriesData || []).some(cat => String(cat.name).trim() === name);
+                if (duplicate) {
+                    alert('分類名稱已存在，請使用不同的名稱');
+                    return;
+                }
+                
+                // 設定分類排序順序，使用現有分類數量 + 1 作為新分類的順序
+                const order = (categoriesData || []).length + 1;
+
                 const payload = { name, description, color, order };
                 const created = await BusinessAPI.addCategory(payload);
                 if (!created) {
-                    alert('分類新增失敗，請檢查資料庫連接');
+                    alert('分類新增失敗，請檢查資料庫連接或分類名稱是否重複');
                     return;
                 }
 
@@ -2084,7 +2089,20 @@ ${product.description ? '描述：' + product.description : ''}
                 alert('分類新增成功！');
             } catch (error) {
                 console.error('新增分類失敗:', error);
-                alert('分類新增失敗：' + (error.message || '未知錯誤'));
+                
+                // 根據錯誤類型提供更友善的訊息
+                let errorMessage = '分類新增失敗';
+                if (error.message && error.message.includes('duplicate key')) {
+                    errorMessage = '分類名稱已存在，請使用不同的名稱';
+                } else if (error.message && error.message.includes('unique constraint')) {
+                    errorMessage = '分類名稱已存在，請使用不同的名稱';
+                } else if (error.message) {
+                    errorMessage = '分類新增失敗：' + error.message;
+                } else {
+                    errorMessage = '分類新增失敗：未知錯誤，請檢查網路連接';
+                }
+                
+                alert(errorMessage);
             }
         }
 
@@ -2164,6 +2182,9 @@ ${product.description ? '描述：' + product.description : ''}
             const description = document.getElementById('editCategoryDescription').value.trim();
             const color = document.getElementById('editCategoryColor').value;
             
+            // 保持原有的排序順序，或使用預設值
+            const currentCategory = (categoriesData || []).find(cat => String(cat.id) === String(categoryId));
+            const order = currentCategory ? currentCategory.order : 1;
             
             if (!name) {
                 alert('請輸入分類名稱');

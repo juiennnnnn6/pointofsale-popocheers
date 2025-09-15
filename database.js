@@ -231,20 +231,23 @@ class BusinessAPI {
     }
     
     static async addCategory(categoryData) {
-        // 優先傳送 name 與 description（常見欄位）。
-        // 若後端不存在 description 欄位，後端會回 400；如發生可再通知我們加回容錯。
+        // 傳送完整的分類資料，包含所有欄位
         const payload = {
             name: categoryData.name,
-            ...(categoryData.description ? { description: categoryData.description } : {})
+            ...(categoryData.description ? { description: categoryData.description } : {}),
+            ...(categoryData.color ? { color: categoryData.color } : {}),
+            ...(categoryData.order !== undefined ? { order: categoryData.order } : {})
         };
         return await DatabaseAPI.insertData('categories', payload);
     }
     
     static async updateCategory(id, categoryData) {
-        // 更新時傳送 name 與 description（如提供）。
+        // 更新時傳送完整的分類資料，包含所有欄位
         const payload = {
             name: categoryData.name,
-            ...(categoryData.description ? { description: categoryData.description } : {})
+            ...(categoryData.description !== undefined ? { description: categoryData.description } : {}),
+            ...(categoryData.color ? { color: categoryData.color } : {}),
+            ...(categoryData.order !== undefined ? { order: categoryData.order } : {})
         };
         return await DatabaseAPI.updateData('categories', id, payload);
     }

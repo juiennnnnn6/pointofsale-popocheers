@@ -70,12 +70,17 @@
             color: #fca5a5 !important;
         }
         
-        .menu-item.disabled .text-[#17225e] {
+        .menu-item.disabled .menu-text {
             color: #9ca3af !important;
         }
         
         .menu-item.disabled i {
             opacity: 0.5;
+        }
+        
+        /* 定義主題顏色類 */
+        .menu-text {
+            color: #17225e;
         }
     </style>
 </head>
@@ -130,17 +135,17 @@
             <!-- 銷售作業 -->
             <div id="menu-sales" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['sales']" data-page="sales">
                 <div class="text-center">
-                    <i class="fas fa-cash-register text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-cash-register text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">銷售作業</h3>
                     <p class="text-sm text-gray-600">進行商品銷售和結帳</p>
-                    <span class="text-xs text-[#17225e]">所有員工可訪問</span>
+                    <span class="text-xs menu-text">所有員工可訪問</span>
                 </div>
             </div>
 
             <!-- 商品管理 -->
             <div id="menu-products" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['products', 'purchase']" data-page="products">
                 <div class="text-center">
-                    <i class="fas fa-box text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-box text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">商品管理</h3>
                     <p class="text-sm text-gray-600">管理商品資料、庫存和分類</p>
                     <span class="text-xs text-red-500">需要商品管理權限</span>
@@ -150,7 +155,7 @@
             <!-- 進貨作業 -->
             <div id="menu-purchase" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['purchase']" data-page="purchase">
                 <div class="text-center">
-                    <i class="fas fa-truck text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-truck text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">進貨作業</h3>
                     <p class="text-sm text-gray-600">處理商品進貨、匯入進貨資料和供應商管理</p>
                     <span class="text-xs text-red-500">需要進貨管理權限</span>
@@ -160,7 +165,7 @@
             <!-- 會員管理 -->
             <div id="menu-members" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['members']" data-page="members">
                 <div class="text-center">
-                    <i class="fas fa-users text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-users text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">會員管理</h3>
                     <p class="text-sm text-gray-600">管理會員資料和積分</p>
                     <span class="text-xs text-red-500">需要會員管理權限</span>
@@ -170,7 +175,7 @@
             <!-- 員工管理 -->
             <div id="menu-employees" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['employees']" data-page="employees">
                 <div class="text-center">
-                    <i class="fas fa-user-tie text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-user-tie text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">員工管理</h3>
                     <p class="text-sm text-gray-600">管理員工資料和權限</p>
                     <span class="text-xs text-red-500">需要員工管理權限</span>
@@ -180,7 +185,7 @@
             <!-- 報表中心 -->
             <div id="menu-reports" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['reports']" data-page="reports">
                 <div class="text-center">
-                    <i class="fas fa-chart-pie text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-chart-pie text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">報表中心</h3>
                     <p class="text-sm text-gray-600">查看各類統計報表</p>
                     <span class="text-xs text-red-500">需要報表查看權限</span>
@@ -190,7 +195,7 @@
             <!-- 資料匯出/入 -->
             <div id="menu-import-export" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['import-export']" data-page="import-export">
                 <div class="text-center">
-                    <i class="fas fa-file-import text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-file-import text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">資料匯出/入</h3>
                     <p class="text-sm text-gray-600">匯入匯出商品和會員資料</p>
                     <span class="text-xs text-red-500">需要資料匯出入權限</span>
@@ -200,7 +205,7 @@
             <!-- 優惠券管理 -->
             <div id="menu-coupons" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['coupons']" data-page="coupons">
                 <div class="text-center">
-                    <i class="fas fa-ticket-alt text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-ticket-alt text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">優惠券管理</h3>
                     <p class="text-sm text-gray-600">管理優惠券和促銷活動</p>
                     <span class="text-xs text-red-500">需要優惠券管理權限</span>
@@ -210,7 +215,7 @@
             <!-- 供應商管理 -->
             <div id="menu-suppliers" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['suppliers']" data-page="suppliers">
                 <div class="text-center">
-                    <i class="fas fa-truck text-4xl text-[#17225e] mb-4"></i>
+                    <i class="fas fa-truck text-4xl menu-text mb-4"></i>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">供應商管理</h3>
                     <p class="text-sm text-gray-600">管理供應商資料</p>
                     <span class="text-xs text-red-500">需要供應商管理權限</span>
@@ -228,7 +233,7 @@
     <div id="employeeLoginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
             <div class="text-center mb-6">
-                <i class="fas fa-user-tie text-4xl text-[#17225e] mb-4"></i>
+                <i class="fas fa-user-tie text-4xl menu-text mb-4"></i>
                 <h3 class="text-xl font-bold text-gray-800">員工登入</h3>
                 <p class="text-gray-600 text-sm">請輸入員工編號</p>
             </div>
