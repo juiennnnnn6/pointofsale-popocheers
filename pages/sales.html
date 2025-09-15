@@ -73,6 +73,8 @@
                     audio.src = '../sounds/正確音效.mp3';
                 } else if (soundType === 'error') {
                     audio.src = '../sounds/錯誤音效.mp3';
+                } else if (soundType === 'select') {
+                    audio.src = '../sounds/選擇音效.mp3';
                 }
                 audio.play().catch(error => {
                     console.log('音效播放失敗:', error);
@@ -1673,7 +1675,7 @@
 
                     // 多個商品，彈出選擇視窗
 
-                    playSound('success'); // 播放成功音效（找到商品）
+                    playSound('select'); // 播放選擇音效（需要選擇商品）
 
                     showProductSelectionModal(products, barcode);
 
@@ -1706,7 +1708,7 @@
                     }
                 } else {
                     // 多個商品，彈出選擇視窗
-                    playSound('success'); // 播放成功音效（找到商品）
+                    playSound('select'); // 播放選擇音效（需要選擇商品）
                     showProductSelectionModal(localProducts, barcode);
                 }
             } else {
