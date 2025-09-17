@@ -369,36 +369,31 @@
                 } else {
                     console.log('Supabase 中暫無員工資料');
                     document.getElementById('dataSource').textContent = '暫無相關資料 (使用預設資料)';
-                    // 如果沒有資料，使用預設資料
+                    // 如果沒有資料，使用預設資料（沒有權限，需要手動分配）
                     employees = {
-                        'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: ['sales'] },
-                        'E002': { name: '李美華', role: '店長', id: 'E002', permissions: ['sales', 'products', 'purchase', 'members', 'reports'] },
-                        'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: ['sales', 'products', 'purchase'] },
+                        'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: [] },
+                        'E002': { name: '李美華', role: '店長', id: 'E002', permissions: [] },
+                        'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: [] },
                         'E004': { name: '陳管理員', role: '管理員', id: 'E004', permissions: ['all'] }
                     };
                 }
             } catch (error) {
                 console.error('載入員工資料失敗:', error);
                 document.getElementById('dataSource').textContent = '資料庫連接失敗 (使用預設資料)';
-                // 如果發生錯誤，使用預設資料
+                // 如果發生錯誤，使用預設資料（沒有權限，需要手動分配）
                 employees = {
-                    'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: ['sales'] },
-                    'E002': { name: '李美華', role: '店長', id: 'E002', permissions: ['sales', 'products', 'purchase', 'members', 'reports'] },
-                    'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: ['sales', 'products', 'purchase'] },
+                    'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: [] },
+                    'E002': { name: '李美華', role: '店長', id: 'E002', permissions: [] },
+                    'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: [] },
                     'E004': { name: '陳管理員', role: '管理員', id: 'E004', permissions: ['all'] }
                 };
             }
         }
 
-        // 根據職位獲取權限
+        // 根據職位獲取權限（已廢棄 - 不再自動分配權限）
         function getPermissionsByRole(position) {
-            const permissionMap = {
-                '收銀員': ['sales'],
-                '店長': ['sales', 'products', 'purchase', 'members', 'reports', 'coupons', 'suppliers', 'import-export'],
-                '倉管': ['sales', 'products', 'purchase'],
-                '管理員': ['all']
-            };
-            return permissionMap[position] || ['sales'];
+            // 所有職位都不自動分配權限，需要管理員手動設定
+            return [];
         }
 
         let currentEmployee = null;
