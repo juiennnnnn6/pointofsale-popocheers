@@ -123,17 +123,18 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">職位 *</label>
                     <select id="employeeRole" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-[#17225e]" onchange="updatePermissionsByRole()">
                         <option value="">請選擇職位</option>
-                        <option value="管理員">管理員 (系統最高權限)</option>
-                        <option value="店長">店長 (營運管理權限)</option>
-                        <option value="收銀員">收銀員 (基本權限)</option>
-                        <option value="倉管">倉管 (商品管理權限)</option>
-                        <option value="銷售員">銷售員 (銷售權限)</option>
+                        <option value="管理員">管理員</option>
+                        <option value="店長">店長</option>
+                        <option value="收銀員">收銀員</option>
+                        <option value="倉管">倉管</option>
+                        <option value="銷售員">銷售員</option>
                     </select>
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">權限設定</label>
-                    <div id="permissionsContainer" class="space-y-2 text-sm text-gray-600">
+                    <p class="text-xs text-orange-600 mb-3">⚠️ 職位選擇不會自動賦予權限，需管理員手動選擇允許使用的功能</p>
+                    <div id="permissionsContainer" class="grid grid-cols-2 gap-3 text-sm text-gray-600">
                         <div class="flex items-center">
                             <input type="checkbox" id="permSales" class="mr-2">
                             <label for="permSales">銷售作業</label>
@@ -158,8 +159,16 @@
                             <input type="checkbox" id="permEmployees" class="mr-2">
                             <label for="permEmployees">員工管理</label>
                         </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permSuppliers" class="mr-2">
+                            <label for="permSuppliers">供應商管理</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="permImportExport" class="mr-2">
+                            <label for="permImportExport">資料匯出/入</label>
+                        </div>
                     </div>
-                    <p id="roleDescription" class="text-xs text-gray-500 mt-2"></p>
+                    <p id="roleDescription" class="text-xs text-gray-500 mt-3">請手動選擇該員工可以使用的功能頁面</p>
                 </div>
                 
                 <div>
@@ -529,6 +538,8 @@
             document.getElementById('permMembers').checked = permissions.includes('members') || permissions.includes('all');
             document.getElementById('permReports').checked = permissions.includes('reports') || permissions.includes('all');
             document.getElementById('permEmployees').checked = permissions.includes('employees') || permissions.includes('all');
+            document.getElementById('permSuppliers').checked = permissions.includes('suppliers') || permissions.includes('all');
+            document.getElementById('permImportExport').checked = permissions.includes('import-export') || permissions.includes('all');
             
             document.getElementById('employeeModal').classList.remove('hidden');
         }
@@ -549,9 +560,11 @@
             if (document.getElementById('permMembers').checked) permissions.push('members');
             if (document.getElementById('permReports').checked) permissions.push('reports');
             if (document.getElementById('permEmployees').checked) permissions.push('employees');
+            if (document.getElementById('permSuppliers').checked) permissions.push('suppliers');
+            if (document.getElementById('permImportExport').checked) permissions.push('import-export');
 
             // 如果所有權限都勾選，設為all
-            if (permissions.length >= 6) {
+            if (permissions.length >= 8) {
                 permissions.length = 0;
                 permissions.push('all');
             }
@@ -654,62 +667,30 @@
             const role = document.getElementById('employeeRole').value;
             const roleDescription = document.getElementById('roleDescription');
             
-            // 重置所有權限選項
-            document.getElementById('permSales').checked = false;
-            document.getElementById('permProducts').checked = false;
-            document.getElementById('permPurchase').checked = false;
-            document.getElementById('permMembers').checked = false;
-            document.getElementById('permReports').checked = false;
-            document.getElementById('permEmployees').checked = false;
-            
-            // 根據職位設定預設權限
+            // 不再自動設定權限，只顯示職位描述和建議
             switch(role) {
                 case '管理員':
-                    // 管理員擁有所有權限
-                    document.getElementById('permSales').checked = true;
-                    document.getElementById('permProducts').checked = true;
-                    document.getElementById('permPurchase').checked = true;
-                    document.getElementById('permMembers').checked = true;
-                    document.getElementById('permReports').checked = true;
-                    document.getElementById('permEmployees').checked = true;
-                    roleDescription.textContent = '管理員擁有系統所有功能權限，包括員工管理、系統設定等最高權限';
+                    roleDescription.textContent = '管理員：系統最高管理職位，可根據需要分配任何權限';
                     break;
                     
                 case '店長':
-                    // 店長擁有營運相關權限，但不包括員工管理
-                    document.getElementById('permSales').checked = true;
-                    document.getElementById('permProducts').checked = true;
-                    document.getElementById('permPurchase').checked = true;
-                    document.getElementById('permMembers').checked = true;
-                    document.getElementById('permReports').checked = true;
-                    document.getElementById('permEmployees').checked = false;
-                    roleDescription.textContent = '店長負責日常營運管理，包括銷售、商品、進貨、會員和報表，但不包括員工管理';
+                    roleDescription.textContent = '店長：門店管理職位，建議分配營運相關權限（銷售、商品、進貨、會員、報表）';
                     break;
                     
                 case '收銀員':
-                    // 收銀員主要負責銷售和會員管理
-                    document.getElementById('permSales').checked = true;
-                    document.getElementById('permMembers').checked = true;
-                    roleDescription.textContent = '收銀員主要負責銷售作業和會員管理，可查看基本報表';
+                    roleDescription.textContent = '收銀員：前台服務職位，建議分配銷售和會員管理權限';
                     break;
                     
                 case '倉管':
-                    // 倉管負責商品和進貨管理
-                    document.getElementById('permProducts').checked = true;
-                    document.getElementById('permPurchase').checked = true;
-                    document.getElementById('permReports').checked = true;
-                    roleDescription.textContent = '倉管負責商品管理、進貨作業和庫存報表查看';
+                    roleDescription.textContent = '倉管：庫存管理職位，建議分配商品管理、進貨作業權限';
                     break;
                     
                 case '銷售員':
-                    // 銷售員主要負責銷售
-                    document.getElementById('permSales').checked = true;
-                    document.getElementById('permMembers').checked = true;
-                    roleDescription.textContent = '銷售員主要負責銷售作業和會員服務';
+                    roleDescription.textContent = '銷售員：銷售專員職位，建議分配銷售作業權限';
                     break;
                     
                 default:
-                    roleDescription.textContent = '請選擇職位以查看對應權限說明';
+                    roleDescription.textContent = '請手動選擇該員工可以使用的功能頁面';
             }
         }
 
