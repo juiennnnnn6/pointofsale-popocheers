@@ -261,10 +261,6 @@
             
             <div id="versionHistoryContent" class="space-y-6">
                 <!-- 版本內容將動態載入 -->
-                <div class="flex items-center justify-center py-8">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#17225e]"></div>
-                    <span class="ml-3 text-gray-600">載入版本資料中...</span>
-                </div>
             </div>
             
             <div class="mt-6 flex justify-end">
@@ -408,30 +404,153 @@
         let currentEmployee = null;
 
         // 版本紀錄功能
-        let versionData = null; // 緩存版本資料
+        const versionData = [
+            {
+                "version": "v2.3",
+                "date": "2025年09月",
+                "title": "動態版本紀錄系統",
+                "isLatest": true,
+                "color": "blue",
+                "changes": [
+                    {
+                        "icon": "fas fa-code-branch",
+                        "color": "blue",
+                        "category": "新功能",
+                        "description": "新增動態版本紀錄按鈕，支援JSON資料載入"
+                    },
+                    {
+                        "icon": "fas fa-rocket",
+                        "color": "green",
+                        "category": "效能優化",
+                        "description": "智能緩存機制，提升版本資料載入速度"
+                    },
+                    {
+                        "icon": "fas fa-paint-brush",
+                        "color": "purple",
+                        "category": "視覺改進",
+                        "description": "美觀的載入動畫和錯誤處理介面"
+                    }
+                ]
+            },
+            {
+                "version": "v2.2",
+                "date": "2025年09月",
+                "title": "重大安全更新與系統優化",
+                "isLatest": false,
+                "color": "green",
+                "changes": [
+                    {
+                        "icon": "fas fa-shield-alt",
+                        "color": "green",
+                        "category": "安全增強",
+                        "description": "修復URL繞過權限檢查的安全漏洞，為所有頁面添加完整的權限驗證"
+                    },
+                    {
+                        "icon": "fas fa-bug",
+                        "color": "orange",
+                        "category": "錯誤修復",
+                        "description": "修復員工管理頁面phone欄位儲存問題"
+                    },
+                    {
+                        "icon": "fas fa-broom",
+                        "color": "blue",
+                        "category": "系統清理",
+                        "description": "清理不必要的console輸出和冗餘檔案"
+                    },
+                    {
+                        "icon": "fas fa-file-alt",
+                        "color": "purple",
+                        "category": "文檔更新",
+                        "description": "更新README.md反映當前系統狀態"
+                    }
+                ]
+            },
+            {
+                "version": "v2.1",
+                "date": "2025年09月",
+                "title": "權限系統改進與介面優化",
+                "isLatest": false,
+                "color": "yellow",
+                "changes": [
+                    {
+                        "icon": "fas fa-user-shield",
+                        "color": "green",
+                        "category": "權限優化",
+                        "description": "改進員工權限視覺化提示"
+                    },
+                    {
+                        "icon": "fas fa-ban",
+                        "color": "red",
+                        "category": "功能控制",
+                        "description": "優惠券管理永久禁用"
+                    },
+                    {
+                        "icon": "fas fa-eye",
+                        "color": "blue",
+                        "category": "介面改進",
+                        "description": "移除不必要的權限提示文字"
+                    }
+                ]
+            },
+            {
+                "version": "v2.0",
+                "date": "2025年08月",
+                "title": "核心功能完善",
+                "isLatest": false,
+                "color": "gray",
+                "changes": [
+                    {
+                        "icon": "fas fa-database",
+                        "color": "green",
+                        "category": "資料庫整合",
+                        "description": "完整的Supabase資料庫整合"
+                    },
+                    {
+                        "icon": "fas fa-users",
+                        "color": "blue",
+                        "category": "員工管理",
+                        "description": "完整的員工CRUD功能"
+                    },
+                    {
+                        "icon": "fas fa-box",
+                        "color": "orange",
+                        "category": "商品管理",
+                        "description": "商品、分類、供應商管理"
+                    }
+                ]
+            },
+            {
+                "version": "v1.0",
+                "date": "2025年07月",
+                "title": "初始版本發布",
+                "isLatest": false,
+                "color": "gray",
+                "changes": [
+                    {
+                        "icon": "fas fa-rocket",
+                        "color": "green",
+                        "category": "系統啟動",
+                        "description": "基礎進銷存系統架構"
+                    },
+                    {
+                        "icon": "fas fa-cash-register",
+                        "color": "blue",
+                        "category": "銷售功能",
+                        "description": "基本的POS銷售作業"
+                    },
+                    {
+                        "icon": "fas fa-chart-pie",
+                        "color": "purple",
+                        "category": "報表系統",
+                        "description": "基礎數據統計功能"
+                    }
+                ]
+            }
+        ];
 
-        async function showVersionHistory() {
+        function showVersionHistory() {
             document.getElementById('versionHistoryModal').classList.remove('hidden');
-            
-            if (versionData) {
-                // 如果已有緩存，直接顯示
-                renderVersionHistory(versionData);
-            } else {
-                // 第一次載入，顯示載入中狀態
-                await loadVersionHistory();
-            }
-        }
-
-        async function loadVersionHistory() {
-            try {
-                const response = await fetch('version-history.json');
-                const data = await response.json();
-                versionData = data.versions; // 緩存資料
-                renderVersionHistory(versionData);
-            } catch (error) {
-                console.error('載入版本資料失敗:', error);
-                renderVersionError();
-            }
+            renderVersionHistory(versionData);
         }
 
         function renderVersionHistory(versions) {
@@ -497,18 +616,6 @@
             return versionDiv;
         }
 
-        function renderVersionError() {
-            const container = document.getElementById('versionHistoryContent');
-            container.innerHTML = `
-                <div class="text-center py-8">
-                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
-                    <p class="text-gray-600">載入版本資料失敗</p>
-                    <button onclick="loadVersionHistory()" class="mt-4 px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
-                        <i class="fas fa-redo mr-1"></i>重試
-                    </button>
-                </div>
-            `;
-        }
 
         function closeVersionHistory() {
             document.getElementById('versionHistoryModal').classList.add('hidden');
