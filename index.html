@@ -388,10 +388,43 @@
         // 版本紀錄功能
         const versionData = [
             {
+                "version": "v2.5",
+                "date": "2025年09月",
+                "title": "權限系統安全性強化",
+                "isLatest": true,
+                "color": "red",
+                "changes": [
+                    {
+                        "icon": "fas fa-shield-alt",
+                        "color": "red",
+                        "category": "重大安全修復",
+                        "description": "修復權限自動回填漏洞 - 移除所有自動權限分配邏輯"
+                    },
+                    {
+                        "icon": "fas fa-trash-alt",
+                        "color": "orange",
+                        "category": "安全清理",
+                        "description": "移除所有備用員工資料，徹底杜絕預設權限的可能性"
+                    },
+                    {
+                        "icon": "fas fa-database",
+                        "color": "blue",
+                        "category": "資料來源控制",
+                        "description": "強制依賴Supabase員工資料，無資料庫連接時系統無法使用"
+                    },
+                    {
+                        "icon": "fas fa-spell-check",
+                        "color": "green",
+                        "category": "內容修正",
+                        "description": "修復標題錯字：波瀾陶 → 波蘭陶食器"
+                    }
+                ]
+            },
+            {
                 "version": "v2.4",
                 "date": "2025年09月",
                 "title": "員工權限系統全面改進",
-                "isLatest": true,
+                "isLatest": false,
                 "color": "green",
                 "changes": [
                     {
