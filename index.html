@@ -361,10 +361,9 @@
                         };
                     });
                     console.log('成功從 Supabase 載入員工資料:', employeeData.length, '筆');
-                    console.log('載入的員工資料:', employees);
                     document.getElementById('dataSource').textContent = `Supabase (${employeeData.length} 筆員工資料)`;
                 } else {
-                    console.log('Supabase 中暫無員工資料');
+                    console.log('資料庫中無員工資料');
                     document.getElementById('dataSource').textContent = '無員工資料 - 請聯繫系統管理員';
                     // 如果沒有員工資料，系統無法使用
                     employees = {};
@@ -695,15 +694,13 @@
                 return;
             }
 
-            console.log('嘗試登入員工編號:', employeeId);
-            console.log('可用的員工ID:', Object.keys(employees));
-            console.log('員工資料:', employees);
+            console.log('嘗試登入...');
 
             try {
                 // 檢查員工是否存在於 Supabase 資料中
                 if (employees[employeeId]) {
                     const employee = employees[employeeId];
-                    console.log('找到員工:', employee);
+                    console.log('登入驗證成功');
                     
                     // 更新UI
                     document.getElementById('employeeName').textContent = employee.name;
@@ -723,14 +720,14 @@
                     
                     // 確保 currentEmployee 設定完成後再更新選單權限
                     setTimeout(() => {
-                        console.log('登入成功後更新選單權限，當前員工:', currentEmployee);
+                        console.log('更新選單權限');
                         updateMenuPermissions();
                     }, 100);
                     
                     // 顯示歡迎訊息
                     alert(`歡迎 ${employee.name} (${employee.role})！\n\n您已成功登入系統。`);
                 } else {
-                    console.log('員工編號不存在:', employeeId);
+                    console.log('登入失敗：員工編號不存在');
                     alert(`員工編號不存在：${employeeId}\n\n請檢查後重新輸入`);
                 }
                 
@@ -747,7 +744,7 @@
             if (savedEmployee) {
                 try {
                     currentEmployee = JSON.parse(savedEmployee);
-                    console.log('從 localStorage 載入員工資訊:', currentEmployee);
+                    console.log('載入已儲存的登入狀態');
                     
                     // 更新UI元素
                     document.getElementById('employeeName').textContent = currentEmployee.name;
@@ -760,7 +757,7 @@
                     
                     // 確保 currentEmployee 設定完成後再更新選單權限
                     setTimeout(() => {
-                        console.log('執行選單權限更新，當前員工:', currentEmployee);
+                        console.log('執行選單權限更新');
                         updateMenuPermissions();
                     }, 100);
                     
@@ -806,8 +803,6 @@
         // 更新選單按鈕狀態
         function updateMenuPermissions() {
             console.log('=== 更新選單權限開始 ===');
-            console.log('當前員工:', currentEmployee);
-            console.log('員工權限:', currentEmployee?.permissions);
             
             const menuItems = document.querySelectorAll('.menu-item');
             console.log('找到選單項目數量:', menuItems.length);
@@ -862,8 +857,7 @@
                     const permissionsStr = permissionsData.replace(/'/g, '"');
                     const requiredPermissions = JSON.parse(permissionsStr);
                     
-                    console.log(`解析後的必要權限:`, requiredPermissions);
-                    console.log(`員工擁有權限:`, currentEmployee.permissions);
+                    console.log(`檢查權限要求:`, requiredPermissions.length, '項');
                     
                     // 檢查權限
                     const hasAccess = hasPermission(currentEmployee, requiredPermissions);
@@ -920,13 +914,13 @@
             }
             
             if (!employee || !employee.permissions) {
-                console.log('員工或權限不存在');
+                console.log('權限檢查失敗：無效用戶');
                 return false;
             }
 
             // 如果員工有 'all' 權限，直接返回 true
             if (employee.permissions.includes('all')) {
-                console.log('員工擁有 all 權限，允許訪問');
+                console.log('擁有完整權限，允許訪問');
                 return true;
             }
 
