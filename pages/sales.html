@@ -641,11 +641,11 @@
 
                     </button>
 
-                    <button id="couponBtn" class="flex flex-col items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <button id="couponBtn" class="flex flex-col items-center p-3 bg-gray-200 rounded-lg cursor-not-allowed opacity-50" disabled>
 
-                        <i class="fas fa-gift text-[#17225e] mb-1"></i>
+                        <i class="fas fa-gift text-gray-400 mb-1"></i>
 
-                        <span class="text-xs">優惠券</span>
+                        <span class="text-xs text-gray-500">優惠券</span>
 
                     </button>
 
@@ -703,23 +703,23 @@
 
                 <div class="mt-6 pt-6 border-t border-gray-200">
 
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                    <div class="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 opacity-60">
 
                         <div class="flex items-center mb-3">
 
-                            <i class="fas fa-ticket-alt text-[#17225e] mr-2"></i>
+                            <i class="fas fa-ticket-alt text-gray-400 mr-2"></i>
 
-                            <span class="font-medium text-gray-800">優惠券(功能未開通)</span>
+                            <span class="font-medium text-gray-500">優惠券 (功能未開通)</span>
 
                         </div>
 
                         <div class="flex space-x-2">
 
-                            <input type="text" id="couponInput" placeholder="輸入優惠券代碼" 
+                            <input type="text" id="couponInput" placeholder="優惠券功能未開通" 
 
-                                   class="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#17225e] focus:border-transparent text-sm">
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-400 cursor-not-allowed" disabled>
 
-                            <button onclick="applyCoupon()" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors text-sm">
+                            <button class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm" disabled>
 
                                 <i class="fas fa-check mr-1"></i>
 
@@ -727,7 +727,7 @@
 
                             </button>
 
-                            <button onclick="scanCoupon()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm">
+                            <button class="px-3 py-2 bg-gray-200 text-gray-400 rounded-lg cursor-not-allowed text-sm" disabled>
 
                                 <i class="fas fa-qrcode"></i>
 
@@ -1531,7 +1531,7 @@
 
             document.getElementById('discountBtn').addEventListener('click', applyDiscount);
 
-            document.getElementById('couponBtn').addEventListener('click', applyCoupon);
+            // document.getElementById('couponBtn').addEventListener('click', applyCoupon); // 優惠券功能已禁用
 
             document.getElementById('memberBtn').addEventListener('click', () => manageMember());
             document.getElementById('refundBtn').addEventListener('click', () => processRefund());
