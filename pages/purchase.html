@@ -194,6 +194,18 @@
         let purchaseList = [];
 
         document.addEventListener('DOMContentLoaded', async function() {
+            // 進行權限檢查
+            const isAuthenticated = await checkAuthentication();
+            if (!isAuthenticated) {
+                return; // 如果未通過認證，函數會自動重定向
+            }
+            
+            // 檢查進貨作業權限
+            const hasPermission = await checkPermission(['purchase']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
+            
             // 載入商品和供應商資料
             await Promise.all([
                 loadProductsData(),

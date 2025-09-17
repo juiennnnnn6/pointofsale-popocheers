@@ -21,19 +21,6 @@
         .gradient-bg {
             background: linear-gradient(135deg, #17225e 0%, #1a2a6e 100%);
         }
-        iframe {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            transition: opacity 0.3s ease;
-        }
-        .iframe-container {
-            position: relative;
-        }
-        .iframe-hidden {
-            opacity: 0.3;
-            pointer-events: none;
-        }
         
         /* 權限控制樣式 */
         .menu-item {
@@ -66,8 +53,21 @@
             color: #d1d5db !important;
         }
         
-        .menu-item.disabled .text-red-500 {
+        .menu-item.disabled .text-red-500:not(.keep-original) {
             color: #fca5a5 !important;
+        }
+        
+        /* 讓提示文字完全不受 disabled 影響 */
+        .status-label {
+            opacity: 1 !important;
+            color: #ef4444 !important;
+            background-color: white !important;
+            position: relative;
+            z-index: 20;
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         .menu-item.disabled .menu-text {
@@ -133,93 +133,111 @@
 
 
             <!-- 銷售作業 -->
-            <div id="menu-sales" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['sales']" data-page="sales">
-                <div class="text-center">
-                    <i class="fas fa-cash-register text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">銷售作業</h3>
-                    <p class="text-sm text-gray-600">進行商品銷售和結帳</p>
-                    <span class="text-xs menu-text">所有員工可訪問</span>
+            <div class="relative">
+                <div id="menu-sales" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['sales']" data-page="sales">
+                    <div class="text-center">
+                        <i class="fas fa-cash-register text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">銷售作業</h3>
+                        <p class="text-sm text-gray-600">進行商品銷售和結帳</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要銷售權限</span>
             </div>
 
             <!-- 商品管理 -->
-            <div id="menu-products" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['products', 'purchase']" data-page="products">
-                <div class="text-center">
-                    <i class="fas fa-box text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">商品管理</h3>
-                    <p class="text-sm text-gray-600">管理商品資料、庫存和分類</p>
-                    <span class="text-xs text-red-500">需要商品管理權限</span>
+            <div class="relative">
+                <div id="menu-products" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['products', 'purchase']" data-page="products">
+                    <div class="text-center">
+                        <i class="fas fa-box text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">商品管理</h3>
+                        <p class="text-sm text-gray-600">管理商品資料、庫存和分類</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要商品管理權限</span>
             </div>
 
             <!-- 進貨作業 -->
-            <div id="menu-purchase" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['purchase']" data-page="purchase">
-                <div class="text-center">
-                    <i class="fas fa-truck text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">進貨作業</h3>
-                    <p class="text-sm text-gray-600">處理商品進貨、匯入進貨資料和供應商管理</p>
-                    <span class="text-xs text-red-500">需要進貨管理權限</span>
+            <div class="relative">
+                <div id="menu-purchase" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['purchase']" data-page="purchase">
+                    <div class="text-center">
+                        <i class="fas fa-truck text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">進貨作業</h3>
+                        <p class="text-sm text-gray-600">處理商品進貨、匯入進貨資料和供應商管理</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要進貨管理權限</span>
             </div>
 
             <!-- 會員管理 -->
-            <div id="menu-members" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['members']" data-page="members">
-                <div class="text-center">
-                    <i class="fas fa-users text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">會員管理</h3>
-                    <p class="text-sm text-gray-600">管理會員資料和積分</p>
-                    <span class="text-xs text-red-500">需要會員管理權限</span>
+            <div class="relative">
+                <div id="menu-members" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['members']" data-page="members">
+                    <div class="text-center">
+                        <i class="fas fa-users text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">會員管理</h3>
+                        <p class="text-sm text-gray-600">管理會員資料和積分</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要會員管理權限</span>
             </div>
 
             <!-- 員工管理 -->
-            <div id="menu-employees" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['employees']" data-page="employees">
-                <div class="text-center">
-                    <i class="fas fa-user-tie text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">員工管理</h3>
-                    <p class="text-sm text-gray-600">管理員工資料和權限</p>
-                    <span class="text-xs text-red-500">需要員工管理權限</span>
+            <div class="relative">
+                <div id="menu-employees" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['employees']" data-page="employees">
+                    <div class="text-center">
+                        <i class="fas fa-user-tie text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">員工管理</h3>
+                        <p class="text-sm text-gray-600">管理員工資料和權限</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要員工管理權限</span>
             </div>
 
             <!-- 報表中心 -->
-            <div id="menu-reports" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['reports']" data-page="reports">
-                <div class="text-center">
-                    <i class="fas fa-chart-pie text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">報表中心</h3>
-                    <p class="text-sm text-gray-600">查看各類統計報表</p>
-                    <span class="text-xs text-red-500">需要報表查看權限</span>
+            <div class="relative">
+                <div id="menu-reports" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['reports']" data-page="reports">
+                    <div class="text-center">
+                        <i class="fas fa-chart-pie text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">報表中心</h3>
+                        <p class="text-sm text-gray-600">查看各類統計報表</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要報表查看權限</span>
             </div>
 
             <!-- 資料匯出/入 -->
-            <div id="menu-import-export" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['import-export']" data-page="import-export">
-                <div class="text-center">
-                    <i class="fas fa-file-import text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">資料匯出/入</h3>
-                    <p class="text-sm text-gray-600">匯入匯出商品和會員資料</p>
-                    <span class="text-xs text-red-500">需要資料匯出入權限</span>
+            <div class="relative">
+                <div id="menu-import-export" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['import-export']" data-page="import-export">
+                    <div class="text-center">
+                        <i class="fas fa-file-import text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">資料匯出/入</h3>
+                        <p class="text-sm text-gray-600">匯入匯出商品和會員資料</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要資料匯出入權限</span>
             </div>
 
             <!-- 優惠券管理 -->
-            <div id="menu-coupons" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['coupons']" data-page="coupons">
-                <div class="text-center">
-                    <i class="fas fa-ticket-alt text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">優惠券管理</h3>
-                    <p class="text-sm text-gray-600">管理優惠券和促銷活動</p>
-                    <span class="text-xs text-red-500">需要優惠券管理權限</span>
+            <div class="relative">
+                <div id="menu-coupons" class="menu-item disabled apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['disabled']" data-page="coupons">
+                    <div class="text-center">
+                        <i class="fas fa-ticket-alt text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">優惠券管理</h3>
+                        <p class="text-sm text-gray-600">管理優惠券和促銷活動</p>
+                    </div>
                 </div>
+                <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30">需要系統管理員開通</span>
             </div>
 
             <!-- 供應商管理 -->
-            <div id="menu-suppliers" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['suppliers']" data-page="suppliers">
-                <div class="text-center">
-                    <i class="fas fa-truck text-4xl menu-text mb-4"></i>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">供應商管理</h3>
-                    <p class="text-sm text-gray-600">管理供應商資料</p>
-                    <span class="text-xs text-red-500">需要供應商管理權限</span>
+            <div class="relative">
+                <div id="menu-suppliers" class="menu-item apple-card rounded-xl p-6 apple-shadow transition-all duration-300" data-permissions="['suppliers']" data-page="suppliers">
+                    <div class="text-center">
+                        <i class="fas fa-truck text-4xl menu-text mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">供應商管理</h3>
+                        <p class="text-sm text-gray-600">管理供應商資料</p>
+                    </div>
                 </div>
+                <span class="permission-notice absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-500 bg-white px-2 py-1 rounded shadow-md z-30 hidden">需要供應商管理權限</span>
             </div>
 
 
@@ -267,34 +285,6 @@
             window.location.href = `pages/${page}.html`;
         }
         
-        // 全域快捷鍵
-        document.addEventListener('keydown', function(event) {
-            if (event.altKey) {
-                switch(event.key) {
-
-                    case '2':
-                        event.preventDefault();
-                        checkPermissionAndNavigate('products', ['管理員', '店長', '倉管']);
-                        break;
-                    case '3':
-                        event.preventDefault();
-                        checkPermissionAndNavigate('sales', ['all']);
-                        break;
-                    case '4':
-                        event.preventDefault();
-                        checkPermissionAndNavigate('members', ['管理員', '店長']);
-                        break;
-                    case '5':
-                        event.preventDefault();
-                        checkPermissionAndNavigate('employees', ['管理員']);
-                        break;
-                    case '6':
-                        event.preventDefault();
-                        checkPermissionAndNavigate('reports', ['管理員', '店長']);
-                        break;
-                }
-            }
-        });
         
         // 員工登入功能
         let employees = {};
@@ -429,19 +419,21 @@
                     // 關閉登入視窗
                     closeEmployeeLogin();
                     
-                    // 更新選單權限
-                    updateMenuPermissions();
-                    
-                    // 顯示歡迎訊息
-                    alert(`歡迎 ${employee.name} (${employee.role})！\n\n您已成功登入系統。`);
-                    
                     // 儲存當前員工資訊
                     currentEmployee = employee;
                     localStorage.setItem('currentEmployee', JSON.stringify(employee));
+                    
+                    // 確保 currentEmployee 設定完成後再更新選單權限
+                    setTimeout(() => {
+                        console.log('登入成功後更新選單權限，當前員工:', currentEmployee);
+                        updateMenuPermissions();
+                    }, 100);
+                    
+                    // 顯示歡迎訊息
+                    alert(`歡迎 ${employee.name} (${employee.role})！\n\n您已成功登入系統。`);
                 } else {
                     console.log('員工編號不存在:', employeeId);
-                    console.log('可用的員工編號:', Object.keys(employees));
-                    alert(`員工編號不存在：${employeeId}\n\n可用的員工編號：${Object.keys(employees).join(', ')}\n\n請檢查後重新輸入`);
+                    alert(`員工編號不存在：${employeeId}\n\n請檢查後重新輸入`);
                 }
                 
             } catch (error) {
@@ -455,25 +447,45 @@
             // 檢查是否有儲存的員工資訊
             const savedEmployee = localStorage.getItem('currentEmployee');
             if (savedEmployee) {
-                currentEmployee = JSON.parse(savedEmployee);
-                document.getElementById('employeeName').textContent = currentEmployee.name;
-                document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
-                document.getElementById('employeeInfo').classList.remove('hidden');
-                
-                // 顯示主選單
-                document.getElementById('loginRequired').classList.add('hidden');
-                document.getElementById('mainMenu').classList.remove('hidden');
-                
-                // 更新選單權限
-                updateMenuPermissions();
-            } else {
-                // 未登入時顯示登入提示
-                document.getElementById('loginRequired').classList.remove('hidden');
-                document.getElementById('mainMenu').classList.add('hidden');
-                
-                // 更新選單權限（禁用所有按鈕）
-                updateMenuPermissions();
+                try {
+                    currentEmployee = JSON.parse(savedEmployee);
+                    console.log('從 localStorage 載入員工資訊:', currentEmployee);
+                    
+                    // 更新UI元素
+                    document.getElementById('employeeName').textContent = currentEmployee.name;
+                    document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
+                    document.getElementById('employeeInfo').classList.remove('hidden');
+                    
+                    // 顯示主選單
+                    document.getElementById('loginRequired').classList.add('hidden');
+                    document.getElementById('mainMenu').classList.remove('hidden');
+                    
+                    // 確保 currentEmployee 設定完成後再更新選單權限
+                    setTimeout(() => {
+                        console.log('執行選單權限更新，當前員工:', currentEmployee);
+                        updateMenuPermissions();
+                    }, 100);
+                    
+                    return true;
+                } catch (error) {
+                    console.error('解析儲存的員工資訊失敗:', error);
+                    localStorage.removeItem('currentEmployee');
+                    currentEmployee = null;
+                }
             }
+            
+            // 未登入時顯示登入提示
+            document.getElementById('loginRequired').classList.remove('hidden');
+            document.getElementById('mainMenu').classList.add('hidden');
+            
+            // 確保當前員工為 null 後更新選單權限（禁用所有按鈕）
+            currentEmployee = null;
+            setTimeout(() => {
+                console.log('執行選單權限更新（未登入狀態）');
+                updateMenuPermissions();
+            }, 100);
+            
+            return false;
         }
 
         // 權限檢查和導航
@@ -495,55 +507,104 @@
 
         // 更新選單按鈕狀態
         function updateMenuPermissions() {
-            console.log('更新選單權限，當前員工:', currentEmployee);
+            console.log('=== 更新選單權限開始 ===');
+            console.log('當前員工:', currentEmployee);
+            console.log('員工權限:', currentEmployee?.permissions);
+            
+            const menuItems = document.querySelectorAll('.menu-item');
+            console.log('找到選單項目數量:', menuItems.length);
             
             if (!currentEmployee) {
-                // 未登入時，所有按鈕都禁用
-                document.querySelectorAll('.menu-item').forEach(item => {
+                console.log('未登入狀態，禁用所有按鈕');
+                // 未登入時，所有按鈕都禁用並顯示權限提示
+                menuItems.forEach(item => {
                     item.classList.add('disabled');
                     item.onclick = null;
+                    
+                    // 顯示權限提示
+                    const permissionNotice = item.parentElement.querySelector('.permission-notice');
+                    if (permissionNotice && item.dataset.page !== 'coupons') {
+                        permissionNotice.classList.remove('hidden');
+                    }
+                    
+                    console.log(`禁用按鈕: ${item.dataset.page}`);
                 });
+                console.log('=== 更新選單權限完成（未登入） ===');
                 return;
             }
 
+            // 首先確保優惠券管理在任何情況下都保持禁用
+            const couponsItem = document.getElementById('menu-coupons');
+            if (couponsItem) {
+                couponsItem.classList.add('disabled');
+                couponsItem.onclick = null;
+                console.log('🚫 優惠券管理永久禁用');
+            }
+
+            console.log('已登入狀態，開始檢查個別權限');
+            
             // 遍歷所有選單項目
-            document.querySelectorAll('.menu-item').forEach(item => {
+            menuItems.forEach((item, index) => {
                 try {
-                    // 修正 JSON 格式：將單引號替換為雙引號
-                    const permissionsStr = item.dataset.permissions.replace(/'/g, '"');
-                    const requiredPermissions = JSON.parse(permissionsStr);
                     const page = item.dataset.page;
+                    const permissionsData = item.dataset.permissions;
                     
-                    console.log(`檢查項目 ${page}:`, {
-                        requiredPermissions,
-                        employeePermissions: currentEmployee.permissions,
-                        employeeRole: currentEmployee.role
-                    });
+                    console.log(`檢查第 ${index + 1} 個項目: ${page}`);
+                    console.log(`原始權限字串: ${permissionsData}`);
+                    
+                    // 特殊處理：優惠券管理永遠禁用
+                    if (page === 'coupons') {
+                        item.classList.add('disabled');
+                        item.onclick = null;
+                        console.log(`🚫 強制禁用按鈕: ${page} (系統管理員功能)`);
+                        return;
+                    }
+                    
+                    // 修正 JSON 格式：將單引號替換為雙引號
+                    const permissionsStr = permissionsData.replace(/'/g, '"');
+                    const requiredPermissions = JSON.parse(permissionsStr);
+                    
+                    console.log(`解析後的必要權限:`, requiredPermissions);
+                    console.log(`員工擁有權限:`, currentEmployee.permissions);
                     
                     // 檢查權限
                     const hasAccess = hasPermission(currentEmployee, requiredPermissions);
                     
-                    console.log(`項目 ${page} 權限檢查結果:`, hasAccess);
+                    console.log(`項目 ${page} 權限檢查結果: ${hasAccess}`);
+                    
+                    // 找到對應的權限提示元素
+                    const permissionNotice = item.parentElement.querySelector('.permission-notice');
                     
                     if (hasAccess) {
-                        // 有權限：啟用按鈕
+                        // 有權限：啟用按鈕，隱藏權限提示
                         item.classList.remove('disabled');
-                        item.onclick = () => navigateToPage(page);
-                        console.log(`啟用按鈕: ${page}`);
+                        item.onclick = () => {
+                            console.log(`點擊導航到: ${page}`);
+                            navigateToPage(page);
+                        };
+                        if (permissionNotice) {
+                            permissionNotice.classList.add('hidden');
+                        }
+                        console.log(`✅ 啟用按鈕: ${page}`);
                     } else {
-                        // 無權限：禁用按鈕
+                        // 無權限：禁用按鈕，顯示權限提示
                         item.classList.add('disabled');
                         item.onclick = null;
-                        console.log(`禁用按鈕: ${page}`);
+                        if (permissionNotice) {
+                            permissionNotice.classList.remove('hidden');
+                        }
+                        console.log(`❌ 禁用按鈕: ${page}`);
                     }
                 } catch (error) {
-                    console.error(`解析權限失敗 (${item.dataset.page}):`, error);
+                    console.error(`❗ 解析權限失敗 (${item.dataset.page}):`, error);
                     console.log('原始權限字串:', item.dataset.permissions);
                     // 解析失敗時禁用按鈕
                     item.classList.add('disabled');
                     item.onclick = null;
                 }
             });
+            
+            console.log('=== 更新選單權限完成 ===');
         }
 
         // 檢查權限（新版本，支援字串權限）
@@ -635,57 +696,14 @@
             }
         }
 
+
         // 頁面載入時的初始化
         document.addEventListener('DOMContentLoaded', async function() {
             // 載入員工資料
             await loadEmployees();
             await checkEmployeeLogin();
-            
-            // 添加調試功能
-            window.debugEmployees = function() {
-                console.log('=== 員工資料調試 ===');
-                console.log('當前員工物件:', employees);
-                console.log('員工ID列表:', Object.keys(employees));
-                console.log('資料來源:', document.getElementById('dataSource').textContent);
-                alert(`員工資料調試資訊已輸出到控制台\n\n載入的員工數量: ${Object.keys(employees).length}\n資料來源: ${document.getElementById('dataSource').textContent}`);
-            };
-            
-            // 添加權限測試功能
-            window.testPermissions = function() {
-                if (!currentEmployee) {
-                    alert('請先登入！');
-                    return;
-                }
-                
-                console.log('=== 權限測試 ===');
-                console.log('當前員工:', currentEmployee);
-                console.log('員工權限:', currentEmployee.permissions);
-                
-                // 測試所有選單項目的權限
-                document.querySelectorAll('.menu-item').forEach(item => {
-                    try {
-                        // 修正 JSON 格式：將單引號替換為雙引號
-                        const permissionsStr = item.dataset.permissions.replace(/'/g, '"');
-                        const requiredPermissions = JSON.parse(permissionsStr);
-                        const page = item.dataset.page;
-                        const hasAccess = hasPermission(currentEmployee, requiredPermissions);
-                        
-                        console.log(`項目 ${page}:`, {
-                            requiredPermissions,
-                            hasAccess,
-                            isDisabled: item.classList.contains('disabled')
-                        });
-                    } catch (error) {
-                        console.error(`解析權限失敗 (${item.dataset.page}):`, error);
-                        console.log('原始權限字串:', item.dataset.permissions);
-                    }
-                });
-                
-                alert('權限測試完成，請查看控制台輸出');
-            };
         });
     </script>
     
 </body>
-</html> 
-</html> 
+</html>

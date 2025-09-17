@@ -22,6 +22,18 @@
 
         // 頁面載入時初始化
         document.addEventListener('DOMContentLoaded', async function() {
+            // 進行權限檢查
+            const isAuthenticated = await checkAuthentication();
+            if (!isAuthenticated) {
+                return; // 如果未通過認證，函數會自動重定向
+            }
+            
+            // 檢查報表中心權限
+            const hasPermission = await checkPermission(['reports']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
+            
             // 設定預設日期範圍（本月）
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);

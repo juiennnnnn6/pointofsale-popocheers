@@ -1460,6 +1460,12 @@
                 return; // 如果未通過認證，函數會自動重定向
 
             }
+            
+            // 檢查銷售作業權限
+            const hasPermission = await checkPermission(['sales']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
 
             
             // 初始化 Supabase 客戶端

@@ -1370,6 +1370,12 @@
                 return; // 如果未通過認證，函數會自動重定向
             }
             
+            // 檢查商品管理權限
+            const hasPermission = await checkPermission(['products', 'purchase']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
+            
             console.log('認證成功，開始初始化頁面');
             
             // 統一初始化資料庫

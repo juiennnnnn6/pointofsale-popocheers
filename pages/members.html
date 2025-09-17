@@ -534,6 +534,12 @@
                 return; // 如果未通過認證，函數會自動重定向
             }
             
+            // 檢查會員管理權限
+            const hasPermission = await checkPermission(['members']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
+            
             await loadMembersData();
             renderMembers();
             updateStatistics();

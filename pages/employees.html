@@ -284,8 +284,8 @@
                                 id: emp.employee_id || emp.username || emp.id,
                                 name: emp.name,
                                 role: emp.position || emp.role || '員工',
-                                phone: '', // Supabase 表沒有 phone 欄位
-                                email: '', // Supabase 表沒有 email 欄位
+                                phone: emp.phone || '',
+                                email: emp.email || '',
                                 status: 'active',
                                 lastLogin: emp.last_login || null,
                                 isOnline: false,
@@ -328,10 +328,14 @@
                 console.log('=== Supabase 實際資料檢查 ===');
                 console.log('查詢結果:', { data, error });
                 console.log('資料數量:', data ? data.length : 0);
-                if (data) {
+                if (data && data.length > 0) {
                     data.forEach((emp, index) => {
                         console.log(`員工 ${index + 1}:`, emp);
+                        console.log(`員工 ${index + 1} 欄位:`, Object.keys(emp));
+                        console.log(`是否有 phone 欄位:`, emp.hasOwnProperty('phone'));
                     });
+                } else {
+                    console.log('沒有員工資料');
                 }
                 console.log('========================');
                 
@@ -339,6 +343,56 @@
             } catch (error) {
                 console.error('測試 Supabase 資料失敗:', error);
                 return { data: null, error };
+            }
+        }
+
+        // 測試 phone 欄位是否存在
+        async function testPhoneField() {
+            try {
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+
+                // 嘗試測試插入一筆包含 phone 的資料
+                console.log('=== 測試 phone 欄位 ===');
+                const testData = {
+                    employee_id: 'TEST_PHONE',
+                    name: '測試電話欄位',
+                    position: '測試',
+                    phone: '0900-000-000',
+                    permissions: JSON.stringify(['sales'])
+                };
+
+                const { data, error } = await supabase
+                    .from('employees')
+                    .insert([testData])
+                    .select();
+
+                if (error) {
+                    console.error('phone 欄位測試失敗:', error);
+                    if (error.message.includes('phone')) {
+                        console.log('❌ employees 表可能沒有 phone 欄位');
+                        console.log('請在 Supabase 中執行以下 SQL 來新增 phone 欄位:');
+                        console.log('ALTER TABLE employees ADD COLUMN phone TEXT;');
+                    }
+                    return false;
+                } else {
+                    console.log('✅ phone 欄位測試成功:', data);
+                    
+                    // 刪除測試資料
+                    await supabase
+                        .from('employees')
+                        .delete()
+                        .eq('employee_id', 'TEST_PHONE');
+                    
+                    console.log('測試資料已清除');
+                    return true;
+                }
+            } catch (error) {
+                console.error('測試 phone 欄位時發生錯誤:', error);
+                return false;
             }
         }
 
@@ -525,6 +579,7 @@
                     employee_id: employeeData.id,
                     name: employeeData.name,
                     position: employeeData.role,
+                    phone: employeeData.phone,
                     permissions: JSON.stringify(employeeData.permissions)
                 };
 
@@ -660,13 +715,30 @@
 
         // 事件監聽器
         document.addEventListener('DOMContentLoaded', async function() {
+            // 進行權限檢查
+            const isAuthenticated = await checkAuthentication();
+            if (!isAuthenticated) {
+                return; // 如果未通過認證，函數會自動重定向
+            }
+            
+            // 檢查員工管理權限
+            const hasPermission = await checkPermission(['employees']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
+            
             await loadEmployees();
             await testSupabaseData(); // 添加測試函數調用
+            await testPhoneField(); // 測試 phone 欄位是否存在
             
             // 搜尋功能
             document.getElementById('searchEmployee').addEventListener('input', updateEmployeeDisplay);
             document.getElementById('filterRole').addEventListener('change', updateEmployeeDisplay);
         });
+
+        // 添加全域測試函數，方便在控制台調用
+        window.testPhoneField = testPhoneField;
+        window.testSupabaseData = testSupabaseData;
     </script>
 </body>
 </html> 

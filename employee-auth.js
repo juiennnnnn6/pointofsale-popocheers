@@ -8,11 +8,9 @@ class EmployeeAuth {
     // 初始化認證系統
     static async initialize() {
         try {
-            console.log('=== EmployeeAuth.initialize 開始 ===');
             
             // 檢查是否有現有的登入會話
             const session = this.getSession();
-            console.log('從本地獲取的會話:', session);
             
             if (session) {
                 console.log('發現現有會話，開始驗證...');

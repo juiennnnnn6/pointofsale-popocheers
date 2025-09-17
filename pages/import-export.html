@@ -1168,7 +1168,19 @@
         }
 
         // 頁面初始化
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 進行權限檢查
+            const isAuthenticated = await checkAuthentication();
+            if (!isAuthenticated) {
+                return; // 如果未通過認證，函數會自動重定向
+            }
+            
+            // 檢查資料匯出/入權限
+            const hasPermission = await checkPermission(['import-export']);
+            if (!hasPermission) {
+                return; // 權限不足，會顯示錯誤並重定向
+            }
+            
             console.log('資料匯出/入功能已載入');
         });
     </script>
