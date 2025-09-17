@@ -98,6 +98,9 @@
                     <div id="dataStatus" class="text-xs opacity-75">
                         <i class="fas fa-database mr-1"></i><span id="dataSource">載入中...</span>
                     </div>
+                    <button onclick="showVersionHistory()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg text-sm transition-colors">
+                        <i class="fas fa-code-branch mr-1"></i>版本紀錄
+                    </button>
                     <button onclick="showEmployeeLogin()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg text-sm transition-colors">
                         <i class="fas fa-user mr-1"></i>員工登入
                     </button>
@@ -247,6 +250,31 @@
 
     </div>
 
+    <!-- 版本紀錄彈出視窗 -->
+    <div id="versionHistoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="text-center mb-6">
+                <i class="fas fa-code-branch text-4xl menu-text mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-800">版本紀錄</h3>
+                <p class="text-gray-600 text-sm">系統更新歷程</p>
+            </div>
+            
+            <div id="versionHistoryContent" class="space-y-6">
+                <!-- 版本內容將動態載入 -->
+                <div class="flex items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#17225e]"></div>
+                    <span class="ml-3 text-gray-600">載入版本資料中...</span>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeVersionHistory()" class="px-6 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                    <i class="fas fa-times mr-1"></i>關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 員工登入彈出視窗 -->
     <div id="employeeLoginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
@@ -378,6 +406,121 @@
         }
 
         let currentEmployee = null;
+
+        // 版本紀錄功能
+        let versionData = null; // 緩存版本資料
+
+        async function showVersionHistory() {
+            document.getElementById('versionHistoryModal').classList.remove('hidden');
+            
+            if (versionData) {
+                // 如果已有緩存，直接顯示
+                renderVersionHistory(versionData);
+            } else {
+                // 第一次載入，顯示載入中狀態
+                await loadVersionHistory();
+            }
+        }
+
+        async function loadVersionHistory() {
+            try {
+                const response = await fetch('version-history.json');
+                const data = await response.json();
+                versionData = data.versions; // 緩存資料
+                renderVersionHistory(versionData);
+            } catch (error) {
+                console.error('載入版本資料失敗:', error);
+                renderVersionError();
+            }
+        }
+
+        function renderVersionHistory(versions) {
+            const container = document.getElementById('versionHistoryContent');
+            container.innerHTML = '';
+
+            versions.forEach(version => {
+                const versionElement = createVersionElement(version);
+                container.appendChild(versionElement);
+            });
+        }
+
+        function createVersionElement(version) {
+            const colorClasses = {
+                blue: { border: 'border-blue-500', bg: 'bg-blue-50' },
+                green: { border: 'border-green-500', bg: 'bg-green-50' },
+                yellow: { border: 'border-yellow-500', bg: 'bg-yellow-50' },
+                gray: { border: 'border-gray-500', bg: 'bg-gray-50' }
+            };
+
+            const iconColors = {
+                green: 'text-green-500',
+                blue: 'text-blue-500',
+                orange: 'text-orange-500',
+                purple: 'text-purple-500',
+                red: 'text-red-500'
+            };
+
+            const colors = colorClasses[version.color] || colorClasses.gray;
+            
+            const versionDiv = document.createElement('div');
+            versionDiv.className = `border-l-4 ${colors.border} pl-4 ${colors.bg} p-4 rounded-lg`;
+
+            let badgeHtml = '';
+            if (version.isLatest) {
+                badgeHtml = `<span class="bg-blue-500 text-white px-2 py-1 rounded-full text-xs">最新版本</span>`;
+            } else {
+                badgeHtml = `<span class="text-xs text-gray-500">${version.date}</span>`;
+            }
+
+            let changesHtml = '';
+            version.changes.forEach(change => {
+                const iconColor = iconColors[change.color] || 'text-gray-500';
+                changesHtml += `
+                    <div class="flex items-start">
+                        <i class="${change.icon} ${iconColor} mr-2 mt-0.5"></i>
+                        <span><strong>${change.category}：</strong>${change.description}</span>
+                    </div>
+                `;
+            });
+
+            versionDiv.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-lg font-semibold text-gray-800">${version.version}</h4>
+                    ${badgeHtml}
+                </div>
+                <p class="text-sm text-gray-600 mb-3">${version.date} - ${version.title}</p>
+                <div class="space-y-2 text-sm">
+                    ${changesHtml}
+                </div>
+            `;
+
+            return versionDiv;
+        }
+
+        function renderVersionError() {
+            const container = document.getElementById('versionHistoryContent');
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                    <p class="text-gray-600">載入版本資料失敗</p>
+                    <button onclick="loadVersionHistory()" class="mt-4 px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                        <i class="fas fa-redo mr-1"></i>重試
+                    </button>
+                </div>
+            `;
+        }
+
+        function closeVersionHistory() {
+            document.getElementById('versionHistoryModal').classList.add('hidden');
+        }
+
+        // 點擊模態視窗外部關閉
+        document.addEventListener('click', function(event) {
+            const versionModal = document.getElementById('versionHistoryModal');
+            if (event.target === versionModal) {
+                closeVersionHistory();
+            }
+        });
 
         function showEmployeeLogin() {
             document.getElementById('employeeLoginModal').classList.remove('hidden');
