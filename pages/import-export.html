@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../employee-auth.js"></script>
+    <script src="../database.js"></script>
     <script src="auth-check.js"></script>
 
     <style>
@@ -1030,50 +1031,83 @@
         });
 
         // 匯出會員資料
-        function exportMembers() {
+        async function exportMembers() {
             const format = document.querySelector('input[name="memberExportFormat"]:checked').value;
             const range = document.querySelector('input[name="memberExportRange"]:checked').value;
             
-            // 從localStorage獲取會員資料
-            const savedMembers = localStorage.getItem('membersData');
-            let membersData = savedMembers ? JSON.parse(savedMembers) : [];
+            showMessage('正在載入會員資料...', 'info');
             
-            // 根據範圍過濾會員
-            let filteredMembers = membersData;
-            switch(range) {
-                case 'active':
-                    filteredMembers = membersData.filter(m => m.status === 'active');
-                    break;
-                case 'vip':
-                    filteredMembers = membersData.filter(m => ['金卡', '白金', '鑽石'].includes(m.level));
-                    break;
+            try {
+                // 初始化資料庫連接
+                await DatabaseManager.initialize();
+                
+                let membersData = [];
+                
+                if (DatabaseManager.isConnected()) {
+                    // 從 Supabase 獲取會員資料
+                    console.log('從 Supabase 載入會員資料...');
+                    const data = await BusinessAPI.getMembers();
+                    if (data && data.length > 0) {
+                        membersData = data;
+                        console.log('成功載入', membersData.length, '筆會員資料');
+                    } else {
+                        console.log('Supabase 中無會員資料，嘗試本地資料');
+                        const savedMembers = localStorage.getItem('membersData');
+                        membersData = savedMembers ? JSON.parse(savedMembers) : [];
+                    }
+                } else {
+                    console.log('資料庫未連接，使用本地資料');
+                    const savedMembers = localStorage.getItem('membersData');
+                    membersData = savedMembers ? JSON.parse(savedMembers) : [];
+                }
+                
+                if (membersData.length === 0) {
+                    showMessage('無會員資料可匯出', 'warning');
+                    return;
+                }
+                
+                // 根據範圍過濾會員
+                let filteredMembers = membersData;
+                switch(range) {
+                    case 'active':
+                        filteredMembers = membersData.filter(m => m.status === 'active' || !m.status);
+                        break;
+                    case 'vip':
+                        filteredMembers = membersData.filter(m => m.level && ['金卡', '白金', '鑽石', 'VIP', 'Gold', 'Platinum', 'Diamond'].includes(m.level));
+                        break;
+                }
+                
+                const headers = ['會員編號', '姓名', '電話', '電子郵件', '生日', '會員等級', '積分', '狀態', '地址', '備註', '註冊日期'];
+                const data = [headers];
+                
+                filteredMembers.forEach(member => {
+                    data.push([
+                        member.id || '',
+                        member.name || '',
+                        member.phone || '',
+                        member.email || '',
+                        member.birthday || member.birth_date || '',
+                        member.level || member.member_level || '一般',
+                        member.points || member.loyalty_points || '0',
+                        member.status || 'active',
+                        member.address || '',
+                        member.notes || '',
+                        member.created_at ? new Date(member.created_at).toLocaleDateString() : ''
+                    ]);
+                });
+                
+                if (format === 'csv') {
+                    exportMembersAsCSV(data);
+                } else {
+                    exportMembersAsExcel(data);
+                }
+                
+                showMessage(`已匯出 ${data.length - 1} 筆會員資料`, 'success');
+                
+            } catch (error) {
+                console.error('匯出會員資料時發生錯誤:', error);
+                showMessage('匯出會員資料失敗，請稍後再試', 'error');
             }
-            
-            const headers = ['會員編號', '姓名', '電話', '電子郵件', '生日', '會員等級', '積分', '狀態', '地址', '備註'];
-            const data = [headers];
-            
-            filteredMembers.forEach(member => {
-                data.push([
-                    member.id || '',
-                    member.name || '',
-                    member.phone || '',
-                    member.email || '',
-                    member.birthday || '',
-                    member.level || '',
-                    member.points || '0',
-                    member.status || 'active',
-                    member.address || '',
-                    member.notes || ''
-                ]);
-            });
-            
-            if (format === 'csv') {
-                exportMembersAsCSV(data);
-            } else {
-                exportMembersAsExcel(data);
-            }
-            
-            showMessage(`已匯出 ${data.length - 1} 筆會員資料`, 'success');
         }
 
         // 匯出會員為CSV
