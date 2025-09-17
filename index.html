@@ -348,13 +348,10 @@
                             }
                         } catch (parseError) {
                             console.error('解析權限失敗:', parseError);
-                            permissions = getPermissionsByRole(employeeRole);
+                            permissions = [];
                         }
                         
-                        // 如果沒有權限，根據職位設定
-                        if (!permissions || permissions.length === 0) {
-                            permissions = getPermissionsByRole(employeeRole);
-                        }
+                        // 不再自動根據職位分配權限，保持原始權限狀態
                         
                         employees[employeeId] = {
                             name: employeeName,
