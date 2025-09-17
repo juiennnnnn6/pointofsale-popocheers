@@ -2269,17 +2269,33 @@ ${product.description ? '描述：' + product.description : ''}
                 return;
             }
 
-            const dataStr = JSON.stringify(categories, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            // 轉換為CSV格式
+            const csvHeaders = ['ID', '分類名稱', '描述', '顏色'];
+            const csvRows = categories.map(cat => [
+                cat.id,
+                `"${cat.name}"`, // 用引號包圍以防逗號問題
+                `"${cat.description}"`,
+                cat.color
+            ]);
+
+            // 組合CSV內容
+            const csvContent = [
+                csvHeaders.join(','), // 標題行
+                ...csvRows.map(row => row.join(',')) // 數據行
+            ].join('\n');
+
+            // 添加BOM以支援中文顯示
+            const BOM = '\uFEFF';
+            const dataBlob = new Blob([BOM + csvContent], {type: 'text/csv;charset=utf-8'});
             const url = URL.createObjectURL(dataBlob);
             
             const link = document.createElement('a');
             link.href = url;
-            link.download = `categories_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `categories_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             
             URL.revokeObjectURL(url);
-            alert('分類匯出成功！');
+            alert('分類匯出成功！已儲存為CSV格式');
         }
 
         // 顯示匯入分類模態框
