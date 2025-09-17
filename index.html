@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>波波聚 歐洲家居/波瀾陶食器-進銷存系統</title>
+    <title>波波聚 歐洲家居/波蘭陶食器-進銷存系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="database.js"></script>
@@ -365,25 +365,15 @@
                     document.getElementById('dataSource').textContent = `Supabase (${employeeData.length} 筆員工資料)`;
                 } else {
                     console.log('Supabase 中暫無員工資料');
-                    document.getElementById('dataSource').textContent = '暫無相關資料 (使用預設資料)';
-                    // 如果沒有資料，使用預設資料（沒有權限，需要手動分配）
-                    employees = {
-                        'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: [] },
-                        'E002': { name: '李美華', role: '店長', id: 'E002', permissions: [] },
-                        'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: [] },
-                        'E004': { name: '陳管理員', role: '管理員', id: 'E004', permissions: ['all'] }
-                    };
+                    document.getElementById('dataSource').textContent = '無員工資料 - 請聯繫系統管理員';
+                    // 如果沒有員工資料，系統無法使用
+                    employees = {};
                 }
             } catch (error) {
                 console.error('載入員工資料失敗:', error);
-                document.getElementById('dataSource').textContent = '資料庫連接失敗 (使用預設資料)';
-                // 如果發生錯誤，使用預設資料（沒有權限，需要手動分配）
-                employees = {
-                    'E001': { name: '王小明', role: '收銀員', id: 'E001', permissions: [] },
-                    'E002': { name: '李美華', role: '店長', id: 'E002', permissions: [] },
-                    'E003': { name: '張志偉', role: '倉管', id: 'E003', permissions: [] },
-                    'E004': { name: '陳管理員', role: '管理員', id: 'E004', permissions: ['all'] }
-                };
+                document.getElementById('dataSource').textContent = '資料庫連接失敗 - 系統無法使用';
+                // 如果資料庫連接失敗，系統無法使用
+                employees = {};
             }
         }
 
