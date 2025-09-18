@@ -578,22 +578,38 @@
                     const activeEmployeeIds = new Set();
                     
                     sessionData.forEach(session => {
+                        console.log('🔍 處理會話:', session);
+                        console.log('會話員工ID:', session.employee_id);
+                        console.log('員工列表中的ID:', employees.map(e => e.id));
+                        
                         const employeeIndex = employees.findIndex(e => e.id === session.employee_id);
+                        console.log('找到員工索引:', employeeIndex);
+                        
                         if (employeeIndex !== -1) {
                             const lastActivity = new Date(session.last_activity || session.login_time);
                             const diffMinutes = (now - lastActivity) / (1000 * 60);
                             
+                            console.log('員工活動時間檢查:', {
+                                employee_id: session.employee_id,
+                                lastActivity: lastActivity,
+                                diffMinutes: diffMinutes
+                            });
+                            
                             // 如果最後活動時間超過30分鐘，標記為需要登出
                             if (diffMinutes > 30) {
+                                console.log('❌ 會話超時，標記為離線:', session.employee_id);
                                 // 標記會話為非活躍
                                 updateSessionOfflineStatus(session.employee_id);
                                 employees[employeeIndex].isOnline = false;
                             } else {
+                                console.log('✅ 員工在線:', session.employee_id);
                                 // 員工在線
                                 employees[employeeIndex].isOnline = true;
                                 employees[employeeIndex].lastLogin = session.login_time;
                                 activeEmployeeIds.add(session.employee_id);
                             }
+                        } else {
+                            console.log('❌ 找不到匹配的員工ID:', session.employee_id);
                         }
                     });
                     
