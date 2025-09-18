@@ -382,7 +382,22 @@
             return [];
         }
 
-        // 記錄員工登入到資料庫
+        // 生成會話ID
+        function generateSessionId() {
+            return 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // 獲取設備資訊
+        function getDeviceInfo() {
+            return {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                timestamp: Date.now()
+            };
+        }
+
+        // 記錄員工登入到session表
         async function recordEmployeeLogin(employeeId) {
             try {
                 // 初始化資料庫連接
@@ -390,20 +405,27 @@
                 
                 if (DatabaseManager.isConnected()) {
                     const loginTime = new Date().toISOString();
+                    const sessionId = generateSessionId();
+                    const deviceInfo = getDeviceInfo();
                     
-                    // 更新員工的最後登入時間
+                    // 創建新的會話記錄
                     const { error } = await supabase
-                        .from('employees')
-                        .update({ 
-                            last_login: loginTime,
-                            is_online: true
-                        })
-                        .eq('employee_id', employeeId);
+                        .from('employee_sessions')
+                        .insert([{
+                            session_id: sessionId,
+                            employee_id: employeeId,
+                            login_time: loginTime,
+                            is_active: true,
+                            device_info: deviceInfo,
+                            last_activity: loginTime
+                        }]);
                     
                     if (error) {
-                        console.error('更新登入記錄失敗:', error);
+                        console.error('創建會話記錄失敗:', error);
                     } else {
-                        console.log('登入記錄已更新:', employeeId, loginTime);
+                        console.log('會話記錄已創建:', employeeId, sessionId);
+                        // 儲存會話ID到localStorage以便後續使用
+                        localStorage.setItem('currentSessionId', sessionId);
                     }
                 } else {
                     console.log('資料庫未連接，無法記錄登入');
@@ -413,23 +435,51 @@
             }
         }
 
-        // 記錄員工登出到資料庫
+        // 記錄員工登出到session表
         async function recordEmployeeLogout(employeeId) {
             try {
                 // 初始化資料庫連接
                 await DatabaseManager.initialize();
                 
                 if (DatabaseManager.isConnected()) {
-                    // 設定員工為離線狀態
-                    const { error } = await supabase
-                        .from('employees')
-                        .update({ is_online: false })
-                        .eq('employee_id', employeeId);
+                    const currentSessionId = localStorage.getItem('currentSessionId');
+                    const logoutTime = new Date().toISOString();
                     
-                    if (error) {
-                        console.error('更新登出記錄失敗:', error);
+                    if (currentSessionId) {
+                        // 更新會話為非活躍狀態
+                        const { error } = await supabase
+                            .from('employee_sessions')
+                            .update({ 
+                                is_active: false,
+                                logout_time: logoutTime
+                            })
+                            .eq('session_id', currentSessionId)
+                            .eq('employee_id', employeeId);
+                        
+                        if (error) {
+                            console.error('更新會話登出記錄失敗:', error);
+                        } else {
+                            console.log('會話登出記錄已更新:', employeeId, currentSessionId);
+                        }
+                        
+                        // 清除本地會話ID
+                        localStorage.removeItem('currentSessionId');
                     } else {
-                        console.log('登出記錄已更新:', employeeId);
+                        // 如果沒有會話ID，嘗試更新該員工的所有活躍會話
+                        const { error } = await supabase
+                            .from('employee_sessions')
+                            .update({ 
+                                is_active: false,
+                                logout_time: logoutTime
+                            })
+                            .eq('employee_id', employeeId)
+                            .eq('is_active', true);
+                        
+                        if (error) {
+                            console.error('更新員工活躍會話失敗:', error);
+                        } else {
+                            console.log('員工活躍會話已全部登出:', employeeId);
+                        }
                     }
                 } else {
                     console.log('資料庫未連接，無法記錄登出');
@@ -444,10 +494,49 @@
         // 版本紀錄功能
         const versionData = [
             {
+                "version": "v2.6",
+                "date": "2025年09月",
+                "title": "真實登入狀態追蹤系統",
+                "isLatest": true,
+                "color": "green",
+                "changes": [
+                    {
+                        "icon": "fas fa-database",
+                        "color": "green",
+                        "category": "資料庫架構優化",
+                        "description": "改用現有employee_sessions表追蹤登入狀態，不再修改employees表結構"
+                    },
+                    {
+                        "icon": "fas fa-users",
+                        "color": "blue",
+                        "category": "真實狀態追蹤",
+                        "description": "實作基於會話表的真實員工登入狀態追蹤系統"
+                    },
+                    {
+                        "icon": "fas fa-clock",
+                        "color": "orange",
+                        "category": "智慧會話管理",
+                        "description": "30分鐘無活動自動登出機制，確保會話安全性"
+                    },
+                    {
+                        "icon": "fas fa-sync-alt",
+                        "color": "purple",
+                        "category": "即時同步",
+                        "description": "跨瀏覽器即時登入狀態同步，管理員可看到真實使用情況"
+                    },
+                    {
+                        "icon": "fas fa-keyboard",
+                        "color": "teal",
+                        "category": "用戶體驗",
+                        "description": "員工登入視窗支援Enter鍵快速登入和Escape鍵取消"
+                    }
+                ]
+            },
+            {
                 "version": "v2.5",
                 "date": "2025年09月",
                 "title": "權限系統安全性強化",
-                "isLatest": true,
+                "isLatest": false,
                 "color": "red",
                 "changes": [
                     {

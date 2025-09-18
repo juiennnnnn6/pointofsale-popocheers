@@ -528,54 +528,73 @@
             });
         }
 
-        // 更新員工登入狀態（從資料庫獲取真實狀態）
+        // 更新員工登入狀態（從session表獲取真實狀態）
         async function updateEmployeeLoginStatus() {
             try {
                 // 初始化資料庫連接
                 await DatabaseManager.initialize();
                 
                 if (DatabaseManager.isConnected()) {
-                    console.log('從資料庫獲取員工登入狀態...');
+                    console.log('從session表獲取員工登入狀態...');
                     
-                    // 從Supabase獲取最新的員工狀態
-                    const { data, error } = await supabase
-                        .from('employees')
-                        .select('employee_id, name, position, phone, is_online, last_login, permissions');
+                    // 從employee_sessions表獲取活躍會話
+                    const { data: sessionData, error } = await supabase
+                        .from('employee_sessions')
+                        .select(`
+                            employee_id,
+                            login_time,
+                            last_activity,
+                            is_active,
+                            employees (name, position)
+                        `)
+                        .eq('is_active', true)
+                        .order('login_time', { ascending: false });
                     
                     if (error) {
-                        console.error('獲取員工狀態失敗:', error);
+                        console.error('獲取會話狀態失敗:', error);
                         return;
                     }
                     
-                    if (data && data.length > 0) {
-                        // 更新員工陣列的登入狀態
-                        data.forEach(emp => {
-                            const employeeIndex = employees.findIndex(e => e.id === emp.employee_id);
+                    // 先將所有員工設為離線
+                    employees.forEach(emp => {
+                        emp.isOnline = false;
+                        emp.lastLogin = null;
+                    });
+                    
+                    if (sessionData && sessionData.length > 0) {
+                        console.log('找到活躍會話:', sessionData.length, '個');
+                        
+                        // 處理活躍會話
+                        const now = new Date();
+                        const activeEmployeeIds = new Set();
+                        
+                        sessionData.forEach(session => {
+                            const employeeIndex = employees.findIndex(e => e.id === session.employee_id);
                             if (employeeIndex !== -1) {
-                                // 更新真實的登入狀態
-                                employees[employeeIndex].isOnline = emp.is_online || false;
-                                employees[employeeIndex].lastLogin = emp.last_login;
+                                const lastActivity = new Date(session.last_activity || session.login_time);
+                                const diffMinutes = (now - lastActivity) / (1000 * 60);
                                 
-                                // 檢查最後登入時間，如果超過30分鐘自動設為離線
-                                if (emp.last_login && emp.is_online) {
-                                    const lastLoginTime = new Date(emp.last_login);
-                                    const now = new Date();
-                                    const diffMinutes = (now - lastLoginTime) / (1000 * 60);
-                                    
-                                    if (diffMinutes > 30) {
-                                        employees[employeeIndex].isOnline = false;
-                                        // 同步更新資料庫狀態
-                                        updateEmployeeOfflineStatus(emp.employee_id);
-                                    }
+                                // 如果最後活動時間超過30分鐘，標記為需要登出
+                                if (diffMinutes > 30) {
+                                    // 標記會話為非活躍
+                                    updateSessionOfflineStatus(session.employee_id);
+                                    employees[employeeIndex].isOnline = false;
+                                } else {
+                                    // 員工在線
+                                    employees[employeeIndex].isOnline = true;
+                                    employees[employeeIndex].lastLogin = session.login_time;
+                                    activeEmployeeIds.add(session.employee_id);
                                 }
                             }
                         });
                         
-                        console.log('員工登入狀態已更新');
+                        console.log('線上員工數量:', activeEmployeeIds.size);
+                    } else {
+                        console.log('沒有找到活躍會話');
                     }
                 } else {
                     console.log('資料庫未連接，使用本地狀態模擬');
-                    // 如果資料庫未連接，使用原本的本地邏輯
+                    // 如果資料庫未連接，使用本地邏輯
                     const currentEmployee = JSON.parse(localStorage.getItem('currentEmployee') || 'null');
                     employees.forEach(emp => {
                         if (currentEmployee && emp.id === currentEmployee.id) {
@@ -596,19 +615,27 @@
             }
         }
         
-        // 更新員工離線狀態到資料庫
-        async function updateEmployeeOfflineStatus(employeeId) {
+        // 更新會話離線狀態到資料庫
+        async function updateSessionOfflineStatus(employeeId) {
             try {
+                const logoutTime = new Date().toISOString();
+                
                 const { error } = await supabase
-                    .from('employees')
-                    .update({ is_online: false })
-                    .eq('employee_id', employeeId);
+                    .from('employee_sessions')
+                    .update({ 
+                        is_active: false,
+                        logout_time: logoutTime
+                    })
+                    .eq('employee_id', employeeId)
+                    .eq('is_active', true);
                 
                 if (error) {
-                    console.error('更新員工離線狀態失敗:', error);
+                    console.error('更新會話離線狀態失敗:', error);
+                } else {
+                    console.log('會話已標記為離線:', employeeId);
                 }
             } catch (error) {
-                console.error('更新員工離線狀態時發生錯誤:', error);
+                console.error('更新會話離線狀態時發生錯誤:', error);
             }
         }
 
