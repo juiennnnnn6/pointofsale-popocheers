@@ -304,7 +304,7 @@
                                 email: emp.email || '',
                                 status: 'active',
                                 lastLogin: emp.last_login || null,
-                                isOnline: false,
+                                isOnline: emp.is_online || false,
                                 permissions: permissions
                             };
                         });
@@ -528,40 +528,88 @@
             });
         }
 
-        // 更新員工登入狀態
-        function updateEmployeeLoginStatus() {
-            // 從localStorage獲取當前登入的員工
-            const currentEmployee = JSON.parse(localStorage.getItem('currentEmployee') || 'null');
-            
-            if (currentEmployee) {
-                // 更新當前登入員工的狀態
-                const employeeIndex = employees.findIndex(emp => emp.id === currentEmployee.id);
-                if (employeeIndex !== -1) {
-                    employees[employeeIndex].isOnline = true;
-                    employees[employeeIndex].lastLogin = new Date().toISOString();
-                }
-            }
-            
-            // 檢查其他員工是否在線（這裡可以根據實際需求擴展）
-            employees.forEach(emp => {
-                if (!currentEmployee || emp.id !== currentEmployee.id) {
-                    // 如果不是當前登入的員工，檢查最後登入時間
-                    if (emp.lastLogin) {
-                        const lastLoginTime = new Date(emp.lastLogin);
-                        const now = new Date();
-                        const diffMinutes = (now - lastLoginTime) / (1000 * 60);
-                        
-                        // 如果超過30分鐘沒有活動，設為離線
-                        emp.isOnline = diffMinutes < 30;
-                    } else {
-                        emp.isOnline = false;
+        // 更新員工登入狀態（從資料庫獲取真實狀態）
+        async function updateEmployeeLoginStatus() {
+            try {
+                // 初始化資料庫連接
+                await DatabaseManager.initialize();
+                
+                if (DatabaseManager.isConnected()) {
+                    console.log('從資料庫獲取員工登入狀態...');
+                    
+                    // 從Supabase獲取最新的員工狀態
+                    const { data, error } = await supabase
+                        .from('employees')
+                        .select('employee_id, name, position, phone, is_online, last_login, permissions');
+                    
+                    if (error) {
+                        console.error('獲取員工狀態失敗:', error);
+                        return;
                     }
+                    
+                    if (data && data.length > 0) {
+                        // 更新員工陣列的登入狀態
+                        data.forEach(emp => {
+                            const employeeIndex = employees.findIndex(e => e.id === emp.employee_id);
+                            if (employeeIndex !== -1) {
+                                // 更新真實的登入狀態
+                                employees[employeeIndex].isOnline = emp.is_online || false;
+                                employees[employeeIndex].lastLogin = emp.last_login;
+                                
+                                // 檢查最後登入時間，如果超過30分鐘自動設為離線
+                                if (emp.last_login && emp.is_online) {
+                                    const lastLoginTime = new Date(emp.last_login);
+                                    const now = new Date();
+                                    const diffMinutes = (now - lastLoginTime) / (1000 * 60);
+                                    
+                                    if (diffMinutes > 30) {
+                                        employees[employeeIndex].isOnline = false;
+                                        // 同步更新資料庫狀態
+                                        updateEmployeeOfflineStatus(emp.employee_id);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        console.log('員工登入狀態已更新');
+                    }
+                } else {
+                    console.log('資料庫未連接，使用本地狀態模擬');
+                    // 如果資料庫未連接，使用原本的本地邏輯
+                    const currentEmployee = JSON.parse(localStorage.getItem('currentEmployee') || 'null');
+                    employees.forEach(emp => {
+                        if (currentEmployee && emp.id === currentEmployee.id) {
+                            emp.isOnline = true;
+                            emp.lastLogin = new Date().toISOString();
+                        } else {
+                            emp.isOnline = false;
+                        }
+                    });
                 }
-            });
-            
-            // 重新渲染員工列表和統計資料
-            updateEmployeeDisplay();
-            updateStatistics();
+                
+                // 重新渲染員工列表和統計資料
+                updateEmployeeDisplay();
+                updateStatistics();
+                
+            } catch (error) {
+                console.error('更新員工登入狀態時發生錯誤:', error);
+            }
+        }
+        
+        // 更新員工離線狀態到資料庫
+        async function updateEmployeeOfflineStatus(employeeId) {
+            try {
+                const { error } = await supabase
+                    .from('employees')
+                    .update({ is_online: false })
+                    .eq('employee_id', employeeId);
+                
+                if (error) {
+                    console.error('更新員工離線狀態失敗:', error);
+                }
+            } catch (error) {
+                console.error('更新員工離線狀態時發生錯誤:', error);
+            }
         }
 
         // 更新統計資料

@@ -382,6 +382,63 @@
             return [];
         }
 
+        // 記錄員工登入到資料庫
+        async function recordEmployeeLogin(employeeId) {
+            try {
+                // 初始化資料庫連接
+                await DatabaseManager.initialize();
+                
+                if (DatabaseManager.isConnected()) {
+                    const loginTime = new Date().toISOString();
+                    
+                    // 更新員工的最後登入時間
+                    const { error } = await supabase
+                        .from('employees')
+                        .update({ 
+                            last_login: loginTime,
+                            is_online: true
+                        })
+                        .eq('employee_id', employeeId);
+                    
+                    if (error) {
+                        console.error('更新登入記錄失敗:', error);
+                    } else {
+                        console.log('登入記錄已更新:', employeeId, loginTime);
+                    }
+                } else {
+                    console.log('資料庫未連接，無法記錄登入');
+                }
+            } catch (error) {
+                console.error('記錄登入時發生錯誤:', error);
+            }
+        }
+
+        // 記錄員工登出到資料庫
+        async function recordEmployeeLogout(employeeId) {
+            try {
+                // 初始化資料庫連接
+                await DatabaseManager.initialize();
+                
+                if (DatabaseManager.isConnected()) {
+                    // 設定員工為離線狀態
+                    const { error } = await supabase
+                        .from('employees')
+                        .update({ is_online: false })
+                        .eq('employee_id', employeeId);
+                    
+                    if (error) {
+                        console.error('更新登出記錄失敗:', error);
+                    } else {
+                        console.log('登出記錄已更新:', employeeId);
+                    }
+                } else {
+                    console.log('資料庫未連接，無法記錄登出');
+                }
+            } catch (error) {
+                console.error('記錄登出時發生錯誤:', error);
+            }
+        }
+
         let currentEmployee = null;
 
         // 版本紀錄功能
@@ -721,6 +778,9 @@
                     const employee = employees[employeeId];
                     console.log('登入驗證成功');
                     
+                    // 記錄登入時間到資料庫
+                    await recordEmployeeLogin(employeeId);
+                    
                     // 更新UI
                     document.getElementById('employeeName').textContent = employee.name;
                     document.querySelector('[onclick="showEmployeeLogin()"]').classList.add('hidden');
@@ -985,6 +1045,11 @@
             if (!confirm('確定要登出嗎？')) return;
             
             try {
+                // 記錄登出到資料庫
+                if (currentEmployee && currentEmployee.id) {
+                    await recordEmployeeLogout(currentEmployee.id);
+                }
+                
                 // 清除當前員工資訊
                 currentEmployee = null;
                 localStorage.removeItem('currentEmployee');
