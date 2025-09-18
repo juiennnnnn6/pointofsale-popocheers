@@ -400,6 +400,8 @@
         // 記錄員工登入到session表
         async function recordEmployeeLogin(employeeId) {
             try {
+                console.log('開始記錄員工登入:', employeeId);
+                
                 // 初始化資料庫連接
                 await DatabaseManager.initialize();
                 
@@ -408,8 +410,15 @@
                     const sessionId = generateSessionId();
                     const deviceInfo = getDeviceInfo();
                     
+                    console.log('準備插入會話記錄:', {
+                        session_id: sessionId,
+                        employee_id: employeeId,
+                        login_time: loginTime,
+                        is_active: true
+                    });
+                    
                     // 創建新的會話記錄
-                    const { error } = await supabase
+                    const { data, error } = await supabase
                         .from('employee_sessions')
                         .insert([{
                             session_id: sessionId,
@@ -418,20 +427,23 @@
                             is_active: true,
                             device_info: deviceInfo,
                             last_activity: loginTime
-                        }]);
+                        }])
+                        .select();
                     
                     if (error) {
                         console.error('創建會話記錄失敗:', error);
+                        console.error('錯誤詳情:', error.message);
                     } else {
-                        console.log('會話記錄已創建:', employeeId, sessionId);
+                        console.log('✅ 會話記錄已成功創建:', data);
+                        console.log('員工ID:', employeeId, '會話ID:', sessionId);
                         // 儲存會話ID到localStorage以便後續使用
                         localStorage.setItem('currentSessionId', sessionId);
                     }
                 } else {
-                    console.log('資料庫未連接，無法記錄登入');
+                    console.log('❌ 資料庫未連接，無法記錄登入');
                 }
             } catch (error) {
-                console.error('記錄登入時發生錯誤:', error);
+                console.error('❌ 記錄登入時發生錯誤:', error);
             }
         }
 
