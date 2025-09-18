@@ -541,17 +541,19 @@
                     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
                 );
                 
+                // 先測試簡單查詢，看看表結構
+                console.log('測試employee_sessions表查詢...');
+                const { data: testData, error: testError } = await supabase
+                    .from('employee_sessions')
+                    .select('*')
+                    .limit(1);
+                
+                console.log('表結構測試:', { testData, testError });
+                
                 // 從employee_sessions表獲取活躍會話
                 const { data: sessionData, error } = await supabase
                     .from('employee_sessions')
-                    .select(`
-                        employee_id,
-                        login_time,
-                        last_activity,
-                        is_active,
-                        session_id,
-                        employees (name, position)
-                    `)
+                    .select('*')
                     .eq('is_active', true)
                     .order('login_time', { ascending: false });
                 
