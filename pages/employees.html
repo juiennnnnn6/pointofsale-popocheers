@@ -564,6 +564,32 @@
                     return;
                 }
                 
+                // 檢查並清理無效的會話記錄
+                if (sessionData && sessionData.length > 0) {
+                    const validEmployeeIds = employees.map(e => e.id);
+                    const invalidSessions = sessionData.filter(session => 
+                        !validEmployeeIds.includes(session.employee_id)
+                    );
+                    
+                    if (invalidSessions.length > 0) {
+                        console.log('⚠️  發現無效會話，準備清理:', invalidSessions.map(s => s.employee_id));
+                        await cleanupInvalidSessions(invalidSessions);
+                        
+                        // 重新查詢有效會話
+                        const { data: validSessionData, error: validError } = await supabase
+                            .from('employee_sessions')
+                            .select('*')
+                            .eq('is_active', true)
+                            .order('login_time', { ascending: false });
+                        
+                        if (!validError) {
+                            sessionData.length = 0; // 清空原陣列
+                            sessionData.push(...(validSessionData || [])); // 添加有效會話
+                            console.log('✅ 已更新為有效會話:', sessionData);
+                        }
+                    }
+                }
+                
                 // 先將所有員工設為離線
                 employees.forEach(emp => {
                     emp.isOnline = false;
@@ -624,6 +650,39 @@
                 
             } catch (error) {
                 console.error('更新員工登入狀態時發生錯誤:', error);
+            }
+        }
+        
+        // 清理無效的會話記錄
+        async function cleanupInvalidSessions(invalidSessions) {
+            try {
+                console.log('🧹 開始清理無效會話...');
+                
+                // 創建Supabase客戶端
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+                
+                const logoutTime = new Date().toISOString();
+                const sessionIds = invalidSessions.map(s => s.session_id);
+                
+                const { error } = await supabase
+                    .from('employee_sessions')
+                    .update({ 
+                        is_active: false,
+                        logout_time: logoutTime
+                    })
+                    .in('session_id', sessionIds);
+                
+                if (error) {
+                    console.error('清理無效會話失敗:', error);
+                } else {
+                    console.log('✅ 已清理無效會話:', sessionIds);
+                }
+            } catch (error) {
+                console.error('清理無效會話時發生錯誤:', error);
             }
         }
         
