@@ -678,12 +678,31 @@
 
         function showEmployeeLogin() {
             document.getElementById('employeeLoginModal').classList.remove('hidden');
-            document.getElementById('employeeId').focus();
+            const employeeIdInput = document.getElementById('employeeId');
+            employeeIdInput.focus();
+            
+            // 添加Enter鍵事件監聽器
+            employeeIdInput.addEventListener('keydown', handleEmployeeLoginKeydown);
+        }
+        
+        // 處理員工登入視窗的鍵盤事件
+        function handleEmployeeLoginKeydown(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                loginEmployee();
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                closeEmployeeLogin();
+            }
         }
 
         function closeEmployeeLogin() {
             document.getElementById('employeeLoginModal').classList.add('hidden');
-            document.getElementById('employeeId').value = '';
+            const employeeIdInput = document.getElementById('employeeId');
+            employeeIdInput.value = '';
+            
+            // 移除Enter鍵事件監聽器，避免重複添加
+            employeeIdInput.removeEventListener('keydown', handleEmployeeLoginKeydown);
         }
 
         async function loginEmployee() {
