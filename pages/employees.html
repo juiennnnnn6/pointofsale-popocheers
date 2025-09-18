@@ -32,6 +32,9 @@
                 <button onclick="showAddEmployeeModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-plus mr-2"></i>新增員工
                 </button>
+                <button onclick="updateEmployeeLoginStatus()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors">
+                    <i class="fas fa-sync-alt mr-2"></i>刷新狀態
+                </button>
             </div>
         </div>
     </div>
@@ -48,10 +51,14 @@
             <h3 class="text-lg font-semibold text-gray-800" id="activeEmployees">0</h3>
             <p class="text-sm text-gray-600">在職員工</p>
         </div>
-        <div class="apple-card rounded-xl p-4 text-center">
-                            <i class="fas fa-user-clock text-2xl text-[#17225e] mb-2"></i>
-            <h3 class="text-lg font-semibold text-gray-800" id="onlineEmployees">0</h3>
-            <p class="text-sm text-gray-600">線上員工</p>
+        <div class="apple-card rounded-xl p-4 text-center border-l-4 border-green-500">
+            <i class="fas fa-wifi text-2xl text-green-600 mb-2"></i>
+            <h3 class="text-lg font-semibold text-green-700" id="onlineEmployees">0</h3>
+            <p class="text-sm text-green-600">線上員工</p>
+            <div class="mt-2">
+                <i class="fas fa-circle text-green-500 animate-pulse"></i>
+                <span class="text-xs text-green-600 ml-1">即時狀態</span>
+            </div>
         </div>
         <div class="apple-card rounded-xl p-4 text-center">
                             <i class="fas fa-user-tie text-2xl text-[#17225e] mb-2"></i>
@@ -467,9 +474,15 @@
                         }">${emp.status === 'active' ? '在職' : emp.status === 'inactive' ? '離職' : '停職'}</span>
                     </td>
                     <td class="py-3 px-4">
-                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
-                            emp.isOnline ? 'bg-gray-100 text-[#17225e]' : 'bg-gray-100 text-gray-800'
-                        }">${emp.isOnline ? '線上' : '離線'}</span>
+                        <div class="flex flex-col">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                                emp.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                            }">
+                                <i class="fas fa-circle text-xs mr-1 ${emp.isOnline ? 'text-green-500' : 'text-gray-400'}"></i>
+                                ${emp.isOnline ? '線上' : '離線'}
+                            </span>
+                            ${emp.lastLogin ? `<span class="text-xs text-gray-500 mt-1">最後登入: ${formatLoginTime(emp.lastLogin)}</span>` : '<span class="text-xs text-gray-400 mt-1">從未登入</span>'}
+                        </div>
                     </td>
                     <td class="py-3 px-4 text-xs text-gray-600">
                         ${emp.permissions ? emp.permissions.join(', ') : '無'}
@@ -488,6 +501,66 @@
             `).join('');
             
             console.log('=== 顯示更新完成 ===');
+        }
+
+        // 格式化登入時間
+        function formatLoginTime(loginTime) {
+            if (!loginTime) return '從未登入';
+            
+            const loginDate = new Date(loginTime);
+            const now = new Date();
+            const diffMs = now - loginDate;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            if (diffMins < 1) return '剛剛';
+            if (diffMins < 60) return `${diffMins}分鐘前`;
+            if (diffHours < 24) return `${diffHours}小時前`;
+            if (diffDays < 7) return `${diffDays}天前`;
+            
+            return loginDate.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 更新員工登入狀態
+        function updateEmployeeLoginStatus() {
+            // 從localStorage獲取當前登入的員工
+            const currentEmployee = JSON.parse(localStorage.getItem('currentEmployee') || 'null');
+            
+            if (currentEmployee) {
+                // 更新當前登入員工的狀態
+                const employeeIndex = employees.findIndex(emp => emp.id === currentEmployee.id);
+                if (employeeIndex !== -1) {
+                    employees[employeeIndex].isOnline = true;
+                    employees[employeeIndex].lastLogin = new Date().toISOString();
+                }
+            }
+            
+            // 檢查其他員工是否在線（這裡可以根據實際需求擴展）
+            employees.forEach(emp => {
+                if (!currentEmployee || emp.id !== currentEmployee.id) {
+                    // 如果不是當前登入的員工，檢查最後登入時間
+                    if (emp.lastLogin) {
+                        const lastLoginTime = new Date(emp.lastLogin);
+                        const now = new Date();
+                        const diffMinutes = (now - lastLoginTime) / (1000 * 60);
+                        
+                        // 如果超過30分鐘沒有活動，設為離線
+                        emp.isOnline = diffMinutes < 30;
+                    } else {
+                        emp.isOnline = false;
+                    }
+                }
+            });
+            
+            // 重新渲染員工列表
+            renderEmployees();
         }
 
         // 更新統計資料
@@ -711,6 +784,12 @@
             await loadEmployees();
             await testSupabaseData(); // 添加測試函數調用
             await testPhoneField(); // 測試 phone 欄位是否存在
+            
+            // 初始化登入狀態追蹤
+            updateEmployeeLoginStatus();
+            
+            // 每30秒更新一次登入狀態
+            setInterval(updateEmployeeLoginStatus, 30000);
             
             // 搜尋功能
             document.getElementById('searchEmployee').addEventListener('input', updateEmployeeDisplay);
