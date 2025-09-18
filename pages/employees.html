@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../employee-auth.js"></script>
+    <script src="../database.js"></script>
     <script src="auth-check.js"></script>
     <style>
         .apple-card {
@@ -531,82 +532,72 @@
         // 更新員工登入狀態（從session表獲取真實狀態）
         async function updateEmployeeLoginStatus() {
             try {
-                // 初始化資料庫連接
-                await DatabaseManager.initialize();
+                console.log('🔍 從session表獲取員工登入狀態...');
                 
-                if (DatabaseManager.isConnected()) {
-                    console.log('🔍 從session表獲取員工登入狀態...');
+                // 創建Supabase客戶端
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
+                
+                // 從employee_sessions表獲取活躍會話
+                const { data: sessionData, error } = await supabase
+                    .from('employee_sessions')
+                    .select(`
+                        employee_id,
+                        login_time,
+                        last_activity,
+                        is_active,
+                        session_id,
+                        employees (name, position)
+                    `)
+                    .eq('is_active', true)
+                    .order('login_time', { ascending: false });
+                
+                console.log('📊 查詢結果:', { sessionData, error });
                     
-                    // 從employee_sessions表獲取活躍會話
-                    const { data: sessionData, error } = await supabase
-                        .from('employee_sessions')
-                        .select(`
-                            employee_id,
-                            login_time,
-                            last_activity,
-                            is_active,
-                            session_id,
-                            employees (name, position)
-                        `)
-                        .eq('is_active', true)
-                        .order('login_time', { ascending: false });
+                if (error) {
+                    console.error('獲取會話狀態失敗:', error);
+                    return;
+                }
+                
+                // 先將所有員工設為離線
+                employees.forEach(emp => {
+                    emp.isOnline = false;
+                    emp.lastLogin = null;
+                });
+                
+                if (sessionData && sessionData.length > 0) {
+                    console.log('找到活躍會話:', sessionData.length, '個');
                     
-                    console.log('📊 查詢結果:', { sessionData, error });
+                    // 處理活躍會話
+                    const now = new Date();
+                    const activeEmployeeIds = new Set();
                     
-                    if (error) {
-                        console.error('獲取會話狀態失敗:', error);
-                        return;
-                    }
-                    
-                    // 先將所有員工設為離線
-                    employees.forEach(emp => {
-                        emp.isOnline = false;
-                        emp.lastLogin = null;
-                    });
-                    
-                    if (sessionData && sessionData.length > 0) {
-                        console.log('找到活躍會話:', sessionData.length, '個');
-                        
-                        // 處理活躍會話
-                        const now = new Date();
-                        const activeEmployeeIds = new Set();
-                        
-                        sessionData.forEach(session => {
-                            const employeeIndex = employees.findIndex(e => e.id === session.employee_id);
-                            if (employeeIndex !== -1) {
-                                const lastActivity = new Date(session.last_activity || session.login_time);
-                                const diffMinutes = (now - lastActivity) / (1000 * 60);
-                                
-                                // 如果最後活動時間超過30分鐘，標記為需要登出
-                                if (diffMinutes > 30) {
-                                    // 標記會話為非活躍
-                                    updateSessionOfflineStatus(session.employee_id);
-                                    employees[employeeIndex].isOnline = false;
-                                } else {
-                                    // 員工在線
-                                    employees[employeeIndex].isOnline = true;
-                                    employees[employeeIndex].lastLogin = session.login_time;
-                                    activeEmployeeIds.add(session.employee_id);
-                                }
+                    sessionData.forEach(session => {
+                        const employeeIndex = employees.findIndex(e => e.id === session.employee_id);
+                        if (employeeIndex !== -1) {
+                            const lastActivity = new Date(session.last_activity || session.login_time);
+                            const diffMinutes = (now - lastActivity) / (1000 * 60);
+                            
+                            // 如果最後活動時間超過30分鐘，標記為需要登出
+                            if (diffMinutes > 30) {
+                                // 標記會話為非活躍
+                                updateSessionOfflineStatus(session.employee_id);
+                                employees[employeeIndex].isOnline = false;
+                            } else {
+                                // 員工在線
+                                employees[employeeIndex].isOnline = true;
+                                employees[employeeIndex].lastLogin = session.login_time;
+                                activeEmployeeIds.add(session.employee_id);
                             }
-                        });
-                        
-                        console.log('線上員工數量:', activeEmployeeIds.size);
-                    } else {
-                        console.log('沒有找到活躍會話');
-                    }
-                } else {
-                    console.log('資料庫未連接，使用本地狀態模擬');
-                    // 如果資料庫未連接，使用本地邏輯
-                    const currentEmployee = JSON.parse(localStorage.getItem('currentEmployee') || 'null');
-                    employees.forEach(emp => {
-                        if (currentEmployee && emp.id === currentEmployee.id) {
-                            emp.isOnline = true;
-                            emp.lastLogin = new Date().toISOString();
-                        } else {
-                            emp.isOnline = false;
                         }
                     });
+                    
+                    console.log('線上員工數量:', activeEmployeeIds.size);
+                } else {
+                    console.log('沒有找到活躍會話');
                 }
                 
                 // 重新渲染員工列表和統計資料
@@ -622,6 +613,13 @@
         async function updateSessionOfflineStatus(employeeId) {
             try {
                 const logoutTime = new Date().toISOString();
+                
+                // 創建Supabase客戶端
+                const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+                const supabase = createClient(
+                    'https://cgwhckykrlphnibmuvhz.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd2hja3lrcmxwaG5pYm11dmh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA1ODMsImV4cCI6MjA2ODY3NjU4M30.LiIG69wjvcyrJhdNAk0Y171uKCU4f-ROIiejS7Xd7zY'
+                );
                 
                 const { error } = await supabase
                     .from('employee_sessions')
