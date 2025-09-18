@@ -612,7 +612,8 @@
                         console.log('找到員工索引:', employeeIndex);
                         
                         if (employeeIndex !== -1) {
-                            const lastActivity = new Date(session.last_activity || session.login_time);
+                            // 使用login_time作為活動時間（因為last_activity欄位不存在）
+                            const lastActivity = new Date(session.login_time);
                             const diffMinutes = (now - lastActivity) / (1000 * 60);
                             
                             console.log('員工活動時間檢查:', {

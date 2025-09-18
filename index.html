@@ -417,7 +417,7 @@
                         is_active: true
                     });
                     
-                    // 創建新的會話記錄
+                    // 創建新的會話記錄（移除不存在的last_activity欄位）
                     const { data, error } = await supabase
                         .from('employee_sessions')
                         .insert([{
@@ -425,8 +425,7 @@
                             employee_id: employeeId,
                             login_time: loginTime,
                             is_active: true,
-                            device_info: deviceInfo,
-                            last_activity: loginTime
+                            device_info: deviceInfo
                         }])
                         .select();
                     
