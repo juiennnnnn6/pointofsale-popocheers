@@ -417,6 +417,14 @@
                         is_active: true
                     });
                     
+                    // 檢查 supabase 是否可用
+                    console.log('檢查 supabase 變數:', typeof supabase, supabase);
+                    
+                    if (!supabase) {
+                        console.error('❌ supabase 客戶端不可用');
+                        return;
+                    }
+                    
                     // 創建新的會話記錄（移除不存在的last_activity欄位）
                     const { data, error } = await supabase
                         .from('employee_sessions')
