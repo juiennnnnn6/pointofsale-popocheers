@@ -39,6 +39,12 @@ async function updateHeartbeat(employeeId) {
             return;
         }
         
+        // 檢查 supabase 是否可用
+        if (!window.supabase) {
+            console.log('⏳ Supabase 尚未初始化，等待初始化...');
+            return;
+        }
+        
         const now = new Date().toLocaleString("sv-SE", {timeZone: "Asia/Taipei"}).replace(" ", "T") + "+08:00";
         
         console.log('🔍 準備更新心跳，會話ID:', currentSessionId);
@@ -87,9 +93,26 @@ function checkAndStartHeartbeat() {
     if (savedEmployee && currentSessionId) {
         try {
             const employee = JSON.parse(savedEmployee);
-            console.log('🔍 檢測到已登入員工，啟動心跳:', employee.id);
-            startHeartbeat(employee.id);
-            return true;
+            console.log('🔍 檢測到已登入員工，準備啟動心跳:', employee.id);
+            
+            // 如果 supabase 尚未初始化，等待初始化
+            if (!window.supabase) {
+                console.log('⏳ 等待 Supabase 初始化...');
+                // 延遲啟動心跳，等待資料庫初始化
+                setTimeout(() => {
+                    if (window.supabase) {
+                        console.log('✅ Supabase 已初始化，啟動心跳');
+                        startHeartbeat(employee.id);
+                    } else {
+                        console.log('❌ Supabase 初始化失敗，無法啟動心跳');
+                    }
+                }, 1000);
+                return true;
+            } else {
+                console.log('✅ Supabase 已就緒，立即啟動心跳');
+                startHeartbeat(employee.id);
+                return true;
+            }
         } catch (error) {
             console.error('解析員工資訊失敗:', error);
             localStorage.removeItem('currentEmployee');
