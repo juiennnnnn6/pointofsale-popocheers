@@ -548,9 +548,11 @@ class DatabaseManager {
 window.DatabaseAPI = DatabaseAPI;
 window.BusinessAPI = BusinessAPI;
 window.DatabaseManager = DatabaseManager;
-window.supabase = supabase; // 暴露 supabase 客戶端到全域
 
 // 自動初始化
 document.addEventListener('DOMContentLoaded', async function() {
     await DatabaseManager.initialize();
+    // 初始化完成後再暴露 supabase 客戶端到全域
+    window.supabase = supabase;
+    console.log('✅ window.supabase 已設置:', !!window.supabase);
 }); 
