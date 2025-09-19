@@ -60,14 +60,15 @@ async function updateHeartbeat(employeeId) {
         console.log('🔍 準備更新心跳，會話ID:', currentSessionId);
         console.log('🔍 更新時間:', now);
         
-        // 使用全域 supabase 客戶端
+        // 使用全域 supabase 客戶端，重新激活會話
         const { data, error } = await window.supabase
             .from('employee_sessions')
             .update({ 
-                last_activity: now
+                last_activity: now,
+                is_active: true,  // 重新激活會話
+                logout_time: null  // 清除登出時間
             })
             .eq('session_id', currentSessionId)
-            .eq('is_active', true)
             .select();
         
         console.log('🔍 Supabase回應:', { data, error });

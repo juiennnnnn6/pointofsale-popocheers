@@ -569,13 +569,15 @@
                 console.log('🔍 準備更新心跳，會話ID:', currentSessionId);
                 console.log('🔍 更新時間:', now);
                 
+                // 嘗試更新會話，如果會話被標記為非活躍，則重新激活它
                 const { data, error } = await window.supabase
                     .from('employee_sessions')
                     .update({ 
-                        last_activity: now
+                        last_activity: now,
+                        is_active: true,  // 重新激活會話
+                        logout_time: null  // 清除登出時間
                     })
                     .eq('session_id', currentSessionId)
-                    .eq('is_active', true)
                     .select();
                 
                 console.log('🔍 Supabase回應:', { data, error });
