@@ -993,8 +993,6 @@
             }
             
             await loadEmployees();
-            await testSupabaseData(); // 添加測試函數調用
-            await testPhoneField(); // 測試 phone 欄位是否存在
             
             // 初始化登入狀態追蹤
             updateEmployeeLoginStatus();
@@ -1007,9 +1005,7 @@
             document.getElementById('filterRole').addEventListener('change', updateEmployeeDisplay);
         });
 
-        // 添加全域測試函數，方便在控制台調用
-        window.testPhoneField = testPhoneField;
-        window.testSupabaseData = testSupabaseData;
+        // 測試函數已移除
     </script>
 </body>
 </html> 
