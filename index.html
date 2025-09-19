@@ -1011,6 +1011,9 @@
                     document.getElementById('loginRequired').classList.add('hidden');
                     document.getElementById('mainMenu').classList.remove('hidden');
                     
+                    // 重新啟動心跳機制
+                    startHeartbeat(currentEmployee.id);
+                    
                     // 確保 currentEmployee 設定完成後再更新選單權限
                     setTimeout(() => {
                         console.log('執行選單權限更新');
