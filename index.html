@@ -419,15 +419,15 @@
                     });
                     
                     // 檢查 supabase 是否可用
-                    console.log('檢查 supabase 變數:', typeof supabase, supabase);
+                    console.log('檢查 window.supabase 變數:', typeof window.supabase, window.supabase);
                     
-                    if (!supabase) {
-                        console.error('❌ supabase 客戶端不可用');
+                    if (!window.supabase) {
+                        console.error('❌ window.supabase 客戶端不可用');
                         return;
                     }
                     
                     // 創建新的會話記錄（包含last_activity欄位）
-                    const { data, error } = await supabase
+                    const { data, error } = await window.supabase
                         .from('employee_sessions')
                         .insert([{
                             session_id: sessionId,
@@ -482,7 +482,7 @@
                     
                     if (currentSessionId) {
                         // 更新會話為非活躍狀態
-                        const { error } = await supabase
+                        const { error } = await window.supabase
                             .from('employee_sessions')
                             .update({ 
                                 is_active: false,
@@ -501,7 +501,7 @@
                         localStorage.removeItem('currentSessionId');
                     } else {
                         // 如果沒有會話ID，嘗試更新該員工的所有活躍會話
-                        const { error } = await supabase
+                        const { error } = await window.supabase
                             .from('employee_sessions')
                             .update({ 
                                 is_active: false,
@@ -569,7 +569,7 @@
                 console.log('🔍 準備更新心跳，會話ID:', currentSessionId);
                 console.log('🔍 更新時間:', now);
                 
-                const { data, error } = await supabase
+                const { data, error } = await window.supabase
                     .from('employee_sessions')
                     .update({ 
                         last_activity: now
