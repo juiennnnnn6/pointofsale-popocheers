@@ -27,22 +27,7 @@
 
     <script>
 
-        // Supabase 配置
-        const SUPABASE_URL = 'https://cgwhckykrlphnibmuvhz.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_ThaibxLrJdwUixK594BZYw_ad8axjFN';
-        let supabase = null;
-
-        // 初始化 Supabase 客戶端
-        async function initSupabase() {
-            try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase 客戶端初始化成功');
-                return true;
-            } catch (error) {
-                console.error('Supabase 客戶端初始化失敗:', error);
-                return false;
-            }
-        }
+        // 使用全域的 Supabase 客戶端 (由 database.js 提供)
 
         // 簡單的認證檢查測試
 
@@ -91,12 +76,11 @@
         // 銷售後更新庫存
         async function updateInventoryAfterSale(saleItems, receiptNumber) {
             try {
-                if (!supabase) {
-                    const initSuccess = await initSupabase();
-                    if (!initSuccess) {
-                        console.error('Supabase 初始化失敗');
-                        return false;
-                    }
+                // 使用全域的 window.supabase
+                const supabaseClient = window.supabase;
+                if (!supabaseClient) {
+                    console.error('Supabase 客戶端不可用');
+                    return false;
                 }
 
                 console.log('開始更新庫存，銷售項目:', saleItems);
@@ -1477,7 +1461,8 @@
 
             
             // 初始化 Supabase 客戶端
-            await initSupabase();
+            // 等待 Supabase 初始化完成
+            await DatabaseManager.initialize();
             
             
             const barcodeInput = document.getElementById('salesBarcodeInput');
@@ -4136,12 +4121,11 @@
         // 保存退貨記錄到 Supabase
         async function saveRefundRecord(refundRecord) {
             try {
-                if (!supabase) {
-                    const initSuccess = await initSupabase();
-                    if (!initSuccess) {
-                        console.error('Supabase 初始化失敗');
-                        return false;
-                    }
+                // 使用全域的 window.supabase
+                const supabaseClient = window.supabase;
+                if (!supabaseClient) {
+                    console.error('Supabase 客戶端不可用');
+                    return false;
                 }
 
                 // 先查詢原始銷售記錄的 ID
@@ -4197,12 +4181,11 @@
         // 退貨後恢復庫存
         async function restoreInventoryAfterRefund(refundItems, refundNumber) {
             try {
-                if (!supabase) {
-                    const initSuccess = await initSupabase();
-                    if (!initSuccess) {
-                        console.error('Supabase 初始化失敗');
-                        return false;
-                    }
+                // 使用全域的 window.supabase
+                const supabaseClient = window.supabase;
+                if (!supabaseClient) {
+                    console.error('Supabase 客戶端不可用');
+                    return false;
                 }
 
                 console.log('開始恢復庫存，退貨項目:', refundItems);

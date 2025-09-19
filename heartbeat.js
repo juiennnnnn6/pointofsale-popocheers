@@ -45,6 +45,12 @@ async function updateHeartbeat(employeeId) {
             return;
         }
         
+        // 檢查 supabase 是否為有效的客戶端對象
+        if (typeof window.supabase.from !== 'function') {
+            console.log('❌ window.supabase 不是有效的 Supabase 客戶端對象:', typeof window.supabase, window.supabase);
+            return;
+        }
+        
         const now = new Date().toLocaleString("sv-SE", {timeZone: "Asia/Taipei"}).replace(" ", "T") + "+08:00";
         
         console.log('🔍 準備更新心跳，會話ID:', currentSessionId);
