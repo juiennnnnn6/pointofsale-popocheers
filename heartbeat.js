@@ -47,7 +47,11 @@ async function updateHeartbeat(employeeId) {
         
         // 檢查 supabase 是否為有效的客戶端對象
         if (typeof window.supabase.from !== 'function') {
-            console.log('❌ window.supabase 不是有效的 Supabase 客戶端對象:', typeof window.supabase, window.supabase);
+            console.log('❌ window.supabase 不是有效的 Supabase 客戶端對象:');
+            console.log('  - 類型:', typeof window.supabase);
+            console.log('  - 值:', window.supabase);
+            console.log('  - from 方法:', typeof window.supabase?.from);
+            console.log('  - 可用方法:', window.supabase ? Object.keys(window.supabase) : 'N/A');
             return;
         }
         
@@ -102,17 +106,24 @@ function checkAndStartHeartbeat() {
             console.log('🔍 檢測到已登入員工，準備啟動心跳:', employee.id);
             
             // 如果 supabase 尚未初始化，等待初始化
-            if (!window.supabase) {
+            if (!window.supabase || typeof window.supabase.from !== 'function') {
                 console.log('⏳ 等待 Supabase 初始化...');
-                // 延遲啟動心跳，等待資料庫初始化
-                setTimeout(() => {
-                    if (window.supabase) {
+                // 使用輪詢方式等待 Supabase 初始化
+                let attempts = 0;
+                const maxAttempts = 10;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    console.log(`⏳ 檢查 Supabase 初始化狀態 (${attempts}/${maxAttempts}):`, typeof window.supabase, !!window.supabase);
+                    
+                    if (window.supabase && typeof window.supabase.from === 'function') {
                         console.log('✅ Supabase 已初始化，啟動心跳');
+                        clearInterval(checkInterval);
                         startHeartbeat(employee.id);
-                    } else {
-                        console.log('❌ Supabase 初始化失敗，無法啟動心跳');
+                    } else if (attempts >= maxAttempts) {
+                        console.log('❌ Supabase 初始化超時，無法啟動心跳');
+                        clearInterval(checkInterval);
                     }
-                }, 1000);
+                }, 500);
                 return true;
             } else {
                 console.log('✅ Supabase 已就緒，立即啟動心跳');
