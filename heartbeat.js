@@ -55,7 +55,7 @@ async function updateHeartbeat(employeeId) {
             return;
         }
         
-        const now = new Date().toLocaleString("sv-SE", {timeZone: "Asia/Taipei"}).replace(" ", "T") + "+08:00";
+        const now = new Date().toISOString(); // 統一使用UTC時間
         
         console.log('🔍 準備更新心跳，會話ID:', currentSessionId);
         console.log('🔍 更新時間:', now);
