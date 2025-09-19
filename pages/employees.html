@@ -660,6 +660,12 @@
                     });
                     
                     console.log('線上員工數量:', activeEmployeeIds.size);
+                    console.log('活躍員工ID列表:', Array.from(activeEmployeeIds));
+                    
+                    // 調試：檢查每個員工的最終狀態
+                    employees.forEach(emp => {
+                        console.log(`最終狀態 - 員工 ${emp.id}: isOnline=${emp.isOnline}, lastLogin=${emp.lastLogin}`);
+                    });
                 } else {
                     console.log('沒有找到活躍會話');
                 }
