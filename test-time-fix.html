@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>時間修復測試</title>
+</head>
+<body>
+    <h1>時間修復測試</h1>
+    <div id="results"></div>
+
+    <script>
+        function formatLoginTime(loginTime) {
+            if (!loginTime) return '從未登入';
+            
+            try {
+                // 處理不同的時間格式
+                let loginDate;
+                
+                if (typeof loginTime === 'string') {
+                    // 修復不規範的時間格式
+                    let normalizedTime = loginTime;
+                    
+                    // 處理 "2025-09-19 14:29:15+00" 格式
+                    if (normalizedTime.includes('+00') && !normalizedTime.includes('T')) {
+                        normalizedTime = normalizedTime.replace(' ', 'T') + ':00.000Z';
+                    }
+                    // 處理 "2025-09-19 14:29:15+00:00" 格式
+                    else if (normalizedTime.includes('+00:00') && !normalizedTime.includes('T')) {
+                        normalizedTime = normalizedTime.replace(' ', 'T').replace('+00:00', '.000Z');
+                    }
+                    // 處理其他不規範的UTC格式
+                    else if (normalizedTime.includes('+00') && normalizedTime.includes('T')) {
+                        normalizedTime = normalizedTime.replace('+00:00', '.000Z').replace('+00', '.000Z');
+                    }
+                    
+                    console.log('時間格式修復:', { 原始: loginTime, 修復後: normalizedTime });
+                    
+                    loginDate = new Date(normalizedTime);
+                } else {
+                    loginDate = new Date(loginTime);
+                }
+                
+                // 檢查日期是否有效
+                if (isNaN(loginDate.getTime())) {
+                    console.error('無效的登入時間格式:', loginTime);
+                    return '時間格式錯誤';
+                }
+                
+                const now = new Date();
+                const diffMs = now - loginDate;
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                
+                console.log('時間計算:', {
+                    原始時間: loginTime,
+                    解析後: loginDate.toString(),
+                    當前時間: now.toString(),
+                    時間差分鐘: diffMins,
+                    時間差小時: diffHours
+                });
+                
+                if (diffMins < 1) return '剛剛';
+                if (diffMins < 60) return `${diffMins}分鐘前`;
+                if (diffHours < 24) return `${diffHours}小時前`;
+                if (diffDays < 7) return `${diffDays}天前`;
+                
+                return loginDate.toLocaleString('zh-TW', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Taipei'
+                });
+                
+            } catch (error) {
+                console.error('格式化登入時間時發生錯誤:', error, '原始時間:', loginTime);
+                return '時間解析錯誤';
+            }
+        }
+
+        // 測試問題時間
+        const testTime = "2025-09-19 14:29:15+00";
+        const result = formatLoginTime(testTime);
+        
+        document.getElementById('results').innerHTML = `
+            <p><strong>測試時間:</strong> ${testTime}</p>
+            <p><strong>格式化結果:</strong> ${result}</p>
+            <p><strong>當前時間:</strong> ${new Date().toString()}</p>
+            <p>請檢查 Console 查看詳細的時間處理過程</p>
+        `;
+    </script>
+</body>
+</html>

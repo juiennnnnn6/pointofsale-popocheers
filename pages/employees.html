@@ -514,19 +514,25 @@
                 let loginDate;
                 
                 if (typeof loginTime === 'string') {
-                    // 如果是我們自定義的台灣時間格式 (2025-09-19T22:04:00+08:00)
-                    if (loginTime.includes('+08:00')) {
-                        // 直接解析，JavaScript 應該能正確處理時區
-                        loginDate = new Date(loginTime);
-                    } 
-                    // 如果是 ISO 格式 (UTC 時間)
-                    else if (loginTime.includes('T') && loginTime.includes('Z')) {
-                        loginDate = new Date(loginTime);
+                    // 修復不規範的時間格式
+                    let normalizedTime = loginTime;
+                    
+                    // 處理 "2025-09-19 14:29:15+00" 格式
+                    if (normalizedTime.includes('+00') && !normalizedTime.includes('T')) {
+                        normalizedTime = normalizedTime.replace(' ', 'T') + ':00.000Z';
                     }
-                    // 其他格式
-                    else {
-                        loginDate = new Date(loginTime);
+                    // 處理 "2025-09-19 14:29:15+00:00" 格式
+                    else if (normalizedTime.includes('+00:00') && !normalizedTime.includes('T')) {
+                        normalizedTime = normalizedTime.replace(' ', 'T').replace('+00:00', '.000Z');
                     }
+                    // 處理其他不規範的UTC格式
+                    else if (normalizedTime.includes('+00') && normalizedTime.includes('T')) {
+                        normalizedTime = normalizedTime.replace('+00:00', '.000Z').replace('+00', '.000Z');
+                    }
+                    
+                    console.log('時間格式修復:', { 原始: loginTime, 修復後: normalizedTime });
+                    
+                    loginDate = new Date(normalizedTime);
                 } else {
                     loginDate = new Date(loginTime);
                 }
