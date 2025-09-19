@@ -562,6 +562,12 @@
                 
                 if (error) {
                     console.error('❌ 心跳更新失敗:', error);
+                    console.error('錯誤詳情:', error.message);
+                    if (error.message.includes('last_activity')) {
+                        console.error('❌ last_activity 欄位不存在！請在Supabase執行SQL:');
+                        console.error('ALTER TABLE employee_sessions ADD COLUMN last_activity TIMESTAMPTZ;');
+                        stopHeartbeat();
+                    }
                 } else {
                     console.log('💓 心跳更新成功:', now);
                 }
