@@ -440,13 +440,27 @@
                         .select();
                     
                     if (error) {
-                        console.error('創建會話記錄失敗:', error);
+                        console.error('❌ 創建會話記錄失敗:', error);
                         console.error('錯誤詳情:', error.message);
+                        console.error('錯誤代碼:', error.code);
+                        console.error('錯誤提示:', error.hint);
+                        
+                        if (error.message && (error.message.includes('last_activity') || error.message.includes('column'))) {
+                            console.error('❌ last_activity 欄位不存在！請在Supabase執行SQL:');
+                            console.error('ALTER TABLE employee_sessions ADD COLUMN last_activity TIMESTAMPTZ;');
+                            console.error('然後執行:');
+                            console.error('UPDATE employee_sessions SET last_activity = login_time WHERE last_activity IS NULL;');
+                        }
+                        
+                        // 如果會話創建失敗，不要儲存會話ID
+                        console.error('❌ 會話創建失敗，不儲存會話ID');
+                        return;
                     } else {
                         console.log('✅ 會話記錄已成功創建:', data);
                         console.log('員工ID:', employeeId, '會話ID:', sessionId);
-                        // 儲存會話ID到localStorage以便後續使用
+                        // 只有成功創建會話記錄後才儲存會話ID到localStorage
                         localStorage.setItem('currentSessionId', sessionId);
+                        console.log('✅ 會話ID已儲存到localStorage:', sessionId);
                     }
                 } else {
                     console.log('❌ 資料庫未連接，無法記錄登入');
