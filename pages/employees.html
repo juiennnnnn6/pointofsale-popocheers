@@ -602,14 +602,15 @@
                     try {
                         const { data: lastLoginData, error: lastLoginError } = await supabase
                             .from('employee_sessions')
-                            .select('login_time')
+                            .select('login_time, last_activity')
                             .eq('employee_id', emp.id)
                             .order('login_time', { ascending: false })
                             .limit(1);
                         
                         if (!lastLoginError && lastLoginData && lastLoginData.length > 0) {
-                            emp.lastLogin = lastLoginData[0].login_time;
-                            console.log(`員工 ${emp.id} 最後登入時間:`, emp.lastLogin);
+                            // 優先使用 last_activity，如果沒有則使用 login_time
+                            emp.lastLogin = lastLoginData[0].last_activity || lastLoginData[0].login_time;
+                            console.log(`員工 ${emp.id} 最後活動時間:`, emp.lastLogin);
                         }
                     } catch (error) {
                         console.error(`查詢員工 ${emp.id} 最後登入時間失敗:`, error);
@@ -653,7 +654,7 @@
                                 console.log('✅ 員工在線:', session.employee_id);
                                 // 員工在線 - 只要有一個有效會話就設為在線
                                 employees[employeeIndex].isOnline = true;
-                                employees[employeeIndex].lastLogin = session.login_time;
+                                employees[employeeIndex].lastLogin = session.last_activity || session.login_time;
                                 activeEmployeeIds.add(session.employee_id);
                             }
                         } else {
