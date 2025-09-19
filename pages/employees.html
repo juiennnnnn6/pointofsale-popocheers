@@ -631,19 +631,20 @@
                         console.log('找到員工索引:', employeeIndex);
                         
                         if (employeeIndex !== -1) {
-                            // 使用login_time作為活動時間（因為last_activity欄位不存在）
-                            const lastActivity = new Date(session.login_time);
+                            // 使用last_activity作為活動時間，如果沒有則使用login_time
+                            const lastActivity = new Date(session.last_activity || session.login_time);
                             const diffMinutes = (now - lastActivity) / (1000 * 60);
                             
                             console.log('員工活動時間檢查:', {
                                 employee_id: session.employee_id,
                                 lastActivity: lastActivity,
-                                diffMinutes: diffMinutes
+                                diffMinutes: diffMinutes,
+                                hasLastActivity: !!session.last_activity
                             });
                             
-                            // 1小時無活動後標記為離線
-                            if (diffMinutes > 60) { // 1小時 = 60分鐘
-                                console.log('❌ 會話超時（1小時），標記為離線:', session.employee_id);
+                            // 1分鐘無活動後標記為離線
+                            if (diffMinutes > 1) { // 1分鐘
+                                console.log('❌ 會話超時（1分鐘），標記為離線:', session.employee_id);
                                 // 標記特定會話為非活躍
                                 updateSpecificSessionOfflineStatus(session.session_id);
                                 // 注意：不要設定 employees[employeeIndex].isOnline = false，因為可能有其他有效會話
