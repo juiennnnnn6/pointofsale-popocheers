@@ -406,7 +406,8 @@
                 await DatabaseManager.initialize();
                 
                 if (DatabaseManager.isConnected()) {
-                    const loginTime = new Date().toISOString();
+                    // 使用台灣時間 (UTC+8)
+                    const loginTime = new Date().toLocaleString("sv-SE", {timeZone: "Asia/Taipei"}).replace(" ", "T") + "+08:00";
                     const sessionId = generateSessionId();
                     const deviceInfo = getDeviceInfo();
                     
