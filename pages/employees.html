@@ -596,6 +596,25 @@
                     emp.lastLogin = null;
                 });
                 
+                // 查詢所有員工的最後登入記錄（包括已登出的）
+                for (const emp of employees) {
+                    try {
+                        const { data: lastLoginData, error: lastLoginError } = await supabase
+                            .from('employee_sessions')
+                            .select('login_time')
+                            .eq('employee_id', emp.id)
+                            .order('login_time', { ascending: false })
+                            .limit(1);
+                        
+                        if (!lastLoginError && lastLoginData && lastLoginData.length > 0) {
+                            emp.lastLogin = lastLoginData[0].login_time;
+                            console.log(`員工 ${emp.id} 最後登入時間:`, emp.lastLogin);
+                        }
+                    } catch (error) {
+                        console.error(`查詢員工 ${emp.id} 最後登入時間失敗:`, error);
+                    }
+                }
+                
                 if (sessionData && sessionData.length > 0) {
                     console.log('找到活躍會話:', sessionData.length, '個');
                     
