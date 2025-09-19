@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會話資料診斷工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="database.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">會話資料診斷工具</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 控制按鈕 -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">操作</h2>
+                <div class="space-y-3">
+                    <button onclick="checkSessions()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        檢查所有會話
+                    </button>
+                    <button onclick="checkCurrentSession()" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                        檢查當前會話
+                    </button>
+                    <button onclick="testHeartbeatUpdate()" class="w-full bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+                        測試心跳更新
+                    </button>
+                    <button onclick="createTestSession()" class="w-full bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                        創建測試會話
+                    </button>
+                    <button onclick="clearResults()" class="w-full bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        清除結果
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 當前狀態 -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">當前狀態</h2>
+                <div id="currentStatus" class="space-y-2 text-sm">
+                    <div class="text-gray-500">等待檢查...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 會話列表 -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">所有會話記錄</h2>
+            <div id="sessionsTable" class="overflow-x-auto">
+                等待檢查...
+            </div>
+        </div>
+        
+        <!-- 詳細日誌 -->
+        <div class="mt-6 bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">詳細日誌</h2>
+            <div id="detailedLogs" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-64 overflow-y-auto">
+                等待操作...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let logs = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            logs.push(logEntry);
+            
+            const logsDiv = document.getElementById('detailedLogs');
+            const colorClass = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-yellow-400';
+            logsDiv.innerHTML += `<div class="${colorClass}">${logEntry}</div>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function updateStatus(message) {
+            const statusDiv = document.getElementById('currentStatus');
+            statusDiv.innerHTML += `<div class="p-2 bg-blue-50 rounded mb-2">${message}</div>`;
+        }
+        
+        function clearResults() {
+            document.getElementById('currentStatus').innerHTML = '<div class="text-gray-500">等待檢查...</div>';
+            document.getElementById('sessionsTable').innerHTML = '等待檢查...';
+            document.getElementById('detailedLogs').innerHTML = '等待操作...';
+            logs = [];
+        }
+        
+        async function checkSessions() {
+            addLog('檢查所有會話記錄...');
+            
+            try {
+                await DatabaseManager.initialize();
+                
+                if (!window.supabase) {
+                    addLog('❌ window.supabase 不可用', 'error');
+                    return;
+                }
+                
+                const { data: sessions, error } = await window.supabase
+                    .from('employee_sessions')
+                    .select('*')
+                    .order('login_time', { ascending: false });
+                
+                if (error) {
+                    addLog(`❌ 查詢會話失敗: ${error.message}`, 'error');
+                    return;
+                }
+                
+                addLog(`✅ 找到 ${sessions.length} 個會話記錄`);
+                
+                // 創建表格
+                let tableHtml = `
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 border text-left">會話ID</th>
+                                <th class="px-4 py-2 border text-left">員工ID</th>
+                                <th class="px-4 py-2 border text-left">登入時間</th>
+                                <th class="px-4 py-2 border text-left">最後活動</th>
+                                <th class="px-4 py-2 border text-left">狀態</th>
+                                <th class="px-4 py-2 border text-left">登出時間</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                sessions.forEach(session => {
+                    const isActive = session.is_active;
+                    const statusColor = isActive ? 'text-green-600' : 'text-gray-500';
+                    const rowColor = isActive ? 'bg-green-50' : '';
+                    
+                    tableHtml += `
+                        <tr class="${rowColor}">
+                            <td class="px-4 py-2 border font-mono text-xs">${session.session_id}</td>
+                            <td class="px-4 py-2 border">${session.employee_id}</td>
+                            <td class="px-4 py-2 border text-xs">${new Date(session.login_time).toLocaleString()}</td>
+                            <td class="px-4 py-2 border text-xs">${session.last_activity ? new Date(session.last_activity).toLocaleString() : '無'}</td>
+                            <td class="px-4 py-2 border ${statusColor}">${isActive ? '活躍' : '非活躍'}</td>
+                            <td class="px-4 py-2 border text-xs">${session.logout_time ? new Date(session.logout_time).toLocaleString() : '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHtml += '</tbody></table>';
+                document.getElementById('sessionsTable').innerHTML = tableHtml;
+                
+                // 統計信息
+                const activeSessions = sessions.filter(s => s.is_active);
+                updateStatus(`總會話數: ${sessions.length}`);
+                updateStatus(`活躍會話數: ${activeSessions.length}`);
+                
+                if (activeSessions.length > 0) {
+                    activeSessions.forEach(session => {
+                        addLog(`活躍會話: ${session.session_id} (員工: ${session.employee_id})`);
+                    });
+                }
+                
+            } catch (error) {
+                addLog(`檢查會話時發生錯誤: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkCurrentSession() {
+            addLog('檢查當前會話...');
+            
+            const currentEmployee = localStorage.getItem('currentEmployee');
+            const currentSessionId = localStorage.getItem('currentSessionId');
+            
+            updateStatus(`currentEmployee: ${currentEmployee ? '存在' : '不存在'}`);
+            updateStatus(`currentSessionId: ${currentSessionId || '不存在'}`);
+            
+            if (currentEmployee) {
+                try {
+                    const employee = JSON.parse(currentEmployee);
+                    updateStatus(`員工ID: ${employee.id}`);
+                    updateStatus(`員工姓名: ${employee.name}`);
+                } catch (e) {
+                    addLog('解析員工信息失敗', 'error');
+                }
+            }
+            
+            if (currentSessionId) {
+                try {
+                    await DatabaseManager.initialize();
+                    
+                    const { data: session, error } = await window.supabase
+                        .from('employee_sessions')
+                        .select('*')
+                        .eq('session_id', currentSessionId)
+                        .single();
+                    
+                    if (error) {
+                        addLog(`❌ 查詢當前會話失敗: ${error.message}`, 'error');
+                        updateStatus('當前會話: ❌ 查詢失敗');
+                    } else if (session) {
+                        addLog('✅ 找到當前會話記錄');
+                        updateStatus('當前會話: ✅ 存在於資料庫');
+                        updateStatus(`會話狀態: ${session.is_active ? '活躍' : '非活躍'}`);
+                        updateStatus(`員工ID: ${session.employee_id}`);
+                        updateStatus(`登入時間: ${new Date(session.login_time).toLocaleString()}`);
+                        updateStatus(`最後活動: ${session.last_activity ? new Date(session.last_activity).toLocaleString() : '無記錄'}`);
+                    } else {
+                        addLog('❌ 當前會話不存在於資料庫', 'error');
+                        updateStatus('當前會話: ❌ 不存在於資料庫');
+                    }
+                } catch (error) {
+                    addLog(`檢查當前會話時發生錯誤: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        async function testHeartbeatUpdate() {
+            addLog('測試心跳更新...');
+            
+            const currentSessionId = localStorage.getItem('currentSessionId');
+            if (!currentSessionId) {
+                addLog('❌ 沒有會話ID', 'error');
+                return;
+            }
+            
+            try {
+                await DatabaseManager.initialize();
+                
+                const now = new Date().toLocaleString("sv-SE", {timeZone: "Asia/Taipei"}).replace(" ", "T") + "+08:00";
+                addLog(`會話ID: ${currentSessionId}`);
+                addLog(`更新時間: ${now}`);
+                
+                // 先檢查會話是否存在
+                const { data: existingSession, error: checkError } = await window.supabase
+                    .from('employee_sessions')
+                    .select('*')
+                    .eq('session_id', currentSessionId);
+                
+                addLog(`檢查結果: 找到 ${existingSession?.length || 0} 個匹配的會話`);
+                
+                if (existingSession && existingSession.length > 0) {
+                    addLog(`會話詳情: ${JSON.stringify(existingSession[0])}`);
+                } else {
+                    addLog('❌ 沒有找到匹配的會話記錄', 'error');
+                    return;
+                }
+                
+                // 嘗試更新
+                const { data, error } = await window.supabase
+                    .from('employee_sessions')
+                    .update({ 
+                        last_activity: now
+                    })
+                    .eq('session_id', currentSessionId)
+                    .eq('is_active', true)
+                    .select();
+                
+                addLog(`更新結果: ${JSON.stringify({ data, error })}`);
+                
+                if (error) {
+                    addLog(`❌ 更新失敗: ${error.message}`, 'error');
+                } else {
+                    addLog(`✅ 更新成功，影響 ${data.length} 行`, 'success');
+                    if (data.length === 0) {
+                        addLog('⚠️ 雖然成功但沒有更新任何記錄，可能會話不是活躍狀態', 'error');
+                    }
+                }
+                
+            } catch (error) {
+                addLog(`測試心跳更新時發生錯誤: ${error.message}`, 'error');
+            }
+        }
+        
+        async function createTestSession() {
+            addLog('創建測試會話...');
+            
+            const currentEmployee = localStorage.getItem('currentEmployee');
+            if (!currentEmployee) {
+                addLog('❌ 沒有當前員工信息', 'error');
+                return;
+            }
+            
+            try {
+                const employee = JSON.parse(currentEmployee);
+                const sessionId = 'test_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const now = new Date().toISOString();
+                
+                await DatabaseManager.initialize();
+                
+                const { data, error } = await window.supabase
+                    .from('employee_sessions')
+                    .insert([{
+                        session_id: sessionId,
+                        employee_id: employee.id,
+                        login_time: now,
+                        is_active: true,
+                        device_info: { test: true, userAgent: navigator.userAgent },
+                        last_activity: now
+                    }])
+                    .select();
+                
+                if (error) {
+                    addLog(`❌ 創建測試會話失敗: ${error.message}`, 'error');
+                } else {
+                    addLog(`✅ 測試會話創建成功: ${sessionId}`, 'success');
+                    localStorage.setItem('currentSessionId', sessionId);
+                    addLog('✅ 已更新 localStorage 中的會話ID', 'success');
+                    updateStatus(`新會話ID: ${sessionId}`);
+                }
+                
+            } catch (error) {
+                addLog(`創建測試會話時發生錯誤: ${error.message}`, 'error');
+            }
+        }
+        
+        // 頁面載入時自動檢查
+        document.addEventListener('DOMContentLoaded', async function() {
+            addLog('診斷工具已載入，請選擇操作...');
+        });
+    </script>
+</body>
+</html>
