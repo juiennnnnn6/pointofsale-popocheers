@@ -108,8 +108,34 @@ class EmployeeAuth {
                 deviceInfo: this.getDeviceInfo()
             };
             
-            // 暫時跳過 Supabase 會話儲存（避免 employee_sessions 表問題）
-            console.log('跳過 Supabase 會話儲存，只儲存到本地');
+            // 儲存會話到 Supabase
+            console.log('開始儲存會話到 Supabase...');
+            try {
+                const { data: sessionData, error: sessionError } = await supabase
+                    .from('employee_sessions')
+                    .insert([{
+                        session_id: session.sessionId,
+                        employee_id: normalizedEmployee.id,
+                        login_time: session.loginTime,
+                        is_active: true,
+                        device_info: session.deviceInfo,
+                        last_activity: session.loginTime
+                    }])
+                    .select();
+                
+                if (sessionError) {
+                    console.error('儲存會話到 Supabase 失敗:', sessionError);
+                    console.log('繼續使用本地會話...');
+                } else {
+                    console.log('✅ 會話已成功儲存到 Supabase:', sessionData);
+                    // 儲存會話ID到localStorage，供心跳機制使用
+                    localStorage.setItem('currentSessionId', session.sessionId);
+                    console.log('✅ 會話ID已儲存到localStorage:', session.sessionId);
+                }
+            } catch (error) {
+                console.error('儲存會話時發生錯誤:', error);
+                console.log('繼續使用本地會話...');
+            }
             
             // 儲存到本地
             this.saveSession(session);
