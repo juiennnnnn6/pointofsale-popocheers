@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../database.js"></script>
     <script src="../employee-auth.js"></script>
+    <script src="../heartbeat.js"></script>
     <script src="auth-check.js"></script>
 
     <script>
@@ -33,6 +34,10 @@
             if (!hasPermission) {
                 return; // 權限不足，會顯示錯誤並重定向
             }
+            
+            // 啟動心跳機制
+            console.log('🔄 Reports頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             // 設定預設日期範圍（本月）
             const today = new Date();

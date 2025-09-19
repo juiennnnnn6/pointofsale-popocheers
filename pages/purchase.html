@@ -9,6 +9,7 @@
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
     <script src="../database.js"></script>
+    <script src="../heartbeat.js"></script>
 
     <script>
         // 檢查掃描功能是否載入
@@ -205,6 +206,10 @@
             if (!hasPermission) {
                 return; // 權限不足，會顯示錯誤並重定向
             }
+            
+            // 啟動心跳機制
+            console.log('🔄 Purchase頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             // 載入商品和供應商資料
             await Promise.all([

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="../employee-auth.js"></script>
     <script src="../database.js"></script>
+    <script src="../heartbeat.js"></script>
     <script src="auth-check.js"></script>
     <style>
         .apple-card {
@@ -991,6 +992,10 @@
             if (!hasPermission) {
                 return; // 權限不足，會顯示錯誤並重定向
             }
+            
+            // 啟動心跳機制
+            console.log('🔄 Employees頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             await loadEmployees();
             

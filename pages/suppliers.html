@@ -9,6 +9,7 @@
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
     <script src="../database.js"></script>
+    <script src="../heartbeat.js"></script>
     <style>
         .apple-card {
             background: rgba(255, 255, 255, 0.95);
@@ -239,6 +240,10 @@
             if (!hasPermission) {
                 return; // 權限不足，會顯示錯誤並重定向
             }
+            
+            // 啟動心跳機制
+            console.log('🔄 Suppliers頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             await loadSuppliersData();
             // 初始化時顯示所有供應商

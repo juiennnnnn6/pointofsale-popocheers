@@ -9,6 +9,7 @@
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
     <script src="../database.js"></script>
+    <script src="../heartbeat.js"></script>
 
     <script>
         // 簡單的認證檢查測試
@@ -1377,6 +1378,10 @@
             }
             
             console.log('認證成功，開始初始化頁面');
+            
+            // 啟動心跳機制
+            console.log('🔄 Products頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             // 統一初始化資料庫
             console.log('初始化資料庫...');

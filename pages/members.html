@@ -9,6 +9,7 @@
     <script src="../employee-auth.js"></script>
     <script src="auth-check.js"></script>
     <script src="../database.js"></script>
+    <script src="../heartbeat.js"></script>
     <script>
         // 簡單的認證檢查測試
         console.log('=== members.html 腳本載入測試 ===');
@@ -539,6 +540,10 @@
             if (!hasPermission) {
                 return; // 權限不足，會顯示錯誤並重定向
             }
+            
+            // 啟動心跳機制
+            console.log('🔄 Members頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             await loadMembersData();
             renderMembers();

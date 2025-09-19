@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script src="../employee-auth.js"></script>
+    
+    <script src="../database.js"></script>
+    
+    <script src="../heartbeat.js"></script>
 
     <script src="auth-check.js"></script>
 
@@ -1460,6 +1464,10 @@
                 return; // 如果未通過認證，函數會自動重定向
 
             }
+            
+            // 啟動心跳機制
+            console.log('🔄 Sales頁面：啟動心跳機制');
+            HeartbeatManager.checkAndStart();
             
             // 檢查銷售作業權限
             const hasPermission = await checkPermission(['sales']);
