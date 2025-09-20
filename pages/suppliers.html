@@ -47,9 +47,6 @@
                 <button onclick="showImportModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-file-import mr-2"></i>匯入供應商
                 </button>
-                <button onclick="testButtonClick()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
-                    <i class="fas fa-test mr-2"></i>測試按鈕
-                </button>
             </div>
         </div>
     </div>
@@ -230,26 +227,6 @@
         let currentViewMode = 'grid';
         let filteredSuppliers = [...suppliersData];
 
-        // 測試按鈕功能
-        function testButtonClick() {
-            console.log('🧪 測試按鈕被點擊了！');
-            
-            // 詳細檢查供應商資料
-            console.log('🧪 當前供應商資料數量:', suppliersData.length);
-            if (suppliersData.length > 0) {
-                console.log('🧪 所有供應商資料:', suppliersData);
-                suppliersData.forEach((supplier, index) => {
-                    console.log(`🧪 供應商 ${index + 1}:`, {
-                        name: supplier.name,
-                        number: supplier.number,
-                        numberType: typeof supplier.number,
-                        allFields: Object.keys(supplier)
-                    });
-                });
-            }
-            
-            alert('已在控制台輸出詳細的供應商資料信息，請查看！');
-        }
 
         // 頁面初始化
         document.addEventListener('DOMContentLoaded', async function() {
@@ -321,7 +298,7 @@
                     contact_person: document.getElementById('contactPerson').value,
                     phone: document.getElementById('supplierPhone').value,
                     email: document.getElementById('supplierEmail').value,
-                    addr: document.getElementById('supplierAddress').value, // 注意：資料庫欄位是 addr
+                    address: document.getElementById('supplierAddress').value,
                     notes: document.getElementById('supplierNotes').value
                 };
 
@@ -407,7 +384,7 @@
                 document.getElementById('contactPerson').value = supplier.contact_person || '';
                 document.getElementById('supplierPhone').value = supplier.phone || '';
                 document.getElementById('supplierEmail').value = supplier.email || '';
-                document.getElementById('supplierAddress').value = supplier.addr || ''; // 注意：使用 addr
+                document.getElementById('supplierAddress').value = supplier.addressess || '';
                 document.getElementById('supplierNotes').value = supplier.notes || '';
 
                 // 儲存當前編輯的供應商Number
@@ -495,7 +472,7 @@
                                     (supplier.contact_person && supplier.contact_person.toLowerCase().includes(searchTerm)) ||
                                     (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm)) ||
                                     (supplier.email && supplier.email.toLowerCase().includes(searchTerm)) ||
-                                    (supplier.addr && supplier.addr.toLowerCase().includes(searchTerm));
+                                    (supplier.addressess && supplier.addressess.toLowerCase().includes(searchTerm));
 
                 return matchesSearch;
             });
@@ -552,7 +529,7 @@
                                 </div>
                                 <div>
                                     <p class="text-gray-600"><i class="fas fa-envelope mr-2"></i><strong>電子郵件：</strong>${supplier.email || '未設定'}</p>
-                                    <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i><strong>地址：</strong>${supplier.addr || '未設定'}</p>
+                                    <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i><strong>地址：</strong>${supplier.address || '未設定'}</p>
                                 </div>
                             </div>
                             ${supplier.notes ? `
@@ -604,7 +581,7 @@
                             <p><i class="fas fa-user mr-2"></i>${supplier.contact_person || '未設定'}</p>
                             <p><i class="fas fa-phone mr-2"></i>${supplier.phone || '未設定'}</p>
                             <p><i class="fas fa-envelope mr-2"></i>${supplier.email || '未設定'}</p>
-                            <p><i class="fas fa-map-marker-alt mr-2"></i>${supplier.addr || '未設定'}</p>
+                            <p><i class="fas fa-map-marker-alt mr-2"></i>${supplier.address || '未設定'}</p>
                         </div>
                         <div class="flex justify-end items-center mt-4 pt-4 border-t border-gray-200">
                             <div class="flex space-x-2">

@@ -84,7 +84,7 @@ class DatabaseAPI {
     // 獲取表的主鍵欄位名稱
     static getTablePrimaryKey(tableName) {
         const primaryKeys = {
-            'suppliers': 'number',
+            'suppliers': 'number',  // 確認：Supabase中suppliers表的主鍵是number
             'employees': 'employee_id',
             'products': 'id',
             'categories': 'id',
