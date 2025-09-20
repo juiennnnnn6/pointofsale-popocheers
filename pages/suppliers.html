@@ -298,7 +298,7 @@
                     contact_person: document.getElementById('contactPerson').value,
                     phone: document.getElementById('supplierPhone').value,
                     email: document.getElementById('supplierEmail').value,
-                    address: document.getElementById('supplierAddress').value,
+                    addr: document.getElementById('supplierAddress').value,
                     notes: document.getElementById('supplierNotes').value
                 };
 
@@ -384,7 +384,7 @@
                 document.getElementById('contactPerson').value = supplier.contact_person || '';
                 document.getElementById('supplierPhone').value = supplier.phone || '';
                 document.getElementById('supplierEmail').value = supplier.email || '';
-                document.getElementById('supplierAddress').value = supplier.addressess || '';
+                document.getElementById('supplierAddress').value = supplier.address || supplier.addr || '';
                 document.getElementById('supplierNotes').value = supplier.notes || '';
 
                 // 儲存當前編輯的供應商Number
@@ -472,7 +472,8 @@
                                     (supplier.contact_person && supplier.contact_person.toLowerCase().includes(searchTerm)) ||
                                     (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm)) ||
                                     (supplier.email && supplier.email.toLowerCase().includes(searchTerm)) ||
-                                    (supplier.addressess && supplier.addressess.toLowerCase().includes(searchTerm));
+                                    (supplier.address && supplier.address.toLowerCase().includes(searchTerm)) ||
+                    (supplier.addr && supplier.addr.toLowerCase().includes(searchTerm));
 
                 return matchesSearch;
             });
@@ -529,7 +530,7 @@
                                 </div>
                                 <div>
                                     <p class="text-gray-600"><i class="fas fa-envelope mr-2"></i><strong>電子郵件：</strong>${supplier.email || '未設定'}</p>
-                                    <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i><strong>地址：</strong>${supplier.address || '未設定'}</p>
+                                    <p class="text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i><strong>地址：</strong>${supplier.address || supplier.addr || '未設定'}</p>
                                 </div>
                             </div>
                             ${supplier.notes ? `
@@ -581,7 +582,7 @@
                             <p><i class="fas fa-user mr-2"></i>${supplier.contact_person || '未設定'}</p>
                             <p><i class="fas fa-phone mr-2"></i>${supplier.phone || '未設定'}</p>
                             <p><i class="fas fa-envelope mr-2"></i>${supplier.email || '未設定'}</p>
-                            <p><i class="fas fa-map-marker-alt mr-2"></i>${supplier.address || '未設定'}</p>
+                            <p><i class="fas fa-map-marker-alt mr-2"></i>${supplier.address || supplier.addr || '未設定'}</p>
                         </div>
                         <div class="flex justify-end items-center mt-4 pt-4 border-t border-gray-200">
                             <div class="flex space-x-2">
