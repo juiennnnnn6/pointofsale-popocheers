@@ -233,14 +233,22 @@
         // 測試按鈕功能
         function testButtonClick() {
             console.log('🧪 測試按鈕被點擊了！');
-            alert('測試按鈕功能正常！\n\n這證明頁面的JavaScript和事件綁定都正常工作。\n\n如果編輯/刪除按鈕仍然無法點擊，請檢查：\n1. 按鈕是否被其他元素遮擋\n2. 控制台是否有錯誤信息\n3. 供應商資料是否正確載入');
             
-            // 測試供應商資料
+            // 詳細檢查供應商資料
             console.log('🧪 當前供應商資料數量:', suppliersData.length);
             if (suppliersData.length > 0) {
-                console.log('🧪 第一個供應商:', suppliersData[0]);
-                console.log('🧪 第一個供應商的number:', suppliersData[0].number);
+                console.log('🧪 所有供應商資料:', suppliersData);
+                suppliersData.forEach((supplier, index) => {
+                    console.log(`🧪 供應商 ${index + 1}:`, {
+                        name: supplier.name,
+                        number: supplier.number,
+                        numberType: typeof supplier.number,
+                        allFields: Object.keys(supplier)
+                    });
+                });
             }
+            
+            alert('已在控制台輸出詳細的供應商資料信息，請查看！');
         }
 
         // 頁面初始化
@@ -366,14 +374,29 @@
 
         // 編輯供應商
         function editSupplier(supplierNumber) {
-            console.log('🔧 編輯供應商被點擊，供應商編號:', supplierNumber);
+            console.log('🔧 編輯供應商被點擊，供應商編號:', supplierNumber, '類型:', typeof supplierNumber);
             console.log('🔧 當前供應商資料:', suppliersData);
             
-            const supplier = suppliersData.find(s => s.number === supplierNumber);
+            // 嘗試不同的比較方式
+            let supplier = suppliersData.find(s => s.number === supplierNumber);
+            
+            // 如果沒找到，嘗試轉換類型後比較
+            if (!supplier) {
+                console.log('🔧 嘗試字串比較...');
+                supplier = suppliersData.find(s => String(s.number) === String(supplierNumber));
+            }
+            
+            // 如果還沒找到，嘗試數字比較
+            if (!supplier) {
+                console.log('🔧 嘗試數字比較...');
+                supplier = suppliersData.find(s => Number(s.number) === Number(supplierNumber));
+            }
+            
             console.log('🔧 找到的供應商:', supplier);
             
             if (!supplier) {
                 console.error('❌ 找不到供應商編號:', supplierNumber);
+                console.log('🔧 可用的供應商編號:', suppliersData.map(s => ({number: s.number, type: typeof s.number})));
                 showNotification('找不到該供應商資料', 'error');
                 return;
             }
@@ -400,14 +423,29 @@
 
         // 刪除供應商
         async function deleteSupplier(supplierNumber) {
-            console.log('🗑️ 刪除供應商被點擊，供應商編號:', supplierNumber);
+            console.log('🗑️ 刪除供應商被點擊，供應商編號:', supplierNumber, '類型:', typeof supplierNumber);
             console.log('🗑️ 當前供應商資料:', suppliersData);
             
-            const supplier = suppliersData.find(s => s.number === supplierNumber);
+            // 嘗試不同的比較方式
+            let supplier = suppliersData.find(s => s.number === supplierNumber);
+            
+            // 如果沒找到，嘗試轉換類型後比較
+            if (!supplier) {
+                console.log('🗑️ 嘗試字串比較...');
+                supplier = suppliersData.find(s => String(s.number) === String(supplierNumber));
+            }
+            
+            // 如果還沒找到，嘗試數字比較
+            if (!supplier) {
+                console.log('🗑️ 嘗試數字比較...');
+                supplier = suppliersData.find(s => Number(s.number) === Number(supplierNumber));
+            }
+            
             console.log('🗑️ 找到的供應商:', supplier);
             
             if (!supplier) {
                 console.error('❌ 找不到供應商編號:', supplierNumber);
+                console.log('🗑️ 可用的供應商編號:', suppliersData.map(s => ({number: s.number, type: typeof s.number})));
                 showNotification('找不到該供應商資料', 'error');
                 return;
             }
