@@ -510,36 +510,22 @@
             if (!loginTime) return '從未登入';
             
             try {
-                // 處理不同的時間格式
-                let loginDate;
+                // 簡化的時間處理 - 讓 JavaScript 自動處理大部分格式
+                let loginDate = new Date(loginTime);
                 
-                if (typeof loginTime === 'string') {
-                    // 修復不規範的時間格式
-                    let normalizedTime = loginTime;
-                    
-                    // 處理 "2025-09-19 14:29:15+00" 格式
-                    if (normalizedTime.includes('+00') && !normalizedTime.includes('T')) {
-                        normalizedTime = normalizedTime.replace(' ', 'T') + ':00.000Z';
+                // 如果直接解析失敗，嘗試修復格式
+                if (isNaN(loginDate.getTime()) && typeof loginTime === 'string') {
+                    // 處理 "2025-09-19 14:29:15+00" 這種格式
+                    if (loginTime.includes(' ') && loginTime.includes('+00')) {
+                        const fixedTime = loginTime.replace(' ', 'T') + ':00.000Z';
+                        loginDate = new Date(fixedTime);
+                        console.log('修復時間格式:', loginTime, '→', fixedTime);
                     }
-                    // 處理 "2025-09-19 14:29:15+00:00" 格式
-                    else if (normalizedTime.includes('+00:00') && !normalizedTime.includes('T')) {
-                        normalizedTime = normalizedTime.replace(' ', 'T').replace('+00:00', '.000Z');
-                    }
-                    // 處理其他不規範的UTC格式
-                    else if (normalizedTime.includes('+00') && normalizedTime.includes('T')) {
-                        normalizedTime = normalizedTime.replace('+00:00', '.000Z').replace('+00', '.000Z');
-                    }
-                    
-                    console.log('時間格式修復:', { 原始: loginTime, 修復後: normalizedTime });
-                    
-                    loginDate = new Date(normalizedTime);
-                } else {
-                    loginDate = new Date(loginTime);
                 }
                 
-                // 檢查日期是否有效
+                // 最終檢查
                 if (isNaN(loginDate.getTime())) {
-                    console.error('無效的登入時間格式:', loginTime);
+                    console.error('無法解析時間:', loginTime);
                     return '時間格式錯誤';
                 }
                 
@@ -549,13 +535,14 @@
                 const diffHours = Math.floor(diffMins / 60);
                 const diffDays = Math.floor(diffHours / 24);
                 
-                // 調試信息
-                console.log('時間格式化調試:', {
-                    原始時間: loginTime,
-                    解析後: loginDate.toISOString(),
-                    本地時間: loginDate.toLocaleString('zh-TW'),
-                    時間差分鐘: diffMins
-                });
+                // 簡化的調試信息
+                if (diffMins < 0) {
+                    console.warn('未來時間警告:', {
+                        原始: loginTime,
+                        解析後: loginDate.toString(),
+                        時間差: diffMins
+                    });
+                }
                 
                 if (diffMins < 1) return '剛剛';
                 if (diffMins < 60) return `${diffMins}分鐘前`;
@@ -567,13 +554,12 @@
                     month: 'short',
                     day: 'numeric',
                     hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'Asia/Taipei'  // 確保顯示台灣時間
+                    minute: '2-digit'
                 });
                 
             } catch (error) {
-                console.error('格式化登入時間時發生錯誤:', error, '原始時間:', loginTime);
-                return '時間解析錯誤';
+                console.error('格式化時間錯誤:', error, '時間:', loginTime);
+                return '解析錯誤';
             }
         }
 
