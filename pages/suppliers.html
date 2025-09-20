@@ -47,6 +47,9 @@
                 <button onclick="showImportModal()" class="bg-[#17225e] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1a2a6e] transition-colors">
                     <i class="fas fa-file-import mr-2"></i>匯入供應商
                 </button>
+                <button onclick="testButtonClick()" class="bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition-colors">
+                    <i class="fas fa-test mr-2"></i>測試按鈕
+                </button>
             </div>
         </div>
     </div>
@@ -227,6 +230,19 @@
         let currentViewMode = 'grid';
         let filteredSuppliers = [...suppliersData];
 
+        // 測試按鈕功能
+        function testButtonClick() {
+            console.log('🧪 測試按鈕被點擊了！');
+            alert('測試按鈕功能正常！\n\n這證明頁面的JavaScript和事件綁定都正常工作。\n\n如果編輯/刪除按鈕仍然無法點擊，請檢查：\n1. 按鈕是否被其他元素遮擋\n2. 控制台是否有錯誤信息\n3. 供應商資料是否正確載入');
+            
+            // 測試供應商資料
+            console.log('🧪 當前供應商資料數量:', suppliersData.length);
+            if (suppliersData.length > 0) {
+                console.log('🧪 第一個供應商:', suppliersData[0]);
+                console.log('🧪 第一個供應商的number:', suppliersData[0].number);
+            }
+        }
+
         // 頁面初始化
         document.addEventListener('DOMContentLoaded', async function() {
             // 進行權限檢查
@@ -350,32 +366,60 @@
 
         // 編輯供應商
         function editSupplier(supplierNumber) {
+            console.log('🔧 編輯供應商被點擊，供應商編號:', supplierNumber);
+            console.log('🔧 當前供應商資料:', suppliersData);
+            
             const supplier = suppliersData.find(s => s.number === supplierNumber);
-            if (!supplier) return;
+            console.log('🔧 找到的供應商:', supplier);
+            
+            if (!supplier) {
+                console.error('❌ 找不到供應商編號:', supplierNumber);
+                showNotification('找不到該供應商資料', 'error');
+                return;
+            }
 
-            document.getElementById('modalTitle').textContent = '編輯供應商';
-            document.getElementById('supplierName').value = supplier.name || '';
-            document.getElementById('contactPerson').value = supplier.contact_person || '';
-            document.getElementById('supplierPhone').value = supplier.phone || '';
-            document.getElementById('supplierEmail').value = supplier.email || '';
-            document.getElementById('supplierAddress').value = supplier.addr || ''; // 注意：使用 addr
-            document.getElementById('supplierNotes').value = supplier.notes || '';
+            try {
+                document.getElementById('modalTitle').textContent = '編輯供應商';
+                document.getElementById('supplierName').value = supplier.name || '';
+                document.getElementById('contactPerson').value = supplier.contact_person || '';
+                document.getElementById('supplierPhone').value = supplier.phone || '';
+                document.getElementById('supplierEmail').value = supplier.email || '';
+                document.getElementById('supplierAddress').value = supplier.addr || ''; // 注意：使用 addr
+                document.getElementById('supplierNotes').value = supplier.notes || '';
 
-            // 儲存當前編輯的供應商Number
-            document.getElementById('supplierForm').dataset.editingId = supplierNumber;
-            document.getElementById('addSupplierModal').classList.remove('hidden');
+                // 儲存當前編輯的供應商Number
+                document.getElementById('supplierForm').dataset.editingId = supplierNumber;
+                document.getElementById('addSupplierModal').classList.remove('hidden');
+                
+                console.log('✅ 編輯模態框已開啟');
+            } catch (error) {
+                console.error('❌ 開啟編輯模態框時發生錯誤:', error);
+                showNotification('開啟編輯介面失敗', 'error');
+            }
         }
 
         // 刪除供應商
         async function deleteSupplier(supplierNumber) {
+            console.log('🗑️ 刪除供應商被點擊，供應商編號:', supplierNumber);
+            console.log('🗑️ 當前供應商資料:', suppliersData);
+            
             const supplier = suppliersData.find(s => s.number === supplierNumber);
-            if (!supplier) return;
+            console.log('🗑️ 找到的供應商:', supplier);
+            
+            if (!supplier) {
+                console.error('❌ 找不到供應商編號:', supplierNumber);
+                showNotification('找不到該供應商資料', 'error');
+                return;
+            }
 
             if (confirm(`確定要刪除供應商 "${supplier.name}" 嗎？此操作無法復原。`)) {
                 try {
+                    console.log('🗑️ 開始刪除供應商...');
                     const success = await BusinessAPI.deleteSupplier(supplierNumber);
+                    console.log('🗑️ 刪除結果:', success);
                     
                     if (success) {
+                        console.log('✅ 供應商刪除成功，重新載入資料...');
                         await loadSuppliersData();
                         filteredSuppliers = [...suppliersData];
                         
@@ -384,12 +428,15 @@
                         
                         showNotification('供應商刪除成功！', 'success');
                     } else {
+                        console.error('❌ 刪除供應商失敗');
                         showNotification('刪除供應商失敗，請檢查資料庫連接', 'error');
                     }
                 } catch (error) {
-                    console.error('刪除供應商時發生錯誤:', error);
+                    console.error('❌ 刪除供應商時發生錯誤:', error);
                     showNotification('刪除供應商失敗: ' + error.message, 'error');
                 }
+            } else {
+                console.log('🗑️ 用戶取消刪除操作');
             }
         }
 
@@ -448,11 +495,15 @@
                             <div class="flex items-center justify-between mb-3">
                                 <h4 class="text-lg font-semibold text-gray-800">${supplier.name}</h4>
                                 <div class="flex space-x-2">
-                                    <button onclick="editSupplier('${supplier.number}')" class="text-[#17225e] hover:text-[#1a2a6e]">
-                                        <i class="fas fa-edit"></i>
+                                    <button onclick="editSupplier('${supplier.number}')" 
+                                            class="px-3 py-2 text-[#17225e] hover:text-[#1a2a6e] hover:bg-blue-50 rounded transition-colors"
+                                            title="編輯供應商">
+                                        <i class="fas fa-edit mr-1"></i>編輯
                                     </button>
-                                    <button onclick="deleteSupplier('${supplier.number}')" class="text-red-500 hover:text-red-700">
-                                        <i class="fas fa-trash"></i>
+                                    <button onclick="deleteSupplier('${supplier.number}')" 
+                                            class="px-3 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                            title="刪除供應商">
+                                        <i class="fas fa-trash mr-1"></i>刪除
                                     </button>
                                 </div>
                             </div>
@@ -519,11 +570,15 @@
                         </div>
                         <div class="flex justify-end items-center mt-4 pt-4 border-t border-gray-200">
                             <div class="flex space-x-2">
-                                <button onclick="editSupplier('${supplier.number}')" class="text-[#17225e] hover:text-[#1a2a6e]">
-                                    <i class="fas fa-edit"></i>
+                                <button onclick="editSupplier('${supplier.number}')" 
+                                        class="px-3 py-2 text-[#17225e] hover:text-[#1a2a6e] hover:bg-blue-50 rounded transition-colors"
+                                        title="編輯供應商">
+                                    <i class="fas fa-edit mr-1"></i>編輯
                                 </button>
-                                <button onclick="deleteSupplier('${supplier.number}')" class="text-red-500 hover:text-red-700">
-                                    <i class="fas fa-trash"></i>
+                                <button onclick="deleteSupplier('${supplier.number}')" 
+                                        class="px-3 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                        title="刪除供應商">
+                                    <i class="fas fa-trash mr-1"></i>刪除
                                 </button>
                             </div>
                         </div>
@@ -540,12 +595,16 @@
                                 <h4 class="font-semibold text-gray-800">${supplier.name}</h4>
                                 <p class="text-sm text-gray-600">${supplier.contact_person || '未設定聯絡人'} • ${supplier.phone || '未設定電話'}</p>
                             </div>
-                            <div class="flex items-center space-x-4">
-                                <button onclick="editSupplier('${supplier.number}')" class="text-[#17225e] hover:text-[#1a2a6e]">
-                                    <i class="fas fa-edit"></i>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="editSupplier('${supplier.number}')" 
+                                        class="px-3 py-2 text-[#17225e] hover:text-[#1a2a6e] hover:bg-blue-50 rounded transition-colors"
+                                        title="編輯供應商">
+                                    <i class="fas fa-edit mr-1"></i>編輯
                                 </button>
-                                <button onclick="deleteSupplier('${supplier.number}')" class="text-red-500 hover:text-red-700">
-                                    <i class="fas fa-trash"></i>
+                                <button onclick="deleteSupplier('${supplier.number}')" 
+                                        class="px-3 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                        title="刪除供應商">
+                                    <i class="fas fa-trash mr-1"></i>刪除
                                 </button>
                             </div>
                         </div>
