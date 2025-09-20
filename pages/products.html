@@ -551,7 +551,7 @@
         } else if (supplier) {
             // 如果 supplier 是數字，轉換為整數後查找
             const supplierId = parseInt(supplier);
-            selectedSupplier = suppliersData.find(s => s.id === supplierId);
+            selectedSupplier = suppliersData.find(s => s.number === supplierId);
         }
         
         if (!selectedSupplier) {
@@ -1329,7 +1329,7 @@
                     contact_person: document.getElementById('contactPerson').value,
                     phone: document.getElementById('supplierPhone').value,
                     email: document.getElementById('supplierEmail').value,
-                    address: document.getElementById('supplierAddress').value,
+                    addr: document.getElementById('supplierAddress').value, // 注意：資料庫欄位是 addr
                     notes: document.getElementById('supplierNotes').value
                 };
 

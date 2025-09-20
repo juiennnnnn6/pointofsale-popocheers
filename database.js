@@ -81,13 +81,33 @@ class DatabaseAPI {
         }
     }
     
+    // 獲取表的主鍵欄位名稱
+    static getTablePrimaryKey(tableName) {
+        const primaryKeys = {
+            'suppliers': 'number',
+            'employees': 'employee_id',
+            'products': 'id',
+            'categories': 'id',
+            'sales_history': 'id',
+            'purchase_history': 'id',
+            'refunds': 'id',
+            'members': 'id',
+            'coupons': 'id',
+            'employee_sessions': 'id'
+        };
+        return primaryKeys[tableName] || 'id';
+    }
+
     // 更新資料
     static async updateData(tableName, id, data) {
         try {
+            const primaryKey = this.getTablePrimaryKey(tableName);
+            console.log(`更新${tableName}資料，使用主鍵: ${primaryKey}, 值: ${id}`);
+            
             const { data: result, error } = await supabase
                 .from(tableName)
                 .update(data)
-                .eq('id', id)
+                .eq(primaryKey, id)
                 .select();
             
             if (error) {
@@ -111,19 +131,20 @@ class DatabaseAPI {
                 return false;
             }
             
-            console.log(`嘗試刪除 ${tableName} 中的記錄，ID: ${id}`);
+            const primaryKey = this.getTablePrimaryKey(tableName);
+            console.log(`嘗試刪除 ${tableName} 中的記錄，使用主鍵: ${primaryKey}, 值: ${id}`);
             
             const { error } = await supabase
                 .from(tableName)
                 .delete()
-                .eq('id', id);
+                .eq(primaryKey, id);
             
             if (error) {
                 console.error(`刪除${tableName}資料失敗:`, error);
                 return false;
             }
             
-            console.log(`成功刪除 ${tableName} 中的記錄，ID: ${id}`);
+            console.log(`成功刪除 ${tableName} 中的記錄，主鍵: ${primaryKey}, 值: ${id}`);
             return true;
         } catch (error) {
             console.error(`刪除${tableName}資料時發生錯誤:`, error);
