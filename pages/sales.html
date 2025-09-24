@@ -1961,45 +1961,48 @@
                     `;
                 });
             } else {
-                // 固定金額折扣：選取的商品總共折價固定金額
+                // 固定金額折扣：直接從選取商品總價扣除固定金額
                 const totalOriginalValue = selectedItems.reduce((sum, item) => {
                     return sum + (item.originalPrice || item.price) * item.quantity;
                 }, 0);
                 
-                let remainingDiscount = discountValue;
-                let actualTotalDiscount = 0;
+                // 檢查折扣金額是否超過總價
+                const actualDiscount = Math.min(discountValue, totalOriginalValue);
+                const totalAfterDiscount = totalOriginalValue - actualDiscount;
                 
-                // 按商品價值比例分配折扣
-                selectedItems.forEach((item, index) => {
+                // 計算折扣比例，用於按比例降低每個商品的價格
+                const discountRatio = totalAfterDiscount / totalOriginalValue;
+                
+                selectedItems.forEach(item => {
                     const originalPrice = item.originalPrice || item.price;
-                    const itemValue = originalPrice * item.quantity;
-                    
-                    let itemDiscount;
-                    if (index === selectedItems.length - 1) {
-                        // 最後一項商品承擔剩餘的折扣，確保總折扣精確
-                        itemDiscount = remainingDiscount;
-                    } else {
-                        // 按比例分配折扣
-                        const discountRatio = itemValue / totalOriginalValue;
-                        itemDiscount = Math.round(discountValue * discountRatio);
-                        remainingDiscount -= itemDiscount;
-                    }
-                    
-                    // 計算每件商品的折扣金額
-                    const perItemDiscount = Math.floor(itemDiscount / item.quantity);
-                    const newPrice = Math.max(0, originalPrice - perItemDiscount);
-                    const actualItemDiscount = (originalPrice - newPrice) * item.quantity;
-                    actualTotalDiscount += actualItemDiscount;
+                    const newPrice = Math.floor(originalPrice * discountRatio);
                     
                     previewHtml += `
                         <div class="flex justify-between text-sm">
                             <span>${item.name} (${item.quantity}件)</span>
-                            <span>NT$${originalPrice.toLocaleString()} → NT$${newPrice.toLocaleString()} (折${actualItemDiscount}元)</span>
+                            <span>NT$${originalPrice.toLocaleString()} → NT$${newPrice.toLocaleString()}</span>
                         </div>
                     `;
                 });
                 
-                totalDiscount = actualTotalDiscount;
+                previewHtml += `
+                    <div class="mt-2 p-2 bg-blue-50 rounded text-sm">
+                        <div class="flex justify-between">
+                            <span>選取商品原價：</span>
+                            <span>NT$${totalOriginalValue.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between font-semibold text-blue-600">
+                            <span>固定折扣：</span>
+                            <span>-NT$${actualDiscount.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between font-semibold">
+                            <span>折扣後價格：</span>
+                            <span>NT$${totalAfterDiscount.toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+                
+                totalDiscount = actualDiscount;
             }
             
             previewHtml += `
@@ -2058,15 +2061,19 @@
                     cartItem.total = cartItem.quantity * newPrice;
                 });
             } else {
-                // 固定金額折扣：選取的商品總共折價固定金額
+                // 固定金額折扣：直接從選取商品總價扣除固定金額
                 const totalOriginalValue = selectedItems.reduce((sum, item) => {
                     return sum + (item.originalPrice || item.price) * item.quantity;
                 }, 0);
                 
-                let remainingDiscount = discountValue;
+                // 檢查折扣金額是否超過總價
+                const actualDiscount = Math.min(discountValue, totalOriginalValue);
+                const totalAfterDiscount = totalOriginalValue - actualDiscount;
                 
-                // 按商品價值比例分配折扣
-                selectedItems.forEach((item, index) => {
+                // 計算折扣比例，用於按比例降低每個商品的價格
+                const discountRatio = totalAfterDiscount / totalOriginalValue;
+                
+                selectedItems.forEach(item => {
                     const cartItem = cart[item.index];
                     
                     // 確保有originalPrice屬性
@@ -2075,22 +2082,7 @@
                     }
                     
                     const originalPrice = cartItem.originalPrice;
-                    const itemValue = originalPrice * item.quantity;
-                    
-                    let itemDiscount;
-                    if (index === selectedItems.length - 1) {
-                        // 最後一項商品承擔剩餘的折扣，確保總折扣精確
-                        itemDiscount = remainingDiscount;
-                    } else {
-                        // 按比例分配折扣
-                        const discountRatio = itemValue / totalOriginalValue;
-                        itemDiscount = Math.round(discountValue * discountRatio);
-                        remainingDiscount -= itemDiscount;
-                    }
-                    
-                    // 計算每件商品的折扣金額
-                    const perItemDiscount = Math.floor(itemDiscount / item.quantity);
-                    const newPrice = Math.max(0, originalPrice - perItemDiscount);
+                    const newPrice = Math.floor(originalPrice * discountRatio);
                     
                     cartItem.price = newPrice;
                     cartItem.total = cartItem.quantity * newPrice;
