@@ -1966,23 +1966,40 @@
                     return sum + (item.originalPrice || item.price) * item.quantity;
                 }, 0);
                 
+                let remainingDiscount = discountValue;
+                let actualTotalDiscount = 0;
+                
                 // 按商品價值比例分配折扣
-                selectedItems.forEach(item => {
+                selectedItems.forEach((item, index) => {
                     const originalPrice = item.originalPrice || item.price;
                     const itemValue = originalPrice * item.quantity;
-                    const discountRatio = itemValue / totalOriginalValue;
-                    const itemDiscount = Math.floor(discountValue * discountRatio);
-                    const newPrice = Math.max(0, originalPrice - Math.floor(itemDiscount / item.quantity));
+                    
+                    let itemDiscount;
+                    if (index === selectedItems.length - 1) {
+                        // 最後一項商品承擔剩餘的折扣，確保總折扣精確
+                        itemDiscount = remainingDiscount;
+                    } else {
+                        // 按比例分配折扣
+                        const discountRatio = itemValue / totalOriginalValue;
+                        itemDiscount = Math.round(discountValue * discountRatio);
+                        remainingDiscount -= itemDiscount;
+                    }
+                    
+                    // 計算每件商品的折扣金額
+                    const perItemDiscount = Math.floor(itemDiscount / item.quantity);
+                    const newPrice = Math.max(0, originalPrice - perItemDiscount);
+                    const actualItemDiscount = (originalPrice - newPrice) * item.quantity;
+                    actualTotalDiscount += actualItemDiscount;
                     
                     previewHtml += `
                         <div class="flex justify-between text-sm">
                             <span>${item.name} (${item.quantity}件)</span>
-                            <span>NT$${originalPrice.toLocaleString()} → NT$${newPrice.toLocaleString()}</span>
+                            <span>NT$${originalPrice.toLocaleString()} → NT$${newPrice.toLocaleString()} (折${actualItemDiscount}元)</span>
                         </div>
                     `;
                 });
                 
-                totalDiscount = discountValue;
+                totalDiscount = actualTotalDiscount;
             }
             
             previewHtml += `
@@ -2046,8 +2063,10 @@
                     return sum + (item.originalPrice || item.price) * item.quantity;
                 }, 0);
                 
+                let remainingDiscount = discountValue;
+                
                 // 按商品價值比例分配折扣
-                selectedItems.forEach(item => {
+                selectedItems.forEach((item, index) => {
                     const cartItem = cart[item.index];
                     
                     // 確保有originalPrice屬性
@@ -2057,9 +2076,21 @@
                     
                     const originalPrice = cartItem.originalPrice;
                     const itemValue = originalPrice * item.quantity;
-                    const discountRatio = itemValue / totalOriginalValue;
-                    const itemDiscount = Math.floor(discountValue * discountRatio);
-                    const newPrice = Math.max(0, originalPrice - Math.floor(itemDiscount / item.quantity));
+                    
+                    let itemDiscount;
+                    if (index === selectedItems.length - 1) {
+                        // 最後一項商品承擔剩餘的折扣，確保總折扣精確
+                        itemDiscount = remainingDiscount;
+                    } else {
+                        // 按比例分配折扣
+                        const discountRatio = itemValue / totalOriginalValue;
+                        itemDiscount = Math.round(discountValue * discountRatio);
+                        remainingDiscount -= itemDiscount;
+                    }
+                    
+                    // 計算每件商品的折扣金額
+                    const perItemDiscount = Math.floor(itemDiscount / item.quantity);
+                    const newPrice = Math.max(0, originalPrice - perItemDiscount);
                     
                     cartItem.price = newPrice;
                     cartItem.total = cartItem.quantity * newPrice;
