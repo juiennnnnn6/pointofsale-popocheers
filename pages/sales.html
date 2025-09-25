@@ -218,6 +218,12 @@
         // 生成唯一收據號碼
         async function generateUniqueReceiptNumber() {
             try {
+                // 優先使用頁面上已經生成的訂單編號
+                if (window.currentOrderNumber) {
+                    console.log('使用頁面訂單編號作為收據編號:', window.currentOrderNumber);
+                    return window.currentOrderNumber;
+                }
+                
                 if (!supabase) {
                     const initSuccess = await initSupabase();
                     if (!initSuccess) {
@@ -6168,6 +6174,9 @@
                            Math.floor(Math.random() * 100).toString().padStart(2, '0');
 
             document.getElementById('orderNumber').textContent = orderNum;
+            
+            // 將訂單編號存儲到全局變量，供收據生成使用
+            window.currentOrderNumber = orderNum;
 
             
 
