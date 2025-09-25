@@ -3961,13 +3961,13 @@
             let saleInfo = `銷售記錄詳情：\n`;
                             saleInfo += `收據號碼：${saleRecord.receiptNumber}\n`;
             saleInfo += `銷售日期：${new Date(saleRecord.date).toLocaleString('zh-TW')}\n`;
-            saleInfo += `總金額：NT$${saleRecord.total.toLocaleString()}\n`;
+            saleInfo += `總金額：NT$${(saleRecord.total || 0).toLocaleString()}\n`;
             saleInfo += `付款方式：${saleRecord.paymentMethod}\n`;
             saleInfo += `收銀員：${saleRecord.cashier}\n\n`;
             
             saleInfo += `商品明細：\n`;
             saleRecord.items.forEach((item, index) => {
-                saleInfo += `${index + 1}. ${item.product_name || item.name} ${item.variant || ''} x${item.quantity} NT$${item.total.toLocaleString()}\n`;
+                saleInfo += `${index + 1}. ${item.product_name || item.name} ${item.variant || ''} x${item.quantity} NT$${(item.total || 0).toLocaleString()}\n`;
             });
             
             if (saleRecord.member) {
@@ -4130,7 +4130,7 @@
                     // 生成並顯示退貨單
                     generateRefundReceipt(refundRecord);
                     
-                    alert(`退貨處理完成！\n退貨單號：${refundNumber}\n退款金額：NT$${saleRecord.total.toLocaleString()}\n${restoreInventory ? '庫存已恢復' : '庫存未變動'}${saleRecord.member ? '\n會員消費金額已回滾' : ''}`);
+                    alert(`退貨處理完成！\n退貨單號：${refundNumber}\n退款金額：NT$${(saleRecord.total || 0).toLocaleString()}\n${restoreInventory ? '庫存已恢復' : '庫存未變動'}${saleRecord.member ? '\n會員消費金額已回滾' : ''}`);
                 } else {
                     alert('退貨記錄保存失敗，請重試或聯繫管理員。');
                 }
@@ -4553,7 +4553,7 @@
                 itemsHtml += `
                     <div class="row">
                         <span class="item-name">${item.product_name || item.name}</span>
-                        <span class="item-price">NT$${(item.total_price || item.total).toLocaleString()}</span>
+                        <span class="item-price">NT$${(item.total_price || item.total || 0).toLocaleString()}</span>
                     </div>
                     <div class="row small">
                         <span class="item-details">規格：${item.product_variant || item.variant || '無'}</span>
@@ -4562,7 +4562,7 @@
                         <span class="item-details">編號：${item.barcode || item.id || '無'}</span>
                     </div>
                     <div class="row small">
-                        <span class="item-details">${item.quantity} x NT$${(item.unit_price || item.price).toLocaleString()}</span>
+                        <span class="item-details">${item.quantity} x NT$${(item.unit_price || item.price || 0).toLocaleString()}</span>
                     </div>
                     <div class="line"></div>
                 `;
@@ -5415,7 +5415,7 @@
 
                         <span class="item-name">${item.product_name || item.name}</span>
 
-                        <span class="item-price">NT$${(item.total_price || item.total).toLocaleString()}</span>
+                        <span class="item-price">NT$${(item.total_price || item.total || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -5433,7 +5433,7 @@
 
                     <div class="row small">
 
-                        <span class="item-details">${item.quantity} x NT$${(item.unit_price || item.price).toLocaleString()}</span>
+                        <span class="item-details">${item.quantity} x NT$${(item.unit_price || item.price || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -5507,7 +5507,7 @@
 
                         <span class="item-name">小計</span>
 
-                        <span class="item-price">NT$${saleRecord.subtotal.toLocaleString()}</span>
+                        <span class="item-price">NT$${(saleRecord.subtotal || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -5564,7 +5564,7 @@
 
                         <span class="item-name">折扣金額</span>
 
-                        <span class="item-price">-NT$${saleRecord.couponDiscount.toLocaleString()}</span>
+                        <span class="item-price">-NT$${(saleRecord.couponDiscount || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -5586,7 +5586,7 @@
 
                         <span>總計</span>
 
-                        <span>NT$${saleRecord.total.toLocaleString()}</span>
+                        <span>NT$${(saleRecord.total || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -5608,7 +5608,7 @@
 
                         <span class="item-name">收到金額</span>
 
-                        <span class="item-price">NT$${saleRecord.receivedAmount.toLocaleString()}</span>
+                        <span class="item-price">NT$${(saleRecord.receivedAmount || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -5616,7 +5616,7 @@
 
                         <span class="item-name">找零</span>
 
-                        <span class="item-price">NT$${saleRecord.change.toLocaleString()}</span>
+                        <span class="item-price">NT$${(saleRecord.change || 0).toLocaleString()}</span>
 
                     </div>
 
@@ -6071,7 +6071,7 @@
                         <p class="text-sm text-gray-600">單價：NT$${item.price.toLocaleString()}</p>
 
                             `}
-                        <p class="font-bold text-orange-600">NT$${item.total.toLocaleString()}</p>
+                        <p class="font-bold text-orange-600">NT$${(item.total || 0).toLocaleString()}</p>
 
                     </div>
 
