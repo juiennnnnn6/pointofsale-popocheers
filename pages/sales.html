@@ -625,15 +625,7 @@
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">快速功能</h3>
 
-                <div class="grid grid-cols-2 gap-3">
-
-                    <button id="discountBtn" class="flex flex-col items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-
-                        <i class="fas fa-percentage text-[#17225e] mb-1"></i>
-
-                        <span class="text-xs">折扣</span>
-
-                    </button>
+                <div class="grid grid-cols-1 gap-3">
 
                     <button id="couponBtn" class="flex flex-col items-center p-3 bg-gray-200 rounded-lg cursor-not-allowed opacity-50" disabled>
 
@@ -1567,8 +1559,6 @@
 
 
             // 快速功能事件監聽
-
-            document.getElementById('discountBtn').addEventListener('click', applyDiscount);
 
             // document.getElementById('couponBtn').addEventListener('click', applyCoupon); // 優惠券功能已禁用
 
@@ -2842,43 +2832,17 @@
 
 
 
-        // 1. 折扣功能
-
-        function applyDiscount() {
-
-            if (cart.length === 0) {
-
-                alert('購物車為空，請先添加商品');
-
-                return;
-
-            }
 
 
 
-            const discountOptions = [
-
-                { name: '全購物車9折', value: 0.9, type: 'all' },
-                { name: '全購物車8折', value: 0.8, type: 'all' },
-                { name: '全購物車7折', value: 0.7, type: 'all' },
-                { name: '全購物車5折', value: 0.5, type: 'all' },
-                { name: '選取品項折扣', value: 0, type: 'selected' }
-            ];
 
 
 
-            let optionsText = '選擇折扣：\n';
 
-            discountOptions.forEach((option, index) => {
-
-                optionsText += `${index + 1}. ${option.name}\n`;
-
-            });
 
 
 
             const choice = prompt(optionsText + '請輸入數字 (1-5):');
-            const selectedIndex = parseInt(choice) - 1;
 
 
 
@@ -2919,8 +2883,6 @@
                     // 開啟選取品項折扣視窗
                     showItemDiscountModal();
             }
-        }
-
         }
 
 
@@ -3996,7 +3958,6 @@
             });
 
             const choice = prompt(optionsText + '請輸入數字 (1-5):');
-            const selectedIndex = parseInt(choice) - 1;
 
             if (selectedIndex >= 0 && selectedIndex < refundOptions.length) {
                 const reason = refundOptions[selectedIndex];
