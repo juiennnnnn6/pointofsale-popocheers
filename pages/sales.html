@@ -2440,23 +2440,23 @@
             
             appliedDiscounts.forEach(discount => {
                 if (discount.scope === 'all') {
-                    // 整筆折扣
-                    const subtotal = cart.reduce((sum, item) => sum + (item.originalPrice || item.price) * item.quantity, 0);
+                    // 整筆折扣 - 基於原始價格計算
+                    const originalSubtotal = cart.reduce((sum, item) => sum + (item.originalPrice || item.price) * item.quantity, 0);
                     if (discount.type === 'percentage') {
-                        totalDiscount += subtotal * (discount.value / 100);
+                        totalDiscount += originalSubtotal * (discount.value / 100);
                     } else {
-                        totalDiscount += Math.min(discount.value, subtotal);
+                        totalDiscount += Math.min(discount.value, originalSubtotal);
                     }
                 } else {
-                    // 指定品項折扣
+                    // 指定品項折扣 - 基於原始價格計算
                     discount.appliedItems.forEach(itemIndex => {
                         const item = cart[itemIndex];
                         if (item) {
-                            const itemTotal = (item.originalPrice || item.price) * item.quantity;
+                            const itemOriginalTotal = (item.originalPrice || item.price) * item.quantity;
                             if (discount.type === 'percentage') {
-                                totalDiscount += itemTotal * (discount.value / 100);
+                                totalDiscount += itemOriginalTotal * (discount.value / 100);
                             } else {
-                                totalDiscount += Math.min(discount.value, itemTotal);
+                                totalDiscount += Math.min(discount.value, itemOriginalTotal);
                             }
                         }
                     });
@@ -2649,8 +2649,9 @@
             
             
             // 商品售價已包含5%營業稅，無需額外計算
-
-            const total = subtotal - couponDiscount - newDiscountAmount;
+            // 計算總折扣金額，確保不超過小計
+            const totalDiscountAmount = couponDiscount + newDiscountAmount;
+            const finalTotal = Math.max(0, subtotal - totalDiscountAmount);
 
 
             // 更新顯示
@@ -2659,7 +2660,7 @@
 
             totalAmountElements.forEach(element => {
 
-                element.textContent = `NT$${total.toLocaleString()}`;
+                element.textContent = `NT$${finalTotal.toLocaleString()}`;
 
             });
 
@@ -2712,7 +2713,7 @@
             
             
 
-            return { subtotal, memberDiscount: 0, couponDiscount, tax: 0, total };
+            return { subtotal, memberDiscount: 0, couponDiscount, newDiscountAmount, tax: 0, total: finalTotal };
         }
 
 
@@ -6303,6 +6304,10 @@
                 if (confirm('確定要清空購物車嗎？')) {
 
                     cart = [];
+                    
+                    // 清空所有折扣
+                    appliedDiscounts = [];
+                    updateDiscountDisplay();
 
                     updateCartDisplay();
 
