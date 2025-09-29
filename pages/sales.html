@@ -780,8 +780,29 @@
                             <span class="text-[#17225e]" id="couponDiscountAmount">-NT$0</span>
 
                         </div>
+                        
+                        <div class="flex justify-between text-sm" id="newDiscountRow" style="display: none;">
 
+                            <span class="text-gray-600">折扣優惠：</span>
 
+                            <span class="text-[#17225e]" id="newDiscountAmount">-NT$0</span>
+
+                        </div>
+                        
+                        <!-- 折扣管理區域 -->
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-semibold text-gray-800 text-sm">折扣管理</h4>
+                                <button onclick="showAddDiscountModal()" class="bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600 text-xs">
+                                    <i class="fas fa-plus mr-1"></i>新增折扣
+                                </button>
+                            </div>
+                            
+                            <!-- 已套用折扣列表 -->
+                            <div id="appliedDiscounts" class="space-y-2">
+                                <p class="text-gray-500 text-xs">目前沒有套用任何折扣</p>
+                            </div>
+                        </div>
 
                         <hr class="border-gray-200">
 
@@ -980,8 +1001,71 @@
                 <button onclick="closeItemDiscountModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                     取消
                 </button>
-                <button onclick="applyItemDiscount()" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
+                <button onclick="applySelectedItemDiscount()" class="px-4 py-2 bg-[#17225e] text-white rounded-lg hover:bg-[#1a2a6e] transition-colors">
                     套用折扣
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 新增折扣彈窗 -->
+    <div id="addDiscountModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">新增折扣</h3>
+                <button onclick="closeAddDiscountModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- 折扣名稱 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">折扣名稱</label>
+                <input type="text" id="discountName" placeholder="例如：玻璃杯九折" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            
+            <!-- 折扣類型 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">折扣類型</label>
+                <select id="newDiscountType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="percentage">百分比折扣</option>
+                    <option value="fixed">固定金額折扣</option>
+                </select>
+            </div>
+            
+            <!-- 折扣值 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">折扣值</label>
+                <div class="flex items-center space-x-2">
+                    <input type="number" id="newDiscountValue" min="0" step="0.01" 
+                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <span id="newDiscountUnit" class="text-sm text-gray-600 w-8">%</span>
+                </div>
+            </div>
+            
+            <!-- 套用範圍 -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">套用範圍</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="discountScope" value="all" checked class="mr-2 text-blue-500">
+                        <span class="text-sm">整筆折扣（套用到所有商品）</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="discountScope" value="selected" class="mr-2 text-blue-500">
+                        <span class="text-sm">指定品項折扣（選擇特定商品）</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 按鈕 -->
+            <div class="flex space-x-3">
+                <button onclick="closeAddDiscountModal()" class="flex-1 bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                    取消
+                </button>
+                <button onclick="addDiscount()" class="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    新增折扣
                 </button>
             </div>
         </div>
@@ -1422,6 +1506,22 @@
         // 當前優惠券
 
         let currentCoupon = null;
+        
+        // 折扣管理
+        let appliedDiscounts = [];
+        
+        // 折扣類別
+        class Discount {
+            constructor(name, type, value, scope, appliedItems = []) {
+                this.id = 'discount_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                this.name = name;
+                this.type = type;           // 'percentage' 或 'fixed'
+                this.value = value;
+                this.scope = scope;          // 'all' 或 'selected'
+                this.appliedItems = appliedItems;
+                this.createdAt = new Date().toISOString();
+            }
+        }
 
 
 
@@ -2130,6 +2230,242 @@
             }
         }
 
+        // ==================== 新折扣管理系統 ====================
+        
+        // 顯示新增折扣彈窗
+        function showAddDiscountModal() {
+            // 重置表單
+            document.getElementById('discountName').value = '';
+            document.getElementById('newDiscountType').value = 'percentage';
+            document.getElementById('newDiscountValue').value = '';
+            document.querySelector('input[name="discountScope"][value="all"]').checked = true;
+            updateDiscountUnit();
+            
+            // 顯示彈窗
+            document.getElementById('addDiscountModal').classList.remove('hidden');
+            
+            // 添加事件監聽器
+            document.getElementById('newDiscountType').addEventListener('change', updateDiscountUnit);
+        }
+        
+        // 關閉新增折扣彈窗
+        function closeAddDiscountModal() {
+            document.getElementById('addDiscountModal').classList.add('hidden');
+        }
+        
+        // 更新折扣單位顯示
+        function updateDiscountUnit() {
+            const type = document.getElementById('newDiscountType').value;
+            const unit = document.getElementById('newDiscountUnit');
+            unit.textContent = type === 'percentage' ? '%' : '元';
+        }
+        
+        // 新增折扣
+        function addDiscount() {
+            const name = document.getElementById('discountName').value.trim();
+            const type = document.getElementById('newDiscountType').value;
+            const value = parseFloat(document.getElementById('newDiscountValue').value) || 0;
+            const scope = document.querySelector('input[name="discountScope"]:checked').value;
+            
+            // 驗證輸入
+            if (!name) {
+                alert('請輸入折扣名稱');
+                return;
+            }
+            
+            if (!value || value <= 0) {
+                alert('請輸入有效的折扣值');
+                return;
+            }
+            
+            if (type === 'percentage' && value >= 100) {
+                alert('百分比折扣不能超過100%');
+                return;
+            }
+            
+            // 如果是選定品項，需要先選擇商品
+            let appliedItems = [];
+            if (scope === 'selected') {
+                // 顯示商品選擇彈窗
+                showItemSelectionForDiscount(name, type, value);
+                return;
+            }
+            
+            // 創建折扣物件
+            const discount = new Discount(name, type, value, scope, appliedItems);
+            appliedDiscounts.push(discount);
+            
+            // 更新顯示
+            updateDiscountDisplay();
+            updateCartDisplay();
+            closeAddDiscountModal();
+            
+            console.log('新增折扣:', discount);
+        }
+        
+        // 顯示商品選擇彈窗（用於指定品項折扣）
+        function showItemSelectionForDiscount(discountName, discountType, discountValue) {
+            // 關閉新增折扣彈窗
+            closeAddDiscountModal();
+            
+            // 創建臨時變數存儲折扣資訊
+            window.tempDiscountInfo = { discountName, discountType, discountValue };
+            
+            // 顯示商品選擇彈窗
+            const modal = document.getElementById('itemDiscountModal');
+            const itemsContainer = document.getElementById('cartItemsForDiscount');
+            
+            // 清空容器
+            itemsContainer.innerHTML = '';
+            
+            // 添加購物車商品
+            cart.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors';
+                itemDiv.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" id="item-${index}" class="item-checkbox w-4 h-4 text-[#17225e] border-gray-300 rounded focus:ring-[#17225e]">
+                        <img src="${item.image}" alt="${item.name}" class="w-12 h-12 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h5 class="font-semibold text-gray-800">${item.name}</h5>
+                            <p class="text-sm text-gray-600">規格：${item.variant}</p>
+                            <p class="text-sm text-gray-500">數量：${item.quantity}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-600">原價：NT$${item.originalPrice ? item.originalPrice.toLocaleString() : item.price.toLocaleString()}</p>
+                            <p class="font-bold text-[#17225e]">現價：NT$${item.price.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+                itemsContainer.appendChild(itemDiv);
+            });
+            
+            // 更新彈窗標題
+            modal.querySelector('h3').textContent = `選擇商品 - ${discountName}`;
+            
+            // 顯示彈窗
+            modal.classList.remove('hidden');
+        }
+        
+        // 套用指定品項折扣
+        function applySelectedItemDiscount() {
+            if (!window.tempDiscountInfo) {
+                alert('折扣資訊遺失，請重新操作');
+                return;
+            }
+            
+            const { discountName, discountType, discountValue } = window.tempDiscountInfo;
+            
+            // 獲取選中的商品
+            const selectedItems = [];
+            document.querySelectorAll('.item-checkbox:checked').forEach((checkbox) => {
+                const itemIndex = parseInt(checkbox.id.split('-')[1]);
+                if (cart[itemIndex]) {
+                    selectedItems.push(itemIndex);
+                }
+            });
+            
+            if (selectedItems.length === 0) {
+                alert('請選擇要套用折扣的商品');
+                return;
+            }
+            
+            // 創建折扣物件
+            const discount = new Discount(discountName, discountType, discountValue, 'selected', selectedItems);
+            appliedDiscounts.push(discount);
+            
+            // 更新顯示
+            updateDiscountDisplay();
+            updateCartDisplay();
+            closeItemDiscountModal();
+            
+            // 清除臨時變數
+            window.tempDiscountInfo = null;
+            
+            console.log('新增指定品項折扣:', discount);
+        }
+        
+        // 移除折扣
+        function removeDiscount(discountId) {
+            if (confirm('確定要移除這個折扣嗎？')) {
+                appliedDiscounts = appliedDiscounts.filter(d => d.id !== discountId);
+                updateDiscountDisplay();
+                updateCartDisplay();
+                console.log('移除折扣:', discountId);
+            }
+        }
+        
+        // 更新折扣顯示
+        function updateDiscountDisplay() {
+            const container = document.getElementById('appliedDiscounts');
+            if (!container) return;
+            
+            if (appliedDiscounts.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-xs">目前沒有套用任何折扣</p>';
+                return;
+            }
+            
+            let html = '';
+            appliedDiscounts.forEach(discount => {
+                const discountText = discount.type === 'percentage' 
+                    ? `${discount.value}%` 
+                    : `NT$${discount.value.toLocaleString()}`;
+                
+                const scopeText = discount.scope === 'all' ? '整筆' : '指定品項';
+                const scopeIcon = discount.scope === 'all' ? 'fas fa-shopping-cart' : 'fas fa-list';
+                
+                html += `
+                    <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div class="flex items-center space-x-2">
+                            <i class="${scopeIcon} text-blue-600 text-xs"></i>
+                            <div>
+                                <div class="font-medium text-blue-800 text-sm">${discount.name}</div>
+                                <div class="text-xs text-blue-600">${scopeText} - ${discountText}</div>
+                            </div>
+                        </div>
+                        <button onclick="removeDiscount('${discount.id}')" 
+                                class="text-red-500 hover:text-red-700 text-sm">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 計算總折扣金額
+        function calculateTotalDiscounts() {
+            let totalDiscount = 0;
+            
+            appliedDiscounts.forEach(discount => {
+                if (discount.scope === 'all') {
+                    // 整筆折扣
+                    const subtotal = cart.reduce((sum, item) => sum + (item.originalPrice || item.price) * item.quantity, 0);
+                    if (discount.type === 'percentage') {
+                        totalDiscount += subtotal * (discount.value / 100);
+                    } else {
+                        totalDiscount += Math.min(discount.value, subtotal);
+                    }
+                } else {
+                    // 指定品項折扣
+                    discount.appliedItems.forEach(itemIndex => {
+                        const item = cart[itemIndex];
+                        if (item) {
+                            const itemTotal = (item.originalPrice || item.price) * item.quantity;
+                            if (discount.type === 'percentage') {
+                                totalDiscount += itemTotal * (discount.value / 100);
+                            } else {
+                                totalDiscount += Math.min(discount.value, itemTotal);
+                            }
+                        }
+                    });
+                }
+            });
+            
+            return Math.floor(totalDiscount);
+        }
+
         // 全域變數：儲存當前查詢的商品資料
         let currentProductData = {};
 
@@ -2303,12 +2639,18 @@
 
                 couponDiscount = calculateCouponDiscount(currentCoupon, subtotal);
             }
+            
+            // 計算新折扣系統的折扣
+            let newDiscountAmount = 0;
+            if (appliedDiscounts.length > 0) {
+                newDiscountAmount = calculateTotalDiscounts();
+            }
 
             
             
             // 商品售價已包含5%營業稅，無需額外計算
 
-            const total = subtotal - couponDiscount;
+            const total = subtotal - couponDiscount - newDiscountAmount;
 
 
             // 更新顯示
@@ -2353,6 +2695,19 @@
 
                 }
 
+            }
+            
+            // 新折扣系統顯示
+            const newDiscountEl = document.getElementById('newDiscountAmount');
+            const newDiscountRow = document.getElementById('newDiscountRow');
+            
+            if (newDiscountEl && newDiscountRow) {
+                if (appliedDiscounts.length > 0 && newDiscountAmount > 0) {
+                    newDiscountEl.textContent = `-NT$${newDiscountAmount.toLocaleString()}`;
+                    newDiscountRow.style.display = 'flex';
+                } else {
+                    newDiscountRow.style.display = 'none';
+                }
             }
             
             
