@@ -2150,18 +2150,21 @@
                         totalDiscount += Math.min(discount.value, originalSubtotal);
                     }
                 } else {
-                    // 指定品項折扣 - 基於原始價格計算
-                    discount.appliedItems.forEach(itemIndex => {
+                    // 指定品項折扣 - 基於所有選中商品的原始價格總和計算
+                    const selectedItemsTotal = discount.appliedItems.reduce((sum, itemIndex) => {
                         const item = cart[itemIndex];
                         if (item) {
-                            const itemOriginalTotal = (item.originalPrice || item.price) * item.quantity;
-                            if (discount.type === 'percentage') {
-                                totalDiscount += itemOriginalTotal * (discount.value / 100);
-                            } else {
-                                totalDiscount += Math.min(discount.value, itemOriginalTotal);
-                            }
+                            return sum + (item.originalPrice || item.price) * item.quantity;
                         }
-                    });
+                        return sum;
+                    }, 0);
+                    
+                    if (discount.type === 'percentage') {
+                        totalDiscount += selectedItemsTotal * (discount.value / 100);
+                    } else {
+                        // 固定金額折扣：基於所有選中商品的總價
+                        totalDiscount += Math.min(discount.value, selectedItemsTotal);
+                    }
                 }
             });
             
