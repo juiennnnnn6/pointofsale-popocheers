@@ -4679,7 +4679,6 @@
 
 
         // 銷售記錄
-
         let salesHistory = [];
         let refundHistory = []; // 新增退貨記錄陣列
         let receiptNumber = parseInt(localStorage.getItem('lastReceiptNumber')) || 1000;
@@ -5685,14 +5684,19 @@
         // 顯示銷售記錄
 
         async function showSalesHistory() {
-            // 重新載入銷售和退貨記錄
-            await loadSalesHistoryFromSupabase();
-            await loadRefundHistoryFromSupabase();
+            try {
+                // 重新載入銷售和退貨記錄
+                await loadSalesHistoryFromSupabase();
+                await loadRefundHistoryFromSupabase();
 
-            if (salesHistory.length === 0 && refundHistory.length === 0) {
-                alert('目前沒有交易記錄');
-                return;
-            }
+                // 確保變數已正確初始化
+                const currentSalesHistory = salesHistory || [];
+                const currentRefundHistory = refundHistory || [];
+
+                if (currentSalesHistory.length === 0 && currentRefundHistory.length === 0) {
+                    alert('目前沒有交易記錄');
+                    return;
+                }
 
             let historyHtml = '<h3>交易記錄</h3><table border="1" cellpadding="5" cellspacing="0">';
             historyHtml += '<tr><th>單據號</th><th>類型</th><th>日期</th><th>金額</th><th>狀態</th><th>操作</th></tr>';
@@ -5700,13 +5704,13 @@
             // 合併銷售和退貨記錄，按日期排序
             let allRecords = [];
             
-            // 添加銷售記錄
-            for (const record of salesHistory.slice(0, 20)) {
-                // 檢查該銷售記錄是否有退貨（添加錯誤處理）
-                let hasRefund = false;
-                let refundCount = 0;
-                
-                try {
+                // 添加銷售記錄
+                for (const record of currentSalesHistory.slice(0, 20)) {
+                    // 檢查該銷售記錄是否有退貨（添加錯誤處理）
+                    let hasRefund = false;
+                    let refundCount = 0;
+                    
+                    try {
                     const existingRefunds = await checkRefundStatus(record.id);
                     hasRefund = existingRefunds && existingRefunds.length > 0;
                     refundCount = hasRefund ? existingRefunds.length : 0;
@@ -5730,8 +5734,8 @@
                 });
             }
             
-            // 添加退貨記錄
-            refundHistory.slice(0, 20).forEach(record => {
+                // 添加退貨記錄
+                currentRefundHistory.slice(0, 20).forEach(record => {
                 allRecords.push({
                     ...record,
                     type: '退貨',
@@ -5803,6 +5807,11 @@
                 </html>
             `);
             historyWindow.document.close();
+            
+            } catch (error) {
+                console.error('顯示銷售記錄時發生錯誤:', error);
+                alert('載入交易記錄時發生錯誤，請稍後再試');
+            }
         }
 
 
@@ -5818,10 +5827,12 @@
 
         // 查看退貨詳情
         async function showRefundDetail(refundNumber) {
-            // 重新載入退貨記錄以確保資料最新
-            await loadRefundHistoryFromSupabase();
+            try {
+                // 重新載入退貨記錄以確保資料最新
+                await loadRefundHistoryFromSupabase();
 
-            const record = refundHistory.find(refund => refund.refundNumber === refundNumber);
+                const currentRefundHistory = refundHistory || [];
+                const record = currentRefundHistory.find(refund => refund.refundNumber === refundNumber);
 
             if (record) {
                 // 載入詳細資料
@@ -5847,8 +5858,12 @@
                 // 生成退貨單
                 generateRefundReceipt(record);
 
-            } else {
-                alert('找不到對應的退貨記錄');
+                } else {
+                    alert('找不到對應的退貨記錄');
+                }
+            } catch (error) {
+                console.error('顯示退貨詳情時發生錯誤:', error);
+                alert('載入退貨詳情時發生錯誤，請稍後再試');
             }
         }
 
@@ -5859,13 +5874,16 @@
                 // 重新載入銷售記錄以確保資料最新
                 await loadSalesHistoryFromSupabase();
 
+                // 確保變數已正確初始化
+                const currentSalesHistory = salesHistory || [];
+                
                 // 將 receiptNumber 轉換為數字進行比較
                 const receiptNumberInt = parseInt(receiptNumber);
                 console.log('查找收據號碼:', receiptNumber, '轉換為:', receiptNumberInt);
-                console.log('可用的銷售記錄:', salesHistory.map(sale => sale.receiptNumber));
+                console.log('可用的銷售記錄:', currentSalesHistory.map(sale => sale.receiptNumber));
 
                 // 使用更靈活的比較邏輯
-                const record = salesHistory.find(sale => 
+                const record = currentSalesHistory.find(sale => 
                     sale.receiptNumber === receiptNumberInt || 
                     sale.receiptNumber === parseInt(receiptNumber) ||
                     sale.receiptNumber.toString() === receiptNumber.toString()
