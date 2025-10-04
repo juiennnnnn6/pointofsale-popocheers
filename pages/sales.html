@@ -2845,48 +2845,6 @@
 
 
 
-            const choice = prompt(optionsText + '請輸入數字 (1-5):');
-
-
-
-            if (selectedIndex >= 0 && selectedIndex < discountOptions.length) {
-
-                const discount = discountOptions[selectedIndex];
-                
-                
-
-                if (discount.type === 'all') {
-                // 對所有商品應用折扣
-
-                cart.forEach(item => {
-
-                    // 確保有originalPrice屬性
-
-                    if (!item.originalPrice) {
-
-                        item.originalPrice = item.price;
-
-                    }
-
-                    
-                    
-                    item.price = Math.floor(item.originalPrice * discount.value);
-
-                    item.total = item.quantity * item.price;
-
-                });
-
-
-
-                updateCartDisplay();
-
-                alert(`已應用${discount.name}折扣`);
-
-                } else if (discount.type === 'selected') {
-                    // 開啟選取品項折扣視窗
-                    showItemDiscountModal();
-            }
-        }
 
 
 
@@ -4678,10 +4636,10 @@
 
 
 
-        // 銷售記錄
-        let salesHistory = [];
-        let refundHistory = []; // 新增退貨記錄陣列
-        let receiptNumber = parseInt(localStorage.getItem('lastReceiptNumber')) || 1000;
+        // 銷售記錄 - 使用 var 避免 temporal dead zone 問題
+        var salesHistory = [];
+        var refundHistory = []; // 新增退貨記錄陣列
+        var receiptNumber = parseInt(localStorage.getItem('lastReceiptNumber')) || 1000;
 
         // 從 Supabase 載入退貨記錄
         async function loadRefundHistoryFromSupabase() {
