@@ -480,6 +480,22 @@
                 // 確保資料庫已初始化
                 await DatabaseManager.initialize();
                 
+                console.log('🔍 檢查表是否存在...');
+                
+                // 先檢查表是否存在，使用一個簡單的查詢
+                const { data: testData, error: testError } = await supabase
+                    .from('purchase_history')
+                    .select('*')
+                    .limit(1);
+                
+                if (testError) {
+                    console.error('purchase_history 表不存在或無法訪問:', testError);
+                    console.log('🔍 跳過進貨記錄檢查，直接允許刪除');
+                    return false; // 表不存在，沒有相關記錄
+                }
+                
+                console.log('✅ purchase_history 表存在，檢查相關記錄...');
+                
                 // 檢查進貨記錄
                 const { data: purchaseRecords, error } = await supabase
                     .from('purchase_history')

@@ -524,7 +524,18 @@ class BusinessAPI {
     
     static async deleteSupplier(id) {
         try {
-            // 先檢查是否有相關記錄
+            // 先檢查 purchase_history 表是否存在
+            const { data: testData, error: testError } = await supabase
+                .from('purchase_history')
+                .select('*')
+                .limit(1);
+            
+            if (testError) {
+                console.log('purchase_history 表不存在，直接刪除供應商');
+                return await DatabaseAPI.deleteData('suppliers', id);
+            }
+            
+            // 表存在，檢查是否有相關記錄
             const { data: purchaseRecords, error: checkError } = await supabase
                 .from('purchase_history')
                 .select('id')
@@ -533,12 +544,13 @@ class BusinessAPI {
             
             if (checkError) {
                 console.error('檢查供應商相關記錄失敗:', checkError);
-                return false;
+                // 即使檢查失敗，也嘗試直接刪除
+                return await DatabaseAPI.deleteData('suppliers', id);
             }
             
             // 如果有相關記錄，先更新進貨記錄中的供應商信息
             if (purchaseRecords && purchaseRecords.length > 0) {
-                console.log(`發現 ${purchaseRecords.length} 筆相關進貨記錄，更新為"已刪除供應商"`);
+                console.log(`發現相關進貨記錄，更新為"已刪除供應商"`);
                 
                 const { error: updateError } = await supabase
                     .from('purchase_history')
@@ -550,7 +562,7 @@ class BusinessAPI {
                 
                 if (updateError) {
                     console.error('更新進貨記錄失敗:', updateError);
-                    return false;
+                    // 即使更新失敗，也嘗試直接刪除
                 }
             }
             
