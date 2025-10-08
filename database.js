@@ -545,10 +545,48 @@ class BusinessAPI {
                 return false;
             }
             
-            // 如果有商品引用此供應商，先更新商品記錄
+            // 如果有商品引用此供應商，需要先創建一個特殊的"已刪除供應商"記錄
             if (productRecords && productRecords.length > 0) {
-                console.log(`發現 ${productRecords.length} 個商品引用此供應商，更新為"已刪除供應商"`);
+                console.log(`發現 ${productRecords.length} 個商品引用此供應商`);
                 
+                // 檢查是否已經存在"已刪除供應商"記錄
+                const { data: deletedSupplier, error: deletedCheckError } = await supabase
+                    .from('suppliers')
+                    .select('number')
+                    .eq('name', '已刪除供應商')
+                    .single();
+                
+                let deletedSupplierId;
+                if (deletedCheckError || !deletedSupplier) {
+                    // 創建"已刪除供應商"記錄
+                    console.log('創建"已刪除供應商"記錄...');
+                    const { data: newSupplier, error: createError } = await supabase
+                        .from('suppliers')
+                        .insert([{
+                            number: 999999, // 使用一個特殊編號
+                            name: '已刪除供應商',
+                            contact_person: '',
+                            phone: '',
+                            email: '',
+                            address: '',
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (createError) {
+                        console.error('創建"已刪除供應商"記錄失敗:', createError);
+                        return false;
+                    }
+                    
+                    deletedSupplierId = newSupplier.number;
+                } else {
+                    deletedSupplierId = deletedSupplier.number;
+                }
+                
+                // 更新商品記錄中的供應商名稱
+                console.log('更新商品記錄中的供應商...');
                 const { error: updateError } = await supabase
                     .from('products')
                     .update({ 
@@ -560,6 +598,8 @@ class BusinessAPI {
                     console.error('更新商品記錄失敗:', updateError);
                     return false;
                 }
+                
+                console.log('商品記錄更新成功');
             }
             
             // 檢查 purchase_history 表是否存在
