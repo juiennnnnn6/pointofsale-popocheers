@@ -524,49 +524,77 @@ class BusinessAPI {
     
     static async deleteSupplier(id) {
         try {
-            // 先檢查 purchase_history 表是否存在
+            // 獲取供應商信息（用於更新商品記錄）
+            const { data: supplierData, error: supplierError } = await supabase
+                .from('suppliers')
+                .select('name')
+                .eq('number', id)
+                .single();
+            
+            const supplierName = supplierData?.name || '未知供應商';
+            
+            // 檢查 products 表中是否有引用此供應商的商品
+            const { data: productRecords, error: productCheckError } = await supabase
+                .from('products')
+                .select('id')
+                .eq('supplier', supplierName)
+                .limit(1);
+            
+            if (productCheckError) {
+                console.error('檢查商品相關記錄失敗:', productCheckError);
+                return false;
+            }
+            
+            // 如果有商品引用此供應商，先更新商品記錄
+            if (productRecords && productRecords.length > 0) {
+                console.log(`發現 ${productRecords.length} 個商品引用此供應商，更新為"已刪除供應商"`);
+                
+                const { error: updateError } = await supabase
+                    .from('products')
+                    .update({ 
+                        supplier: '已刪除供應商'
+                    })
+                    .eq('supplier', supplierName);
+                
+                if (updateError) {
+                    console.error('更新商品記錄失敗:', updateError);
+                    return false;
+                }
+            }
+            
+            // 檢查 purchase_history 表是否存在
             const { data: testData, error: testError } = await supabase
                 .from('purchase_history')
                 .select('*')
                 .limit(1);
             
-            if (testError) {
-                console.log('purchase_history 表不存在，直接刪除供應商');
-                return await DatabaseAPI.deleteData('suppliers', id);
-            }
-            
-            // 表存在，檢查是否有相關記錄
-            const { data: purchaseRecords, error: checkError } = await supabase
-                .from('purchase_history')
-                .select('id')
-                .eq('supplier_id', id)
-                .limit(1);
-            
-            if (checkError) {
-                console.error('檢查供應商相關記錄失敗:', checkError);
-                // 即使檢查失敗，也嘗試直接刪除
-                return await DatabaseAPI.deleteData('suppliers', id);
-            }
-            
-            // 如果有相關記錄，先更新進貨記錄中的供應商信息
-            if (purchaseRecords && purchaseRecords.length > 0) {
-                console.log(`發現相關進貨記錄，更新為"已刪除供應商"`);
-                
-                const { error: updateError } = await supabase
+            if (!testError) {
+                // 表存在，檢查是否有相關進貨記錄
+                const { data: purchaseRecords, error: checkError } = await supabase
                     .from('purchase_history')
-                    .update({ 
-                        supplier_id: 'deleted_supplier',
-                        supplier_name: '已刪除供應商'
-                    })
-                    .eq('supplier_id', id);
+                    .select('id')
+                    .eq('supplier_id', id)
+                    .limit(1);
                 
-                if (updateError) {
-                    console.error('更新進貨記錄失敗:', updateError);
-                    // 即使更新失敗，也嘗試直接刪除
+                if (!checkError && purchaseRecords && purchaseRecords.length > 0) {
+                    console.log(`發現相關進貨記錄，更新為"已刪除供應商"`);
+                    
+                    const { error: updateError } = await supabase
+                        .from('purchase_history')
+                        .update({ 
+                            supplier_id: 'deleted_supplier',
+                            supplier_name: '已刪除供應商'
+                        })
+                        .eq('supplier_id', id);
+                    
+                    if (updateError) {
+                        console.error('更新進貨記錄失敗:', updateError);
+                        // 即使更新失敗，也嘗試直接刪除
+                    }
                 }
             }
             
-            // 然後刪除供應商
+            // 最後刪除供應商
             return await DatabaseAPI.deleteData('suppliers', id);
         } catch (error) {
             console.error('刪除供應商時發生錯誤:', error);

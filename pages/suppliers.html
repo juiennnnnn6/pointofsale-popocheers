@@ -480,38 +480,64 @@
                 // 確保資料庫已初始化
                 await DatabaseManager.initialize();
                 
-                console.log('🔍 檢查表是否存在...');
+                // 獲取供應商名稱
+                const { data: supplierData, error: supplierError } = await supabase
+                    .from('suppliers')
+                    .select('name')
+                    .eq('number', supplierNumber)
+                    .single();
                 
-                // 先檢查表是否存在，使用一個簡單的查詢
+                if (supplierError) {
+                    console.error('獲取供應商信息失敗:', supplierError);
+                    return false;
+                }
+                
+                const supplierName = supplierData?.name;
+                console.log(`🔍 檢查供應商 "${supplierName}" 的相關記錄...`);
+                
+                // 檢查 products 表中是否有引用此供應商的商品
+                const { data: productRecords, error: productError } = await supabase
+                    .from('products')
+                    .select('id')
+                    .eq('supplier', supplierName)
+                    .limit(1);
+                
+                if (productError) {
+                    console.error('檢查商品記錄失敗:', productError);
+                    return false;
+                }
+                
+                const hasProductRecords = productRecords && productRecords.length > 0;
+                console.log(`🔍 供應商 "${supplierName}" 商品記錄: ${productRecords ? productRecords.length : 0} 筆`);
+                
+                // 檢查 purchase_history 表是否存在
                 const { data: testData, error: testError } = await supabase
                     .from('purchase_history')
                     .select('*')
                     .limit(1);
                 
-                if (testError) {
-                    console.error('purchase_history 表不存在或無法訪問:', testError);
-                    console.log('🔍 跳過進貨記錄檢查，直接允許刪除');
-                    return false; // 表不存在，沒有相關記錄
+                let hasPurchaseRecords = false;
+                if (!testError) {
+                    console.log('✅ purchase_history 表存在，檢查相關記錄...');
+                    
+                    // 檢查進貨記錄
+                    const { data: purchaseRecords, error: purchaseError } = await supabase
+                        .from('purchase_history')
+                        .select('id')
+                        .eq('supplier_id', supplierNumber)
+                        .limit(1);
+                    
+                    if (!purchaseError) {
+                        hasPurchaseRecords = purchaseRecords && purchaseRecords.length > 0;
+                        console.log(`🔍 供應商 ${supplierNumber} 進貨記錄: ${purchaseRecords ? purchaseRecords.length : 0} 筆`);
+                    } else {
+                        console.log('🔍 跳過進貨記錄檢查');
+                    }
+                } else {
+                    console.log('🔍 purchase_history 表不存在，跳過進貨記錄檢查');
                 }
                 
-                console.log('✅ purchase_history 表存在，檢查相關記錄...');
-                
-                // 檢查進貨記錄
-                const { data: purchaseRecords, error } = await supabase
-                    .from('purchase_history')
-                    .select('id')
-                    .eq('supplier_id', supplierNumber)
-                    .limit(1);
-                
-                if (error) {
-                    console.error('檢查進貨記錄失敗:', error);
-                    return false;
-                }
-                
-                const hasPurchaseRecords = purchaseRecords && purchaseRecords.length > 0;
-                console.log(`🔍 供應商 ${supplierNumber} 進貨記錄: ${purchaseRecords ? purchaseRecords.length : 0} 筆`);
-                
-                return hasPurchaseRecords;
+                return hasProductRecords || hasPurchaseRecords;
             } catch (error) {
                 console.error('檢查供應商相關記錄時發生錯誤:', error);
                 return false;
