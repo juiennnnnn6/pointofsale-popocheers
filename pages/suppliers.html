@@ -427,31 +427,78 @@
                 return;
             }
 
-            if (confirm(`確定要刪除供應商 "${supplier.name}" 嗎？此操作無法復原。`)) {
-                try {
-                    console.log('🗑️ 開始刪除供應商...');
-                    const success = await BusinessAPI.deleteSupplier(supplierNumber);
-                    console.log('🗑️ 刪除結果:', success);
-                    
-                    if (success) {
-                        console.log('✅ 供應商刪除成功，重新載入資料...');
-                        await loadSuppliersData();
-                        filteredSuppliers = [...suppliersData];
-                        
-                        renderSuppliers();
-                        updateStatistics();
-                        
-                        showNotification('供應商刪除成功！', 'success');
-                    } else {
-                        console.error('❌ 刪除供應商失敗');
-                        showNotification('刪除供應商失敗，請檢查資料庫連接', 'error');
-                    }
-                } catch (error) {
-                    console.error('❌ 刪除供應商時發生錯誤:', error);
-                    showNotification('刪除供應商失敗: ' + error.message, 'error');
+            // 檢查是否有相關記錄
+            console.log('🔍 檢查供應商相關記錄...');
+            const hasRelatedRecords = await checkSupplierRelatedRecords(supplierNumber);
+            
+            if (hasRelatedRecords) {
+                const action = confirm(
+                    `供應商 "${supplier.name}" 有相關的進貨記錄。\n\n` +
+                    `選擇：\n` +
+                    `• 確定 = 強制刪除（會保留進貨記錄但供應商名稱會顯示為"已刪除供應商"）\n` +
+                    `• 取消 = 取消刪除操作`
+                );
+                
+                if (!action) {
+                    console.log('🗑️ 用戶取消刪除操作');
+                    return;
                 }
             } else {
-                console.log('🗑️ 用戶取消刪除操作');
+                if (!confirm(`確定要刪除供應商 "${supplier.name}" 嗎？此操作無法復原。`)) {
+                    console.log('🗑️ 用戶取消刪除操作');
+                    return;
+                }
+            }
+            
+            try {
+                console.log('🗑️ 開始刪除供應商...');
+                const success = await BusinessAPI.deleteSupplier(supplierNumber);
+                console.log('🗑️ 刪除結果:', success);
+                
+                if (success) {
+                    console.log('✅ 供應商刪除成功，重新載入資料...');
+                    await loadSuppliersData();
+                    filteredSuppliers = [...suppliersData];
+                    
+                    renderSuppliers();
+                    updateStatistics();
+                    
+                    showNotification('供應商刪除成功！', 'success');
+                } else {
+                    console.error('❌ 刪除供應商失敗');
+                    showNotification('刪除供應商失敗，請檢查資料庫連接', 'error');
+                }
+            } catch (error) {
+                console.error('❌ 刪除供應商時發生錯誤:', error);
+                showNotification('刪除供應商失敗: ' + error.message, 'error');
+            }
+        }
+
+        // 檢查供應商是否有相關記錄
+        async function checkSupplierRelatedRecords(supplierNumber) {
+            try {
+                // 確保資料庫已初始化
+                await DatabaseManager.initialize();
+                
+                // 檢查進貨記錄
+                const { data: purchaseRecords, error } = await supabase
+                    .from('purchase_history')
+                    .select('id')
+                    .eq('supplier_id', supplierNumber)
+                    .limit(1);
+                
+                if (error) {
+                    console.error('檢查進貨記錄失敗:', error);
+                    return false;
+                }
+                
+                const hasPurchaseRecords = purchaseRecords && purchaseRecords.length > 0;
+                console.log(`🔍 供應商 ${supplierNumber} 進貨記錄: ${purchaseRecords ? purchaseRecords.length : 0} 筆`);
+                
+                return hasPurchaseRecords;
+            } catch (error) {
+                console.error('檢查供應商相關記錄時發生錯誤:', error);
+                return false;
             }
         }
 

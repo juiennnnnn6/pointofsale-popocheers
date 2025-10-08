@@ -523,7 +523,43 @@ class BusinessAPI {
     }
     
     static async deleteSupplier(id) {
-        return await DatabaseAPI.deleteData('suppliers', id);
+        try {
+            // 先檢查是否有相關記錄
+            const { data: purchaseRecords, error: checkError } = await supabase
+                .from('purchase_history')
+                .select('id')
+                .eq('supplier_id', id)
+                .limit(1);
+            
+            if (checkError) {
+                console.error('檢查供應商相關記錄失敗:', checkError);
+                return false;
+            }
+            
+            // 如果有相關記錄，先更新進貨記錄中的供應商信息
+            if (purchaseRecords && purchaseRecords.length > 0) {
+                console.log(`發現 ${purchaseRecords.length} 筆相關進貨記錄，更新為"已刪除供應商"`);
+                
+                const { error: updateError } = await supabase
+                    .from('purchase_history')
+                    .update({ 
+                        supplier_id: 'deleted_supplier',
+                        supplier_name: '已刪除供應商'
+                    })
+                    .eq('supplier_id', id);
+                
+                if (updateError) {
+                    console.error('更新進貨記錄失敗:', updateError);
+                    return false;
+                }
+            }
+            
+            // 然後刪除供應商
+            return await DatabaseAPI.deleteData('suppliers', id);
+        } catch (error) {
+            console.error('刪除供應商時發生錯誤:', error);
+            return false;
+        }
     }
 }
 
