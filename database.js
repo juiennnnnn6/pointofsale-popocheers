@@ -524,14 +524,23 @@ class BusinessAPI {
     
     static async deleteSupplier(id) {
         try {
+            console.log(`🗑️ deleteSupplier 被調用，ID: ${id}, 類型: ${typeof id}`);
+            
             // 獲取供應商信息（用於更新商品記錄）
             const { data: supplierData, error: supplierError } = await supabase
                 .from('suppliers')
-                .select('name')
+                .select('name, number')
                 .eq('number', id)
                 .single();
             
-            const supplierName = supplierData?.name || '未知供應商';
+            if (supplierError || !supplierData) {
+                console.error('獲取供應商信息失敗:', supplierError);
+                return false;
+            }
+            
+            const supplierName = supplierData.name;
+            const originalSupplierId = supplierData.number;
+            console.log(`🗑️ 要刪除的供應商: ${supplierName} (ID: ${originalSupplierId})`);
             
             // 檢查 products 表中是否有引用此供應商的商品
             const { data: productRecords, error: productCheckError } = await supabase
@@ -556,7 +565,6 @@ class BusinessAPI {
                     .eq('name', '已刪除供應商')
                     .single();
                 
-                let deletedSupplierId;
                 if (deletedCheckError || !deletedSupplier) {
                     // 創建"已刪除供應商"記錄
                     console.log('創建"已刪除供應商"記錄...');
@@ -580,9 +588,9 @@ class BusinessAPI {
                         return false;
                     }
                     
-                    deletedSupplierId = newSupplier.number;
+                    console.log('✅ "已刪除供應商"記錄創建成功');
                 } else {
-                    deletedSupplierId = deletedSupplier.number;
+                    console.log('✅ "已刪除供應商"記錄已存在');
                 }
                 
                 // 更新商品記錄中的供應商名稱
@@ -613,7 +621,7 @@ class BusinessAPI {
                 const { data: purchaseRecords, error: checkError } = await supabase
                     .from('purchase_history')
                     .select('id')
-                    .eq('supplier_id', id)
+                    .eq('supplier_id', originalSupplierId)
                     .limit(1);
                 
                 if (!checkError && purchaseRecords && purchaseRecords.length > 0) {
@@ -625,7 +633,7 @@ class BusinessAPI {
                             supplier_id: 'deleted_supplier',
                             supplier_name: '已刪除供應商'
                         })
-                        .eq('supplier_id', id);
+                        .eq('supplier_id', originalSupplierId);
                     
                     if (updateError) {
                         console.error('更新進貨記錄失敗:', updateError);
@@ -634,8 +642,9 @@ class BusinessAPI {
                 }
             }
             
-            // 最後刪除供應商
-            return await DatabaseAPI.deleteData('suppliers', id);
+            // 最後刪除原始供應商（不是999999）
+            console.log(`🗑️ 準備刪除原始供應商，ID: ${originalSupplierId}`);
+            return await DatabaseAPI.deleteData('suppliers', originalSupplierId);
         } catch (error) {
             console.error('刪除供應商時發生錯誤:', error);
             return false;
