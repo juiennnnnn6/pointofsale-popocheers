@@ -855,6 +855,7 @@
                         
                         // 轉換資料格式
                         const localProduct = {
+                            id: product.id, // 保存 Supabase ID，用於刪除操作
                             name: product.name,
                             barcode: product.barcode,
                             price: product.price,
@@ -1507,19 +1508,51 @@
         }
 
         // 刪除商品
-        function deleteProduct() {
+        async function deleteProduct() {
             if (confirm('確定要刪除此商品嗎？此操作無法復原。')) {
-                const index = parseInt(document.getElementById('editProductIndex').value);
-                const categoryId = document.getElementById('editProductCategory').value;
-                
-                productData[String(categoryId)].splice(index, 1);
-                saveProductData();
-                
-                renderProducts(categoryId);
-                updateStatistics();
-                
-                alert('商品已刪除');
-                hideEditProductModal();
+                try {
+                    const index = parseInt(document.getElementById('editProductIndex').value);
+                    const categoryId = document.getElementById('editProductCategory').value;
+                    
+                    // 獲取要刪除的商品
+                    const product = productData[String(categoryId)][index];
+                    if (!product) {
+                        alert('找不到要刪除的商品');
+                        return;
+                    }
+                    
+                    console.log('🗑️ 準備刪除商品:', product);
+                    
+                    // 如果有 Supabase ID，先從資料庫刪除
+                    if (product.id) {
+                        console.log('🗑️ 從 Supabase 刪除商品，ID:', product.id);
+                        const success = await BusinessAPI.deleteProduct(product.id);
+                        
+                        if (!success) {
+                            alert('從資料庫刪除商品失敗，請檢查連接');
+                            return;
+                        }
+                        
+                        console.log('✅ 商品已從 Supabase 刪除');
+                    } else {
+                        console.log('⚠️ 商品沒有 Supabase ID，僅從本地刪除');
+                    }
+                    
+                    // 從本地數據中移除
+                    productData[String(categoryId)].splice(index, 1);
+                    
+                    // 重新載入資料以確保同步
+                    await loadProductDataFromSupabase();
+                    
+                    renderProducts(categoryId);
+                    updateStatistics();
+                    
+                    alert('商品已刪除');
+                    hideEditProductModal();
+                } catch (error) {
+                    console.error('刪除商品時發生錯誤:', error);
+                    alert('刪除商品失敗: ' + error.message);
+                }
             }
         }
 
