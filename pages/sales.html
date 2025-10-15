@@ -3920,7 +3920,8 @@
 
             const choice = prompt(optionsText + '請輸入數字 (1-5):');
 
-            if (selectedIndex >= 0 && selectedIndex < refundOptions.length) {
+            if (choice && choice >= 1 && choice <= 5) {
+                const selectedIndex = parseInt(choice) - 1; // 轉換為0-based索引
                 const reason = refundOptions[selectedIndex];
                 const receiptNumber = prompt('請輸入收據號碼：');
                 
