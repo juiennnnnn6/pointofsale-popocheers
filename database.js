@@ -252,25 +252,92 @@ class BusinessAPI {
     }
     
     static async addCategory(categoryData) {
-        // 傳送完整的分類資料，包含所有欄位
-        const payload = {
-            name: categoryData.name,
-            ...(categoryData.description ? { description: categoryData.description } : {}),
-            ...(categoryData.color ? { color: categoryData.color } : {}),
-            ...(categoryData.order !== undefined ? { order: categoryData.order } : {})
-        };
-        return await DatabaseAPI.insertData('categories', payload);
+        try {
+            // 先檢查 categories 表的實際欄位結構
+            const { data: tableCheck, error: tableError } = await supabase
+                .from('categories')
+                .select('*')
+                .limit(1);
+            
+            if (tableError) {
+                console.error('檢查 categories 表結構失敗:', tableError);
+                return false;
+            }
+            
+            // 根據實際表結構構建 payload
+            const payload = {
+                name: categoryData.name,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            
+            // 檢查並添加可選欄位
+            if (tableCheck && tableCheck.length > 0) {
+                const actualFields = Object.keys(tableCheck[0]);
+                console.log('categories 表實際欄位:', actualFields);
+                
+                // 只添加存在的欄位
+                if (actualFields.includes('description') && categoryData.description) {
+                    payload.description = categoryData.description;
+                }
+                if (actualFields.includes('color') && categoryData.color) {
+                    payload.color = categoryData.color;
+                }
+                if (actualFields.includes('order') && categoryData.order !== undefined) {
+                    payload.order = categoryData.order;
+                }
+            }
+            
+            console.log('準備插入 categories 資料:', payload);
+            return await DatabaseAPI.insertData('categories', payload);
+        } catch (error) {
+            console.error('新增分類時發生錯誤:', error);
+            return false;
+        }
     }
     
     static async updateCategory(id, categoryData) {
-        // 更新時傳送完整的分類資料，包含所有欄位
-        const payload = {
-            name: categoryData.name,
-            ...(categoryData.description !== undefined ? { description: categoryData.description } : {}),
-            ...(categoryData.color ? { color: categoryData.color } : {}),
-            ...(categoryData.order !== undefined ? { order: categoryData.order } : {})
-        };
-        return await DatabaseAPI.updateData('categories', id, payload);
+        try {
+            // 先檢查 categories 表的實際欄位結構
+            const { data: tableCheck, error: tableError } = await supabase
+                .from('categories')
+                .select('*')
+                .limit(1);
+            
+            if (tableError) {
+                console.error('檢查 categories 表結構失敗:', tableError);
+                return false;
+            }
+            
+            // 根據實際表結構構建 payload
+            const payload = {
+                name: categoryData.name,
+                updated_at: new Date().toISOString()
+            };
+            
+            // 檢查並添加可選欄位
+            if (tableCheck && tableCheck.length > 0) {
+                const actualFields = Object.keys(tableCheck[0]);
+                console.log('categories 表實際欄位:', actualFields);
+                
+                // 只添加存在的欄位
+                if (actualFields.includes('description')) {
+                    payload.description = categoryData.description || '';
+                }
+                if (actualFields.includes('color')) {
+                    payload.color = categoryData.color || '';
+                }
+                if (actualFields.includes('order')) {
+                    payload.order = categoryData.order !== undefined ? categoryData.order : 0;
+                }
+            }
+            
+            console.log('準備更新 categories 資料:', payload);
+            return await DatabaseAPI.updateData('categories', id, payload);
+        } catch (error) {
+            console.error('更新分類時發生錯誤:', error);
+            return false;
+        }
     }
     
     static async deleteCategory(id) {
