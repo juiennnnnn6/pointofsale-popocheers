@@ -180,10 +180,16 @@
             </button>
             
             <!-- 測試按鈕（調試用） -->
-            <button onclick="testImportFunction()" class="w-full mt-2 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors text-sm">
-                <i class="fas fa-bug mr-2"></i>
-                測試匯入功能
-            </button>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <button onclick="testImportFunction()" class="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                    <i class="fas fa-bug mr-2"></i>
+                    測試匯入功能
+                </button>
+                <button onclick="debugFileImport()" class="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm">
+                    <i class="fas fa-file-alt mr-2"></i>
+                    調試檔案匯入
+                </button>
+            </div>
         </div>
     </div>
 
@@ -891,10 +897,15 @@
 
         // 解析CSV
         function parseCSV(text) {
+            console.log('📄 開始解析CSV檔案...');
+            console.log('📄 檔案內容前200字符:', text.substring(0, 200));
+            
             const lines = text.split('\n').filter(line => line.trim());
+            console.log('📄 總行數:', lines.length);
+            
             const result = [];
             
-            lines.forEach(line => {
+            lines.forEach((line, index) => {
                 const row = [];
                 let current = '';
                 let inQuotes = false;
@@ -912,16 +923,32 @@
                 }
                 row.push(current.trim());
                 result.push(row);
+                
+                // 顯示前幾行的解析結果
+                if (index < 3) {
+                    console.log(`📄 第${index + 1}行解析結果:`, row);
+                }
             });
+            
+            console.log('📄 CSV解析完成，總計', result.length, '行');
+            console.log('📄 解析結果:', result);
             
             return result;
         }
 
         // 驗證資料
         function validateData(data) {
-            if (!data || data.length < 2) return false;
+            console.log('🔍 開始驗證資料...');
+            console.log('🔍 驗證資料:', data);
+            
+            if (!data || data.length < 2) {
+                console.log('❌ 驗證失敗: 資料為空或行數不足');
+                return false;
+            }
             
             const headers = data[0];
+            console.log('🔍 表頭:', headers);
+            
             const expectedHeaders = ['條碼', '商品名稱', '價格', '庫存', '分類', '供應商'];
             const optionalHeaders = ['描述', '最低庫存', '成本'];
             
@@ -931,26 +958,32 @@
             );
             
             if (!hasRequiredHeaders) {
+                console.log('❌ 驗證失敗: 缺少必要欄位');
                 console.log('缺少必要欄位:', expectedHeaders);
                 console.log('實際欄位:', headers);
                 return false;
             }
             
+            console.log('✅ 表頭驗證通過');
+            
             // 檢查資料行是否有基本內容
             for (let i = 1; i < Math.min(data.length, 6); i++) {
                 const row = data[i];
+                console.log(`🔍 驗證第${i}行:`, row);
+                
                 if (!row || row.length < expectedHeaders.length) {
-                    console.log(`第${i}行資料不完整:`, row);
+                    console.log(`❌ 驗證失敗: 第${i}行資料不完整`);
                     return false;
                 }
                 
                 // 檢查條碼和商品名稱
                 if (!row[0] || !row[1]) {
-                    console.log(`第${i}行缺少條碼或商品名稱:`, row);
+                    console.log(`❌ 驗證失敗: 第${i}行缺少條碼或商品名稱`);
                     return false;
                 }
             }
             
+            console.log('✅ 資料驗證通過');
             return true;
         }
 
@@ -1511,6 +1544,177 @@
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 調試檔案匯入
+        async function debugFileImport() {
+            console.log('🔧 開始調試檔案匯入...');
+            
+            if (!selectedFile) {
+                showMessage('請先選擇要匯入的檔案', 'error');
+                return;
+            }
+            
+            console.log('🔧 選擇的檔案:', selectedFile.name, selectedFile.size, 'bytes');
+            
+            try {
+                // 讀取檔案內容
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = e.target.result;
+                    console.log('🔧 檔案內容前500字符:', data.substring(0, 500));
+                    
+                    // 解析CSV
+                    const parsedData = parseCSV(data);
+                    console.log('🔧 解析後的資料:', parsedData);
+                    
+                    // 驗證資料
+                    const isValid = validateData(parsedData);
+                    console.log('🔧 資料驗證結果:', isValid);
+                    
+                        if (isValid) {
+                        console.log('🔧 資料驗證通過，可以進行匯入');
+                        showMessage('檔案格式正確，可以進行匯入', 'success');
+                        
+                        // 顯示前幾行資料的詳細資訊
+                        console.log('🔧 詳細資料分析:');
+                        for (let i = 0; i < Math.min(3, parsedData.length); i++) {
+                            const row = parsedData[i];
+                            console.log(`🔧 第${i + 1}行:`, {
+                                條碼: row[0],
+                                商品名稱: row[1],
+                                價格: row[2],
+                                庫存: row[3],
+                                分類: row[4],
+                                供應商: row[5],
+                                描述: row[6],
+                                最低庫存: row[7],
+                                成本: row[8]
+                            });
+                        }
+                        
+                        // 詢問是否要測試匯入第一行資料
+                        if (parsedData.length > 1) {
+                            const testFirstRow = confirm('檔案格式正確！是否要測試匯入第一行資料？');
+                            if (testFirstRow) {
+                                testImportFirstRow(parsedData[1]);
+                            }
+                        }
+                    } else {
+                        console.log('🔧 資料驗證失敗');
+                        showMessage('檔案格式有問題，請檢查控制台日誌', 'error');
+                    }
+                };
+                
+                reader.onerror = function() {
+                    console.error('🔧 檔案讀取失敗');
+                    showMessage('檔案讀取失敗', 'error');
+                };
+                
+                reader.readAsText(selectedFile, 'UTF-8');
+                
+            } catch (error) {
+                console.error('🔧 調試檔案匯入時發生錯誤:', error);
+                showMessage('調試失敗: ' + error.message, 'error');
+            }
+        }
+
+        // 測試匯入第一行資料
+        async function testImportFirstRow(rowData) {
+            console.log('🧪 開始測試匯入第一行資料:', rowData);
+            
+            try {
+                // 初始化資料庫連接
+                await DatabaseManager.initialize();
+                
+                if (!DatabaseManager.isConnected()) {
+                    throw new Error('無法連接到資料庫');
+                }
+                
+                const [barcode, name, price, stock, categoryName, supplier, description, minStock, cost] = rowData;
+                
+                // 載入分類資料
+                const categoriesData = await BusinessAPI.getCategories() || [];
+                console.log('🧪 載入分類資料:', categoriesData.length, '筆');
+                
+                // 載入供應商資料
+                const suppliersData = await BusinessAPI.getSuppliers() || [];
+                console.log('🧪 載入供應商資料:', suppliersData.length, '筆');
+                
+                // 根據分類名稱查找對應的 category_id
+                let categoryId = null;
+                if (categoryName && categoryName.trim()) {
+                    const categoryObj = categoriesData.find(cat => 
+                        cat.name === categoryName.trim() || 
+                        cat.name.includes(categoryName.trim()) ||
+                        categoryName.trim().includes(cat.name)
+                    );
+                    categoryId = categoryObj ? categoryObj.id : null;
+                    console.log('🧪 分類映射:', categoryName, '->', categoryId);
+                }
+                
+                // 檢查供應商是否存在
+                let validSupplier = '';
+                if (supplier && supplier.trim()) {
+                    const supplierObj = suppliersData.find(sup => 
+                        sup.name === supplier.trim() || 
+                        sup.name.includes(supplier.trim()) ||
+                        supplier.trim().includes(sup.name)
+                    );
+                    
+                    if (supplierObj) {
+                        validSupplier = supplierObj.name;
+                        console.log('🧪 找到現有供應商:', validSupplier);
+                    } else {
+                        // 嘗試創建新供應商
+                        console.log('🧪 供應商不存在，嘗試創建:', supplier);
+                        const newSupplier = await BusinessAPI.addSupplier({
+                            name: supplier.trim(),
+                            contact: '',
+                            phone: '',
+                            email: '',
+                            address: '',
+                            notes: '由商品匯入功能自動創建'
+                        });
+                        
+                        if (newSupplier) {
+                            validSupplier = supplier.trim();
+                            console.log('🧪 成功創建供應商:', validSupplier);
+                        } else {
+                            console.log('🧪 無法創建供應商，將跳過供應商欄位');
+                        }
+                    }
+                }
+                
+                const productData = {
+                    name: name.trim(),
+                    price: parseFloat(price) || 0,
+                    stock: parseInt(stock) || 0,
+                    category_id: categoryId,
+                    supplier: validSupplier,
+                    barcode: barcode.trim(),
+                    description: description ? description.trim() : '',
+                    min_stock: parseInt(minStock) || 10,
+                    cost: parseFloat(cost) || 0
+                };
+                
+                console.log('🧪 準備新增商品資料:', productData);
+                
+                const result = await BusinessAPI.addProduct(productData);
+                console.log('🧪 新增結果:', result);
+                
+                if (result) {
+                    showMessage(`測試匯入成功！商品 "${name}" 已新增，ID: ${result}`, 'success');
+                    console.log('✅ 第一行資料匯入測試成功');
+                } else {
+                    showMessage('測試匯入失敗，請檢查控制台日誌', 'error');
+                    console.log('❌ 第一行資料匯入測試失敗');
+                }
+                
+            } catch (error) {
+                console.error('🧪 測試匯入第一行資料時發生錯誤:', error);
+                showMessage('測試匯入失敗: ' + error.message, 'error');
+            }
         }
 
         // 測試匯入功能
