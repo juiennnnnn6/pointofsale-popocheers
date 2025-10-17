@@ -842,6 +842,7 @@
 
         // 清除檔案
         function clearFile() {
+            console.log('🗑️ 清除檔案和解析資料');
             selectedFile = null;
             parsedData = null;
             document.getElementById('fileInfo').classList.add('hidden');
@@ -875,6 +876,8 @@
                             parsedData = parseCSV(data);
                         }
                         
+                        console.log('📄 解析完成，parsedData已更新:', parsedData);
+                        
                         updateProgress(60, '驗證資料中...');
                         
                         setTimeout(() => {
@@ -883,6 +886,7 @@
                                 setTimeout(() => {
                                     showPreview(parsedData);
                                     hideProgressArea();
+                                    console.log('📄 預覽已顯示，parsedData準備就緒');
                                 }, 1000);
                             } else {
                                 hideProgressArea();
@@ -1031,6 +1035,14 @@
         // 確認匯入
         async function confirmImport() {
             const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            
+            console.log('📥 開始確認匯入，匯入模式:', importMode);
+            console.log('📥 parsedData狀態:', parsedData ? `有資料，${parsedData.length}行` : '無資料');
+            
+            if (!parsedData || parsedData.length === 0) {
+                showMessage('沒有可匯入的資料，請重新選擇檔案', 'error');
+                return;
+            }
             
             showProgressArea();
             hideAreas(['previewArea']);
@@ -1233,8 +1245,10 @@
 
         // 取消匯入
         function cancelImport() {
+            console.log('❌ 用戶取消匯入');
             hideAreas(['previewArea']);
-            clearFile();
+            // 不調用 clearFile()，保留 parsedData 以便重新匯入
+            document.getElementById('previewArea').classList.add('hidden');
         }
 
         // 顯示結果
@@ -1280,8 +1294,9 @@
             resultContent.innerHTML = content;
             resultArea.classList.remove('hidden');
             
-            // 清理
+            // 清理（延遲3秒後清除，讓用戶看到結果）
             setTimeout(() => {
+                console.log('🧹 匯入完成，清理檔案和資料');
                 clearFile();
             }, 3000);
         }
