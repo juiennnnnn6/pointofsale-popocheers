@@ -954,7 +954,7 @@
 
 商品名稱：${product.name}
 商品條碼：${product.barcode || '無條碼'}
-商品分類：${product.category || '未分類'}
+商品分類：${product.category || (product.category_id ? `分類ID: ${product.category_id}` : '未分類')}
 商品價格：NT$${product.price?.toLocaleString() || '0'}
 
 📈 本月進銷存數據：
@@ -999,7 +999,7 @@ ${refundQuantity > 0 ? `⚠️ 本月有 ${refundQuantity} 件退貨` : ''}
                 return {
                     name: product.name,
                     barcode: product.barcode || '無條碼',
-                    category: product.category || '未分類',
+                    category: product.category || (product.category_id ? `分類ID: ${product.category_id}` : '未分類'),
                     price: product.price || 0,
                     beginningStock,
                     purchases,
@@ -1299,7 +1299,7 @@ ${refundQuantity > 0 ? `⚠️ 本月有 ${refundQuantity} 件退貨` : ''}
                     );
                     
                     if (product) {
-                        const category = product.category || '未分類';
+                        const category = product.category || (product.category_id ? `分類ID: ${product.category_id}` : '未分類');
                         const category_id = product.category_id;
                         const image_url = product.image_url;
                         

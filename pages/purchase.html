@@ -414,7 +414,7 @@
         function showProductSelectionForPurchase(products, barcode) {
             const variants = products.map((product, index) => {
                 const stockStatus = product.stock > 0 ? `庫存 ${product.stock} 件` : '缺貨';
-                const category = product.category || '未分類';
+                const category = product.category || (product.category_id ? `分類ID: ${product.category_id}` : '未分類');
                 return `${index + 1}. ${product.name} (${category}) - 庫存 ${product.stock} 件`;
             }).join('\n');
             

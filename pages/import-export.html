@@ -613,6 +613,15 @@
                     return;
                 }
                 
+                // 載入分類資料以進行名稱映射
+                let categoriesData = [];
+                try {
+                    categoriesData = await BusinessAPI.getCategories() || [];
+                    console.log('載入分類資料用於映射:', categoriesData.length, '筆');
+                } catch (error) {
+                    console.error('載入分類資料失敗:', error);
+                }
+                
                 // 根據範圍過濾商品
                 const filteredProducts = filterProductsFromData(productsData, range);
                 
@@ -620,12 +629,23 @@
                 const data = [headers];
                 
                 filteredProducts.forEach(product => {
+                    // 根據 category_id 查找分類名稱
+                    let categoryName = '';
+                    if (product.category) {
+                        categoryName = product.category;
+                    } else if (product.category_id) {
+                        const categoryObj = categoriesData.find(cat => cat.id === product.category_id);
+                        categoryName = categoryObj ? categoryObj.name : `分類ID: ${product.category_id}`;
+                    } else {
+                        categoryName = '未分類';
+                    }
+                    
                     data.push([
                         product.barcode || '',
                         product.name || '',
                         product.price || 0,
                         product.stock || 0,
-                        product.category || '',
+                        categoryName,
                         product.supplier || '',
                         product.description || '',
                         product.min_stock || 10,

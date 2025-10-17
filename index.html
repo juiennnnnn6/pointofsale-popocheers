@@ -609,10 +609,43 @@
         // 版本紀錄功能
         const versionData = [
             {
-                "version": "v2.7",
-                "date": "2025年10月",
-                "title": "折扣系統全面升級與會話管理優化",
+                "version": "v2.8",
+                "date": "2025年01月",
+                "title": "匯出入功能完善與分類資料修復",
                 "isLatest": true,
+                "color": "blue",
+                "changes": [
+                    {
+                        "icon": "fas fa-file-export",
+                        "color": "blue",
+                        "category": "匯出入功能修復",
+                        "description": "修復匯出格式問題，正確處理CSV和Excel欄位分隔，使用實際Supabase資料"
+                    },
+                    {
+                        "icon": "fas fa-tags",
+                        "color": "green",
+                        "category": "分類資料顯示修復",
+                        "description": "修復分類欄位顯示問題，正確關聯category_id到分類名稱"
+                    },
+                    {
+                        "icon": "fas fa-undo",
+                        "color": "orange",
+                        "category": "退貨功能修復",
+                        "description": "修復退貨功能selectedIndex未定義錯誤，正確處理用戶選擇輸入"
+                    },
+                    {
+                        "icon": "fas fa-database",
+                        "color": "purple",
+                        "category": "資料庫整合優化",
+                        "description": "改善匯入功能，正確匯入到Supabase資料庫，支援多種匯入模式"
+                    }
+                ]
+            },
+            {
+                "version": "v2.7",
+                "date": "2025年01月",
+                "title": "折扣系統全面升級與會話管理優化",
+                "isLatest": false,
                 "color": "blue",
                 "changes": [
                     {
