@@ -1380,7 +1380,7 @@
                             name: name.trim(),
                             phone: phone ? phone.trim() : '',
                             email: email ? email.trim() : '',
-                            birthday: birthday ? birthday.trim() : '',
+                            birth_date: birthday ? birthday.trim() : '', // 使用 birth_date 而不是 birthday
                             level: level ? level.trim() : '一般',
                             points: parseInt(points) || 0,
                             status: status ? status.trim() : 'active',
@@ -1641,7 +1641,7 @@
                         member.name || '',
                         member.phone || '',
                         member.email || '',
-                        member.birthday || member.birth_date || '',
+                        member.birth_date || member.birthday || '', // 優先使用 birth_date
                         member.level || member.member_level || '一般',
                         member.points || member.loyalty_points || '0',
                         member.status || 'active',

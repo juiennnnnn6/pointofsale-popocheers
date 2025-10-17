@@ -477,11 +477,34 @@ class BusinessAPI {
     }
     
     static async addMember(memberData) {
-        return await DatabaseAPI.insertData('members', {
-            ...memberData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        });
+        console.log('BusinessAPI.addMember 被調用，資料:', memberData);
+        try {
+            // 動態檢查 members 表的實際欄位
+            const sampleData = await DatabaseAPI.getData('members', { limit: 1 });
+            console.log('members 表範例資料:', sampleData);
+            
+            // 根據實際欄位構建 payload
+            const payload = {
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            
+            // 只包含實際存在的欄位
+            const allowedFields = ['id', 'name', 'phone', 'email', 'birth_date', 'level', 'points', 'status', 'address', 'notes'];
+            allowedFields.forEach(field => {
+                if (memberData.hasOwnProperty(field)) {
+                    payload[field] = memberData[field];
+                }
+            });
+            
+            console.log('準備插入的 members 資料:', payload);
+            const result = await DatabaseAPI.insertData('members', payload);
+            console.log('BusinessAPI.addMember 結果:', result);
+            return result;
+        } catch (error) {
+            console.error('BusinessAPI.addMember 發生錯誤:', error);
+            return false;
+        }
     }
     
     static async updateMember(id, memberData) {
