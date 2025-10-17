@@ -1032,6 +1032,16 @@
                     }
                 }
                 
+                // 載入供應商資料（用於檢查外鍵約束）
+                let suppliersData = [];
+                try {
+                    suppliersData = await BusinessAPI.getSuppliers() || [];
+                    console.log('載入供應商資料:', suppliersData.length, '筆');
+                } catch (error) {
+                    console.error('載入供應商資料失敗:', error);
+                    showMessage('載入供應商資料失敗，將跳過供應商驗證', 'warning');
+                }
+                
                 updateProgress(30, '開始匯入商品資料...');
                 
                 let successCount = 0;
@@ -1066,12 +1076,60 @@
                             }
                         }
                         
+                        // 檢查供應商是否存在於 suppliers 表中
+                        let validSupplier = '';
+                        if (supplier && supplier.trim()) {
+                            const supplierObj = suppliersData.find(sup => 
+                                sup.name === supplier.trim() || 
+                                sup.name.includes(supplier.trim()) ||
+                                supplier.trim().includes(sup.name)
+                            );
+                            
+                            if (supplierObj) {
+                                validSupplier = supplierObj.name;
+                            } else {
+                                // 如果供應商不存在，嘗試創建新的供應商
+                                console.log(`供應商 "${supplier}" 不存在，嘗試創建新供應商`);
+                                try {
+                                    const newSupplier = await BusinessAPI.addSupplier({
+                                        name: supplier.trim(),
+                                        contact: '',
+                                        phone: '',
+                                        email: '',
+                                        address: '',
+                                        notes: '由商品匯入功能自動創建'
+                                    });
+                                    
+                                    if (newSupplier) {
+                                        validSupplier = supplier.trim();
+                                        // 更新本地供應商列表
+                                        suppliersData.push({
+                                            id: newSupplier,
+                                            name: supplier.trim(),
+                                            contact: '',
+                                            phone: '',
+                                            email: '',
+                                            address: '',
+                                            notes: '由商品匯入功能自動創建'
+                                        });
+                                        console.log(`成功創建新供應商: ${supplier}`);
+                                    } else {
+                                        console.warn(`無法創建供應商 "${supplier}"，將跳過供應商欄位`);
+                                        validSupplier = '';
+                                    }
+                                } catch (error) {
+                                    console.error(`創建供應商 "${supplier}" 失敗:`, error);
+                                    validSupplier = '';
+                                }
+                            }
+                        }
+                        
                         const productData = {
                             name: name.trim(),
                             price: parseFloat(price) || 0,
                             stock: parseInt(stock) || 0,
                             category_id: categoryId,
-                            supplier: supplier ? supplier.trim() : '',
+                            supplier: validSupplier, // 使用驗證過的供應商名稱
                             barcode: barcode.trim(),
                             description: description ? description.trim() : '',
                             min_stock: parseInt(minStock) || 10,
@@ -1472,13 +1530,42 @@
                 const products = await BusinessAPI.getProducts();
                 console.log('✅ 現有商品載入:', products ? products.length : 0, '筆');
                 
+                // 載入供應商資料
+                const suppliers = await BusinessAPI.getSuppliers();
+                console.log('✅ 供應商資料載入:', suppliers ? suppliers.length : 0, '筆');
+                
+                // 使用現有的供應商或創建測試供應商
+                let testSupplierName = '';
+                if (suppliers && suppliers.length > 0) {
+                    testSupplierName = suppliers[0].name; // 使用第一個現有供應商
+                } else {
+                    // 如果沒有供應商，嘗試創建一個
+                    console.log('沒有現有供應商，嘗試創建測試供應商');
+                    const newSupplier = await BusinessAPI.addSupplier({
+                        name: '測試供應商',
+                        contact: '測試聯絡人',
+                        phone: '0912345678',
+                        email: 'test@example.com',
+                        address: '測試地址',
+                        notes: '測試用供應商'
+                    });
+                    
+                    if (newSupplier) {
+                        testSupplierName = '測試供應商';
+                        console.log('✅ 成功創建測試供應商');
+                    } else {
+                        console.log('⚠️ 無法創建測試供應商，將跳過供應商欄位');
+                        testSupplierName = '';
+                    }
+                }
+                
                 // 測試新增一個簡單商品
                 const testProduct = {
                     name: '測試商品',
                     price: 100,
                     stock: 10,
                     category_id: categories && categories.length > 0 ? categories[0].id : null,
-                    supplier: '測試供應商',
+                    supplier: testSupplierName,
                     barcode: 'TEST' + Date.now(),
                     description: '這是一個測試商品',
                     min_stock: 5,
