@@ -531,8 +531,16 @@
             ];
             
             const productCsvContent = [productHeaders, ...productSampleData]
-                .map(row => row.map(field => `"${field}"`).join(','))
-                .join('\n');
+                .map(row => {
+                    return row.map(field => {
+                        const fieldStr = String(field || '');
+                        if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n') || fieldStr.includes('\r')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',');
+                })
+                .join('\r\n');
             
             const productBlob = new Blob(['\uFEFF' + productCsvContent], { type: 'text/csv;charset=utf-8;' });
             const productLink = document.createElement('a');
@@ -548,8 +556,16 @@
             ];
             
             const memberCsvContent = [memberHeaders, ...memberSampleData]
-                .map(row => row.map(field => `"${field}"`).join(','))
-                .join('\n');
+                .map(row => {
+                    return row.map(field => {
+                        const fieldStr = String(field || '');
+                        if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n') || fieldStr.includes('\r')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',');
+                })
+                .join('\r\n');
             
             const memberBlob = new Blob(['\uFEFF' + memberCsvContent], { type: 'text/csv;charset=utf-8;' });
             const memberLink = document.createElement('a');
@@ -677,9 +693,20 @@
 
         // 匯出為CSV
         function exportAsCSV(data) {
+            // 使用更嚴格的CSV格式處理
             const csvContent = data
-                .map(row => row.map(field => `"${field}"`).join(','))
-                .join('\n');
+                .map(row => {
+                    return row.map(field => {
+                        // 處理欄位中的特殊字符
+                        const fieldStr = String(field || '');
+                        // 如果欄位包含逗號、引號或換行符，需要用引號包圍並轉義引號
+                        if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n') || fieldStr.includes('\r')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',');
+                })
+                .join('\r\n'); // 使用Windows標準的換行符
             
             const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -690,12 +717,21 @@
 
         // 匯出為Excel (簡化版)
         function exportAsExcel(data) {
-            // 這裡使用簡化的Excel匯出，實際專案中可使用SheetJS
-            const csvContent = data
-                .map(row => row.join('\t'))
-                .join('\n');
+            // 使用製表符分隔的格式，確保Excel能正確識別欄位
+            const excelContent = data
+                .map(row => {
+                    return row.map(field => {
+                        const fieldStr = String(field || '');
+                        // Excel格式：如果包含製表符或換行符，需要用引號包圍
+                        if (fieldStr.includes('\t') || fieldStr.includes('\n') || fieldStr.includes('\r')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join('\t');
+                })
+                .join('\r\n');
             
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const blob = new Blob(['\uFEFF' + excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = `商品資料_${new Date().toISOString().split('T')[0]}.xls`;
@@ -1233,9 +1269,18 @@
 
         // 匯出會員為CSV
         function exportMembersAsCSV(data) {
+            // 使用與商品匯出相同的嚴格CSV格式
             const csvContent = data
-                .map(row => row.map(field => `"${field}"`).join(','))
-                .join('\n');
+                .map(row => {
+                    return row.map(field => {
+                        const fieldStr = String(field || '');
+                        if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n') || fieldStr.includes('\r')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join(',');
+                })
+                .join('\r\n');
             
             const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -1246,11 +1291,19 @@
 
         // 匯出會員為Excel (簡化版)
         function exportMembersAsExcel(data) {
-            const csvContent = data
-                .map(row => row.join('\t'))
-                .join('\n');
+            const excelContent = data
+                .map(row => {
+                    return row.map(field => {
+                        const fieldStr = String(field || '');
+                        if (fieldStr.includes('\t') || fieldStr.includes('\n') || fieldStr.includes('\r')) {
+                            return '"' + fieldStr.replace(/"/g, '""') + '"';
+                        }
+                        return fieldStr;
+                    }).join('\t');
+                })
+                .join('\r\n');
             
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+            const blob = new Blob(['\uFEFF' + excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = `會員資料_${new Date().toISOString().split('T')[0]}.xls`;
