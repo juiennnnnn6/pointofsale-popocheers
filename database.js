@@ -489,13 +489,19 @@ class BusinessAPI {
                 updated_at: new Date().toISOString()
             };
             
-            // 只包含實際存在的欄位
-            const allowedFields = ['id', 'name', 'phone', 'email', 'birth_date', 'level', 'points', 'status', 'address', 'notes'];
+            // 只包含實際存在的欄位（根據實際的 members 表結構）
+            const allowedFields = ['id', 'name', 'phone', 'email', 'level', 'points', 'status', 'address', 'notes'];
             allowedFields.forEach(field => {
                 if (memberData.hasOwnProperty(field)) {
                     payload[field] = memberData[field];
                 }
             });
+            
+            // 如果有生日資料，可以暫時儲存在 notes 欄位中
+            if (memberData.birth_date && memberData.birth_date.trim()) {
+                const existingNotes = payload.notes || '';
+                payload.notes = existingNotes ? `${existingNotes} | 生日: ${memberData.birth_date}` : `生日: ${memberData.birth_date}`;
+            }
             
             console.log('準備插入的 members 資料:', payload);
             const result = await DatabaseAPI.insertData('members', payload);
