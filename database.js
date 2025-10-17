@@ -489,18 +489,33 @@ class BusinessAPI {
                 updated_at: new Date().toISOString()
             };
             
-            // 只包含實際存在的欄位（根據實際的 members 表結構）
-            const allowedFields = ['id', 'name', 'phone', 'email', 'level', 'points', 'status', 'address', 'notes'];
-            allowedFields.forEach(field => {
+            // 只包含最基本的欄位（根據實際的 members 表結構）
+            const basicFields = ['id', 'name', 'phone', 'email', 'address', 'notes'];
+            basicFields.forEach(field => {
                 if (memberData.hasOwnProperty(field)) {
                     payload[field] = memberData[field];
                 }
             });
             
-            // 如果有生日資料，可以暫時儲存在 notes 欄位中
+            // 將其他欄位合併到 notes 中，避免資料遺失
+            const additionalInfo = [];
             if (memberData.birth_date && memberData.birth_date.trim()) {
+                additionalInfo.push(`生日: ${memberData.birth_date}`);
+            }
+            if (memberData.level && memberData.level.trim()) {
+                additionalInfo.push(`會員等級: ${memberData.level}`);
+            }
+            if (memberData.points && memberData.points !== '0') {
+                additionalInfo.push(`積分: ${memberData.points}`);
+            }
+            if (memberData.status && memberData.status.trim() && memberData.status !== 'active') {
+                additionalInfo.push(`狀態: ${memberData.status}`);
+            }
+            
+            if (additionalInfo.length > 0) {
                 const existingNotes = payload.notes || '';
-                payload.notes = existingNotes ? `${existingNotes} | 生日: ${memberData.birth_date}` : `生日: ${memberData.birth_date}`;
+                const combinedNotes = additionalInfo.join(' | ');
+                payload.notes = existingNotes ? `${existingNotes} | ${combinedNotes}` : combinedNotes;
             }
             
             console.log('準備插入的 members 資料:', payload);
