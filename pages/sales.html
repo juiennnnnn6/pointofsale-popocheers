@@ -3685,7 +3685,8 @@
                         employee_id: getCurrentEmployeeId() || 'E001', // 使用當前員工ID，如果沒有則使用預設值
                         member_id: saleRecord.member ? saleRecord.member.id : null,
                         coupon_id: saleRecord.coupon ? saleRecord.coupon.id : null,
-                        items: JSON.stringify(saleRecord.items) // 添加 items 欄位，將商品項目轉換為 JSON 字串
+                        items: JSON.stringify(saleRecord.items), // 添加 items 欄位，將商品項目轉換為 JSON 字串
+                        card_last_four: saleRecord.cardLastFour || null // 添加卡號末四碼欄位
                     }])
                     .select();
 
@@ -3718,7 +3719,8 @@
                                 employee_id: getCurrentEmployeeId() || 'E001',
                                 member_id: saleRecord.member ? saleRecord.member.id : null,
                                 coupon_id: saleRecord.coupon ? saleRecord.coupon.id : null,
-                                items: JSON.stringify(saleRecord.items)
+                                items: JSON.stringify(saleRecord.items),
+                                card_last_four: saleRecord.cardLastFour || null // 添加卡號末四碼欄位
                             }])
                             .select();
                         
@@ -4956,7 +4958,7 @@
             
             
             
-            await completeSale('現金', total, received, change);
+            await completeSale('現金', total, received, change, '');
 
         }
 
@@ -4966,12 +4968,36 @@
 
         async function processCardPayment(paymentMethod, total) {
 
-            // 模擬卡片處理
+            // 如果是信用卡，要求輸入卡號末四碼
+            let cardLastFour = '';
+            if (paymentMethod === '信用卡') {
+                // 使用 prompt 輸入卡號末四碼，並驗證格式
+                let validInput = false;
+                while (!validInput) {
+                    cardLastFour = prompt(`${paymentMethod}付款\n金額：NT$${total.toLocaleString()}\n\n請輸入刷卡卡號末四碼：`);
+                    
+                    if (cardLastFour === null) {
+                        // 用戶取消
+                        return;
+                    }
+                    
+                    // 驗證輸入格式（4位數字）
+                    if (/^\d{4}$/.test(cardLastFour.trim())) {
+                        validInput = true;
+                        cardLastFour = cardLastFour.trim();
+                    } else {
+                        alert('卡號末四碼格式錯誤，請輸入4位數字');
+                    }
+                }
+            }
 
-            const processing = confirm(`${paymentMethod}付款\n金額：NT$${total.toLocaleString()}\n\n請進行付款操作`);
+            // 確認付款操作
+            const confirmMessage = paymentMethod === '信用卡' 
+                ? `${paymentMethod}付款\n金額：NT$${total.toLocaleString()}\n卡號末四碼：****${cardLastFour}\n\n請進行付款操作`
+                : `${paymentMethod}付款\n金額：NT$${total.toLocaleString()}\n\n請進行付款操作`;
+                
+            const processing = confirm(confirmMessage);
 
-            
-            
             if (processing) {
 
                 // 模擬處理時間
@@ -4982,7 +5008,8 @@
 
                     alert('結帳完成！');
 
-                    await completeSale(paymentMethod, total, total, 0);
+                    // 將卡號末四碼傳遞給 completeSale 函數
+                    await completeSale(paymentMethod, total, total, 0, cardLastFour);
 
                 }, 1000);
 
@@ -4994,7 +5021,7 @@
 
         // 完成銷售
 
-        async function completeSale(paymentMethod, total, received, change) {
+        async function completeSale(paymentMethod, total, received, change, cardLastFour = '') {
 
             // 生成唯一的收據號碼
             const uniqueReceiptNumber = await generateUniqueReceiptNumber();
@@ -5108,7 +5135,9 @@
 
                 member: memberInfo,
 
-                coupon: couponInfo
+                coupon: couponInfo,
+
+                cardLastFour: cardLastFour || null // 添加卡號末四碼欄位
 
             };
 
@@ -5596,7 +5625,12 @@
 
                     </div>
 
-                    
+                    ${saleRecord.paymentMethod === '信用卡' && saleRecord.cardLastFour ? `
+                    <div class="row">
+                        <span class="item-name">卡號末四碼</span>
+                        <span class="item-price">****${saleRecord.cardLastFour}</span>
+                    </div>
+                    ` : ''}
                     
                     ${saleRecord.paymentMethod === '現金' ? `
 
