@@ -536,7 +536,92 @@ class BusinessAPI {
     }
     
     static async deleteMember(id) {
-        return await DatabaseAPI.deleteData('members', id);
+        console.log('BusinessAPI.deleteMember 被調用，會員ID:', id);
+        try {
+            // 首先獲取會員資料
+            const member = await DatabaseAPI.getData('members', { id: id });
+            if (!member || member.length === 0) {
+                console.log('找不到要刪除的會員');
+                return false;
+            }
+            
+            const memberData = member[0];
+            console.log('找到會員資料:', memberData);
+            
+            // 檢查是否有銷售記錄引用此會員
+            try {
+                const { data: salesRecords, error: salesError } = await supabase
+                    .from('sales_history')
+                    .select('id')
+                    .eq('member_id', id)
+                    .limit(1);
+                
+                if (salesError) {
+                    console.warn('檢查銷售記錄時發生錯誤:', salesError);
+                } else if (salesRecords && salesRecords.length > 0) {
+                    console.log(`發現銷售記錄引用此會員，將更新為null`);
+                    
+                    // 將銷售記錄中的 member_id 設為 null，保留銷售記錄
+                    const { error: updateError } = await supabase
+                        .from('sales_history')
+                        .update({ member_id: null })
+                        .eq('member_id', id);
+                    
+                    if (updateError) {
+                        console.warn('更新銷售記錄失敗:', updateError);
+                    } else {
+                        console.log('已將相關銷售記錄的會員ID設為null');
+                    }
+                } else {
+                    console.log('沒有發現引用此會員的銷售記錄');
+                }
+            } catch (salesError) {
+                console.warn('檢查銷售記錄時發生錯誤:', salesError);
+                // 繼續執行刪除，不因檢查錯誤而停止
+            }
+            
+            // 檢查是否有退貨記錄引用此會員
+            try {
+                const { data: refundRecords, error: refundError } = await supabase
+                    .from('refunds')
+                    .select('id')
+                    .eq('member_id', id)
+                    .limit(1);
+                
+                if (refundError) {
+                    console.warn('檢查退貨記錄時發生錯誤:', refundError);
+                } else if (refundRecords && refundRecords.length > 0) {
+                    console.log(`發現退貨記錄引用此會員，將更新為null`);
+                    
+                    // 將退貨記錄中的 member_id 設為 null
+                    const { error: updateError } = await supabase
+                        .from('refunds')
+                        .update({ member_id: null })
+                        .eq('member_id', id);
+                    
+                    if (updateError) {
+                        console.warn('更新退貨記錄失敗:', updateError);
+                    } else {
+                        console.log('已將相關退貨記錄的會員ID設為null');
+                    }
+                } else {
+                    console.log('沒有發現引用此會員的退貨記錄');
+                }
+            } catch (refundError) {
+                console.warn('檢查退貨記錄時發生錯誤:', refundError);
+                // 繼續執行刪除，不因檢查錯誤而停止
+            }
+            
+            // 現在可以安全地刪除會員
+            console.log('開始刪除會員...');
+            const result = await DatabaseAPI.deleteData('members', id);
+            console.log('會員刪除結果:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('刪除會員時發生錯誤:', error);
+            return false;
+        }
     }
     
     // 員工管理
