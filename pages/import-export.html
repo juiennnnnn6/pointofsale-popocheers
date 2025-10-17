@@ -512,6 +512,8 @@
 
         let selectedFile = null;
         let parsedData = null;
+        let memberSelectedFile = null;
+        let memberParsedData = null;
 
         // 統一導航函數
         function navigateToPage(page) {
@@ -845,12 +847,25 @@
             console.log('🗑️ 清除檔案和解析資料');
             selectedFile = null;
             parsedData = null;
+            memberSelectedFile = null;
+            memberParsedData = null;
+            
+            // 清除商品檔案資訊
             document.getElementById('fileInfo').classList.add('hidden');
             document.getElementById('fileInput').value = '';
             
+            // 清除會員檔案資訊
+            document.getElementById('memberFileInfo').classList.add('hidden');
+            document.getElementById('memberFileInput').value = '';
+            
+            // 禁用匯入按鈕
             const importBtn = document.getElementById('importBtn');
             importBtn.disabled = true;
             importBtn.className = 'w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed';
+            
+            const memberImportBtn = document.getElementById('memberImportBtn');
+            memberImportBtn.disabled = true;
+            memberImportBtn.className = 'w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed';
             
             hideAreas(['previewArea', 'progressArea', 'resultArea']);
         }
@@ -944,6 +959,57 @@
             return result;
         }
 
+        // 驗證會員資料
+        function validateMemberData(data) {
+            console.log('🔍 開始驗證會員資料...');
+            console.log('🔍 會員驗證資料:', data);
+            
+            if (!data || data.length < 2) {
+                console.log('❌ 會員驗證失敗: 資料為空或行數不足');
+                return false;
+            }
+            
+            const headers = data[0];
+            console.log('🔍 會員表頭:', headers);
+            
+            const expectedHeaders = ['會員編號', '姓名', '電話', '電子郵件'];
+            const optionalHeaders = ['生日', '會員等級', '積分', '狀態', '地址', '備註'];
+            
+            // 檢查必要欄位
+            const hasRequiredHeaders = expectedHeaders.every(header => 
+                headers.some(h => h.includes(header) || header.includes(h))
+            );
+            
+            if (!hasRequiredHeaders) {
+                console.log('❌ 會員驗證失敗: 缺少必要欄位');
+                console.log('缺少必要欄位:', expectedHeaders);
+                console.log('實際欄位:', headers);
+                return false;
+            }
+            
+            console.log('✅ 會員表頭驗證通過');
+            
+            // 檢查資料行是否有基本內容
+            for (let i = 1; i < Math.min(data.length, 6); i++) {
+                const row = data[i];
+                console.log(`🔍 驗證會員第${i}行:`, row);
+                
+                if (!row || row.length < expectedHeaders.length) {
+                    console.log(`❌ 會員驗證失敗: 第${i}行資料不完整`);
+                    return false;
+                }
+                
+                // 檢查會員編號和姓名
+                if (!row[0] || !row[1]) {
+                    console.log(`❌ 會員驗證失敗: 第${i}行缺少會員編號或姓名`);
+                    return false;
+                }
+            }
+            
+            console.log('✅ 會員資料驗證通過');
+            return true;
+        }
+
         // 驗證資料
         function validateData(data) {
             console.log('🔍 開始驗證資料...');
@@ -1034,15 +1100,28 @@
 
         // 確認匯入
         async function confirmImport() {
-            const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            // 檢查是商品匯入還是會員匯入
+            const isMemberImport = memberParsedData && memberParsedData.length > 0;
+            const isProductImport = parsedData && parsedData.length > 0;
             
-            console.log('📥 開始確認匯入，匯入模式:', importMode);
-            console.log('📥 parsedData狀態:', parsedData ? `有資料，${parsedData.length}行` : '無資料');
-            
-            if (!parsedData || parsedData.length === 0) {
+            if (!isMemberImport && !isProductImport) {
                 showMessage('沒有可匯入的資料，請重新選擇檔案', 'error');
                 return;
             }
+            
+            if (isMemberImport) {
+                await confirmMemberImport();
+            } else {
+                await confirmProductImport();
+            }
+        }
+
+        // 確認商品匯入
+        async function confirmProductImport() {
+            const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            
+            console.log('📥 開始確認商品匯入，匯入模式:', importMode);
+            console.log('📥 parsedData狀態:', parsedData ? `有資料，${parsedData.length}行` : '無資料');
             
             showProgressArea();
             hideAreas(['previewArea']);
@@ -1243,11 +1322,135 @@
             }
         }
 
+        // 確認會員匯入
+        async function confirmMemberImport() {
+            const importMode = document.querySelector('input[name="memberImportMode"]:checked').value;
+            
+            console.log('👥 開始確認會員匯入，匯入模式:', importMode);
+            console.log('👥 memberParsedData狀態:', memberParsedData ? `有資料，${memberParsedData.length}行` : '無資料');
+            
+            showProgressArea();
+            hideAreas(['previewArea']);
+            
+            updateProgress(10, '初始化資料庫連接...');
+            
+            try {
+                // 初始化資料庫連接
+                await DatabaseManager.initialize();
+                
+                if (!DatabaseManager.isConnected()) {
+                    throw new Error('無法連接到資料庫，請檢查網路連接');
+                }
+                
+                updateProgress(20, '載入現有會員資料...');
+                
+                // 載入現有會員資料（用於檢查重複）
+                let existingMembers = [];
+                try {
+                    existingMembers = await BusinessAPI.getMembers() || [];
+                    console.log('載入現有會員資料:', existingMembers.length, '筆');
+                } catch (error) {
+                    console.error('載入現有會員資料失敗:', error);
+                    if (importMode === 'add') {
+                        showMessage('無法檢查現有會員，可能導致重複匯入', 'warning');
+                    }
+                }
+                
+                updateProgress(30, '開始匯入會員資料...');
+                
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+                
+                // 跳過表頭，處理每一行資料
+                for (let i = 1; i < memberParsedData.length; i++) {
+                    const row = memberParsedData[i];
+                    const [memberId, name, phone, email, birthday, level, points, status, address, notes] = row;
+                    
+                    try {
+                        // 驗證必要欄位
+                        if (!memberId || !name) {
+                            errors.push(`第${i}行: 會員編號和姓名為必填欄位`);
+                            errorCount++;
+                            continue;
+                        }
+                        
+                        const memberData = {
+                            id: memberId.trim(),
+                            name: name.trim(),
+                            phone: phone ? phone.trim() : '',
+                            email: email ? email.trim() : '',
+                            birthday: birthday ? birthday.trim() : '',
+                            level: level ? level.trim() : '一般',
+                            points: parseInt(points) || 0,
+                            status: status ? status.trim() : 'active',
+                            address: address ? address.trim() : '',
+                            notes: notes ? notes.trim() : ''
+                        };
+                        
+                        // 檢查是否為更新模式且會員已存在
+                        let existingMember = existingMembers.find(m => m.id === memberId.trim());
+                        
+                        if (importMode === 'add' && existingMember) {
+                            errors.push(`第${i}行: 會員編號 ${memberId} 已存在`);
+                            errorCount++;
+                        } else if (importMode === 'update' && existingMember) {
+                            // 更新現有會員
+                            console.log(`更新會員: ${name} (編號: ${memberId})`);
+                            const updated = await BusinessAPI.updateMember(existingMember.id, memberData);
+                            if (updated) {
+                                successCount++;
+                                console.log(`會員更新成功: ${name}`);
+                            } else {
+                                errors.push(`第${i}行: 更新會員失敗 - ${name}`);
+                                errorCount++;
+                            }
+                        } else {
+                            // 新增會員
+                            console.log(`新增會員: ${name} (編號: ${memberId})`);
+                            console.log('會員資料:', memberData);
+                            
+                            const added = await BusinessAPI.addMember(memberData);
+                            console.log('新增結果:', added);
+                            
+                            if (added) {
+                                successCount++;
+                                console.log(`會員新增成功: ${name}, ID: ${added}`);
+                                // 更新現有會員列表以避免重複檢查
+                                existingMembers.push({ ...memberData, id: memberId });
+                            } else {
+                                errors.push(`第${i}行: 新增會員失敗 - ${name} (請檢查控制台日誌)`);
+                                errorCount++;
+                            }
+                        }
+                        
+                        updateProgress(30 + (i / memberParsedData.length) * 60, `處理第 ${i}/${memberParsedData.length - 1} 筆會員資料...`);
+                    } catch (error) {
+                        console.error(`處理會員第${i}行時發生錯誤:`, error);
+                        errors.push(`第${i}行: ${error.message || '未知錯誤'}`);
+                        errorCount++;
+                    }
+                }
+                
+                updateProgress(100, '會員匯入完成');
+                
+                setTimeout(() => {
+                    hideProgressArea();
+                    showResult(successCount, errorCount, errors);
+                }, 1000);
+                
+            } catch (error) {
+                console.error('會員匯入過程中發生錯誤:', error);
+                hideProgressArea();
+                showMessage('會員匯入過程中發生錯誤: ' + error.message, 'error');
+            }
+        }
+
         // 取消匯入
         function cancelImport() {
             console.log('❌ 用戶取消匯入');
             hideAreas(['previewArea']);
-            // 不調用 clearFile()，保留 parsedData 以便重新匯入
+            // 不調用 clearFile()，保留 parsedData 和 memberParsedData 以便重新匯入
             document.getElementById('previewArea').classList.add('hidden');
         }
 
@@ -1359,16 +1562,21 @@
 
         // 清除會員檔案
         function clearMemberFile() {
+            console.log('🗑️ 清除會員檔案和解析資料');
+            memberSelectedFile = null;
+            memberParsedData = null;
             document.getElementById('memberFileInput').value = '';
             document.getElementById('memberFileInfo').classList.add('hidden');
             document.getElementById('memberImportBtn').disabled = true;
             document.getElementById('memberImportBtn').className = 'w-full bg-gray-400 text-white py-3 px-4 rounded-lg font-medium cursor-not-allowed';
+            hideAreas(['previewArea', 'progressArea', 'resultArea']);
         }
 
         // 會員檔案處理
         document.getElementById('memberFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                memberSelectedFile = file;
                 document.getElementById('memberFileName').textContent = file.name;
                 document.getElementById('memberFileSize').textContent = formatFileSize(file.size);
                 document.getElementById('memberFileInfo').classList.remove('hidden');
@@ -1508,16 +1716,48 @@
                 return;
             }
             
+            memberSelectedFile = file;
+            showProgressArea();
+            updateProgress(10, '讀取會員檔案中...');
+            
             const reader = new FileReader();
             reader.onload = function(e) {
-                const content = e.target.result;
-                const lines = content.split('\n');
-                const data = lines.map(line => line.split(',').map(field => field.replace(/"/g, '')));
-                
-                // 顯示預覽
-                showMemberPreview(data);
+                try {
+                    const data = e.target.result;
+                    updateProgress(30, '解析會員資料中...');
+                    
+                    setTimeout(() => {
+                        if (memberSelectedFile.name.toLowerCase().includes('.csv')) {
+                            memberParsedData = parseCSV(data);
+                        } else {
+                            memberParsedData = parseCSV(data);
+                        }
+                        
+                        console.log('👥 會員資料解析完成，memberParsedData已更新:', memberParsedData);
+                        
+                        updateProgress(60, '驗證會員資料中...');
+                        
+                        setTimeout(() => {
+                            if (validateMemberData(memberParsedData)) {
+                                updateProgress(80, '準備會員預覽...');
+                                setTimeout(() => {
+                                    showMemberPreview(memberParsedData);
+                                    hideProgressArea();
+                                    console.log('👥 會員預覽已顯示，memberParsedData準備就緒');
+                                }, 1000);
+                            } else {
+                                hideProgressArea();
+                                showMessage('會員資料格式錯誤，請檢查檔案內容', 'error');
+                            }
+                        }, 1000);
+                    }, 1000);
+                } catch (error) {
+                    hideProgressArea();
+                    showMessage('會員檔案讀取失敗: ' + error.message, 'error');
+                }
             };
-            reader.readAsText(file);
+            
+            reader.readAsText(file, 'UTF-8');
         }
 
         // 顯示會員預覽
