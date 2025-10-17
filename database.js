@@ -183,20 +183,35 @@ class BusinessAPI {
     
     static async addProduct(productData) {
         console.log('BusinessAPI.addProduct 被調用，資料:', productData);
-        // 嘗試帶 image_url 新增；若後端無該欄位，移除後重試
-        let result = await DatabaseAPI.insertData('products', productData);
-        if (!result && Object.prototype.hasOwnProperty.call(productData, 'image_url')) {
-            try {
-                const fallbackData = { ...productData };
-                delete fallbackData.image_url;
-                console.warn('products 表可能沒有 image_url 欄位，嘗試不帶 image_url 重新新增');
-                result = await DatabaseAPI.insertData('products', fallbackData);
-            } catch (e) {
-                console.error('fallback 新增商品失敗:', e);
+        try {
+            // 嘗試帶 image_url 新增；若後端無該欄位，移除後重試
+            let result = await DatabaseAPI.insertData('products', productData);
+            if (!result && Object.prototype.hasOwnProperty.call(productData, 'image_url')) {
+                try {
+                    const fallbackData = { ...productData };
+                    delete fallbackData.image_url;
+                    console.warn('products 表可能沒有 image_url 欄位，嘗試不帶 image_url 重新新增');
+                    result = await DatabaseAPI.insertData('products', fallbackData);
+                } catch (e) {
+                    console.error('fallback 新增商品失敗:', e);
+                }
             }
+            
+            console.log('BusinessAPI.addProduct 結果:', result);
+            
+            // 如果成功，返回新商品的ID；如果失敗，返回false
+            if (result && Array.isArray(result) && result.length > 0) {
+                return result[0].id; // 返回新商品的ID
+            } else if (result && result.id) {
+                return result.id; // 如果返回的是單個物件
+            } else {
+                console.error('新增商品失敗，未返回有效的ID');
+                return false;
+            }
+        } catch (error) {
+            console.error('BusinessAPI.addProduct 發生錯誤:', error);
+            return false;
         }
-        console.log('BusinessAPI.addProduct 結果:', result);
-        return result;
     }
     
     static async updateProduct(id, productData) {
